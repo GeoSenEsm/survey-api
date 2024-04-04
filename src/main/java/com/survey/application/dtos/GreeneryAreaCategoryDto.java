@@ -13,6 +13,6 @@ public class GreeneryAreaCategoryDto {
     @NotEmpty
     private Integer id;
     private String display;
-    private String rowVersion;
+    private Long rowVersion;
 
 }
