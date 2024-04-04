@@ -1,11 +1,9 @@
 package com.survey.api.controllers;
 
-import com.survey.application.dtos.GreeneryDto;
+import com.survey.application.dtos.GreeneryAreaCategoryDto;
 import com.survey.application.services.GreeneryAreaCategoryService;
 import com.survey.domain.models.GreeneryAreaCategory;
-import com.survey.domain.repository.GreeneryAreaCategoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,7 +19,7 @@ public class GreeneryAreaCategoryController {
     }
 
     @GetMapping
-    public List<GreeneryAreaCategory> getAllGreeneryAreaCategories() {
+    public List<GreeneryAreaCategoryDto> getAllGreeneryAreaCategories() {
         return greeneryAreaCategoryService.getAllGreeneryAreaCategories();
     }
 

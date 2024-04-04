@@ -3,6 +3,7 @@ package com.survey.api.configuration;
 import lombok.Getter;
 import lombok.Setter;
 import org.flywaydb.core.Flyway;
+import org.modelmapper.ModelMapper;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
@@ -34,5 +35,10 @@ public class AppConfig {
                 .dataSource(ds)
                 .locations("classpath:db/migration")
                 .load();
+    }
+
+    @Bean
+    public ModelMapper modelMapper() {
+        return new ModelMapper();
     }
 }
