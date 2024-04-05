@@ -1,0 +1,1 @@
+DROP TABLE occupation_category;
