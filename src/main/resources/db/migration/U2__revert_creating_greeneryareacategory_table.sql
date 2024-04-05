@@ -1,0 +1,1 @@
+DROP TABLE greenery_area_category;

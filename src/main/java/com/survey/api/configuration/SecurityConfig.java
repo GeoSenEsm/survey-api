@@ -44,6 +44,7 @@ public class SecurityConfig {
                    r.requestMatchers(HttpMethod.POST,
                                    "/api/authentication/login")
                            .permitAll();
+                   r.requestMatchers(HttpMethod.GET, "/api/greeneryareacategories").permitAll();
                 })
                 .httpBasic(Customizer.withDefaults());
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
