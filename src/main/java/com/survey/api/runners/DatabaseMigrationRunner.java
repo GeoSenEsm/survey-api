@@ -1,16 +1,15 @@
 package com.survey.api.runners;
 
-import com.survey.application.dtos.GreeneryAreaCategoryDto;
+import com.survey.domain.models.AgeCategory;
 import com.survey.domain.models.GreeneryAreaCategory;
 import com.survey.domain.models.IdentityUser;
+import com.survey.domain.repository.AgeCategoryRepository;
 import com.survey.domain.repository.GreeneryAreaCategoryRepository;
 import com.survey.domain.repository.IdentityUserRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.flywaydb.core.Flyway;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -23,25 +22,38 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     private Flyway flyway;
 
     @Autowired
-    private GreeneryAreaCategoryRepository repository;
+    private GreeneryAreaCategoryRepository greeneryAreaRepository;
+    @Autowired
+    private AgeCategoryRepository ageCategoryRepository;
     @Autowired
     private IdentityUserRepository identityUserRepository;
     @Autowired
     private PasswordEncoder passwordEncoder;
     private static final List<String> GREENERY_AREA_CATEGORY_NAMES = Arrays.asList("low-density", "medium-density", "high-density");
 
+    private static final List<String> AGE_CATEGORY_NAMES = Arrays.asList("50-59", "60-69", "70+");
+
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
         flyway.migrate();
         migrateGreeneryAreaCategories();
+        migrateAgeCategories();
         addAdmin();
 
     }
     private void migrateGreeneryAreaCategories() {
         GREENERY_AREA_CATEGORY_NAMES.forEach(categoryName -> {
-            if (!repository.existsByDisplay(categoryName)) {
-                repository.save(new GreeneryAreaCategory(categoryName));
+            if (!greeneryAreaRepository.existsByDisplay(categoryName)) {
+                greeneryAreaRepository.save(new GreeneryAreaCategory(categoryName));
+            }
+        });
+    }
+
+    private void migrateAgeCategories(){
+        AGE_CATEGORY_NAMES.forEach(categoryName -> {
+            if (!ageCategoryRepository.existsByDisplay(categoryName)){
+                ageCategoryRepository.save(new AgeCategory(categoryName));
             }
         });
     }
