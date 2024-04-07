@@ -1,11 +1,11 @@
 package com.survey.api.runners;
 
-import com.survey.domain.models.AgeCategory;
 import com.survey.domain.models.GreeneryAreaCategory;
 import com.survey.domain.models.IdentityUser;
-import com.survey.domain.repository.AgeCategoryRepository;
+import com.survey.domain.models.OccupationCategory;
 import com.survey.domain.repository.GreeneryAreaCategoryRepository;
 import com.survey.domain.repository.IdentityUserRepository;
+import com.survey.domain.repository.OccupationCategoryRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.flywaydb.core.Flyway;
@@ -13,8 +13,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Component
 public class DatabaseMigrationRunner implements ApplicationRunner {
@@ -22,41 +25,39 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     private Flyway flyway;
 
     @Autowired
-    private GreeneryAreaCategoryRepository greeneryAreaRepository;
-    @Autowired
-    private AgeCategoryRepository ageCategoryRepository;
+    private GreeneryAreaCategoryRepository greeneryAreaCategoryRepository;
     @Autowired
     private IdentityUserRepository identityUserRepository;
     @Autowired
+    private OccupationCategoryRepository occupationCategoryRepository;
+    @Autowired
     private PasswordEncoder passwordEncoder;
-    private static final List<String> GREENERY_AREA_CATEGORY_NAMES = Arrays.asList("low-density", "medium-density", "high-density");
-
-    private static final List<String> AGE_CATEGORY_NAMES = Arrays.asList("50-59", "60-69", "70+");
-
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
         flyway.migrate();
-        migrateGreeneryAreaCategories();
-        migrateAgeCategories();
+        addGreeneryAreaCategories();
+        addOccupationCategories();
         addAdmin();
+    }
+    private void addGreeneryAreaCategories() {
+        if (greeneryAreaCategoryRepository.count() == 0){
+            List<GreeneryAreaCategory> occupationCategories = Stream.of("low-density", "medium-density", "high-density")
+                    .map(GreeneryAreaCategory::new)
+                    .collect(Collectors.toList());
+            greeneryAreaCategoryRepository.saveAll(occupationCategories);
+        }
+    }
 
-    }
-    private void migrateGreeneryAreaCategories() {
-        GREENERY_AREA_CATEGORY_NAMES.forEach(categoryName -> {
-            if (!greeneryAreaRepository.existsByDisplay(categoryName)) {
-                greeneryAreaRepository.save(new GreeneryAreaCategory(categoryName));
-            }
-        });
+    private void addOccupationCategories(){
+        if (occupationCategoryRepository.count() == 0){
+            List<OccupationCategory> occupationCategories = Stream.of("employed", "unemployed")
+                    .map(OccupationCategory::new)
+                    .collect(Collectors.toList());
+            occupationCategoryRepository.saveAll(occupationCategories);
+        }
     }
 
-    private void migrateAgeCategories(){
-        AGE_CATEGORY_NAMES.forEach(categoryName -> {
-            if (!ageCategoryRepository.existsByDisplay(categoryName)){
-                ageCategoryRepository.save(new AgeCategory(categoryName));
-            }
-        });
-    }
     private void addAdmin() {
         if (identityUserRepository.count() == 0) {
             IdentityUser identityUser = new IdentityUser();
