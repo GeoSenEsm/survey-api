@@ -2,9 +2,11 @@ package com.survey.api.runners;
 
 import com.survey.domain.models.GreeneryAreaCategory;
 import com.survey.domain.models.IdentityUser;
+import com.survey.domain.models.LifeSatisfaction;
 import com.survey.domain.models.OccupationCategory;
 import com.survey.domain.repository.GreeneryAreaCategoryRepository;
 import com.survey.domain.repository.IdentityUserRepository;
+import com.survey.domain.repository.LifeSatisfactionRepository;
 import com.survey.domain.repository.OccupationCategoryRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -32,12 +34,15 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     private OccupationCategoryRepository occupationCategoryRepository;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private LifeSatisfactionRepository lifeSatisfactionRepository;
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
         flyway.migrate();
         addGreeneryAreaCategories();
         addOccupationCategories();
+        addLifeSatisfaction();
         addAdmin();
     }
     private void addGreeneryAreaCategories() {
@@ -55,6 +60,14 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
                     .map(OccupationCategory::new)
                     .collect(Collectors.toList());
             occupationCategoryRepository.saveAll(occupationCategories);
+        }
+    }
+    private void addLifeSatisfaction(){
+        if (lifeSatisfactionRepository.count() == 0){
+            List<LifeSatisfaction> lifeSatisfactions = Stream.of("low", "medium", "high")
+                    .map(LifeSatisfaction::new)
+                    .collect(Collectors.toList());
+            lifeSatisfactionRepository.saveAll(lifeSatisfactions);
         }
     }
 
