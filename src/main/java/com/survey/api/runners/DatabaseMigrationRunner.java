@@ -1,8 +1,10 @@
 package com.survey.api.runners;
 
+import com.survey.domain.models.AgeCategory;
 import com.survey.domain.models.GreeneryAreaCategory;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.OccupationCategory;
+import com.survey.domain.repository.AgeCategoryRepository;
 import com.survey.domain.repository.GreeneryAreaCategoryRepository;
 import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.OccupationCategoryRepository;
@@ -31,6 +33,8 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     @Autowired
     private OccupationCategoryRepository occupationCategoryRepository;
     @Autowired
+    private AgeCategoryRepository ageCategoryRepository;
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Override
@@ -38,6 +42,7 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
         flyway.migrate();
         addGreeneryAreaCategories();
         addOccupationCategories();
+        addAgeCategories();
         addAdmin();
     }
     private void addGreeneryAreaCategories() {
@@ -55,6 +60,15 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
                     .map(OccupationCategory::new)
                     .collect(Collectors.toList());
             occupationCategoryRepository.saveAll(occupationCategories);
+        }
+    }
+
+    private void addAgeCategories(){
+        if (ageCategoryRepository.count() == 0){
+            List<AgeCategory> ageCategories = Stream.of("50-59", "60-69", "70+")
+                    .map(AgeCategory::new)
+                    .collect(Collectors.toList());
+            ageCategoryRepository.saveAll(ageCategories);
         }
     }
 
