@@ -1,15 +1,7 @@
 package com.survey.api.runners;
 
-import com.survey.domain.models.AgeCategory;
-import com.survey.domain.models.GreeneryAreaCategory;
-import com.survey.domain.models.IdentityUser;
-import com.survey.domain.models.LifeSatisfaction;
-import com.survey.domain.models.OccupationCategory;
-import com.survey.domain.repository.AgeCategoryRepository;
-import com.survey.domain.repository.GreeneryAreaCategoryRepository;
-import com.survey.domain.repository.IdentityUserRepository;
-import com.survey.domain.repository.LifeSatisfactionRepository;
-import com.survey.domain.repository.OccupationCategoryRepository;
+import com.survey.domain.models.*;
+import com.survey.domain.repository.*;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.flywaydb.core.Flyway;
@@ -17,8 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import java.lang.reflect.Array;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -37,6 +27,8 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     @Autowired
     private AgeCategoryRepository ageCategoryRepository;
     @Autowired
+    private StressLevelRepository stressLevelRepository;
+    @Autowired
     private PasswordEncoder passwordEncoder;
     @Autowired
     private LifeSatisfactionRepository lifeSatisfactionRepository;
@@ -48,6 +40,7 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
         addOccupationCategories();
         addLifeSatisfaction();
         addAgeCategories();
+        addStressLevels();
         addAdmin();
     }
     private void addGreeneryAreaCategories() {
@@ -82,6 +75,15 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
                     .map(AgeCategory::new)
                     .collect(Collectors.toList());
             ageCategoryRepository.saveAll(ageCategories);
+        }
+    }
+
+    private void addStressLevels(){
+        if (stressLevelRepository.count() == 0){
+            List<StressLevel> stressLevels = Stream.of("low", "medium", "high")
+                    .map(StressLevel::new)
+                    .collect(Collectors.toList());
+            stressLevelRepository.saveAll(stressLevels);
         }
     }
 
