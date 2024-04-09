@@ -18,7 +18,6 @@ public class GreeneryAreaCategory {
     @GeneratedValue(strategy =  GenerationType.IDENTITY)
     private Integer id;
     private String display;
-    @UpdateTimestamp
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;
 
