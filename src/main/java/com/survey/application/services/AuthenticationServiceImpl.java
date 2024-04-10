@@ -1,7 +1,7 @@
 package com.survey.application.services;
 
 import com.survey.api.security.TokenProvider;
-import com.survey.application.dtos.LoginDto;;
+import com.survey.application.dtos.LoginDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
