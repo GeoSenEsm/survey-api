@@ -33,18 +33,17 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception{
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .exceptionHandling(e ->{
-                    e.authenticationEntryPoint(authEntryPoint)
-                    ;
+                .exceptionHandling(e -> {
+                    e.authenticationEntryPoint(authEntryPoint);
                 })
                 .authorizeHttpRequests(r -> {
-                   r.requestMatchers(HttpMethod.POST,
-                                   "/api/authentication/login")
-                           .permitAll();
-                   r.requestMatchers(HttpMethod.GET, "/api/greeneryareacategories").permitAll();
+                    r.requestMatchers(HttpMethod.POST,
+                            "/api/authentication/login")
+                            .permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/greeneryareacategories").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/occupationcategories").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/lifesatisfaction").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/agecategories").permitAll();
@@ -57,17 +56,17 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
-    throws Exception{
+            throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder(){
+    public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
     @Bean
-    public Filter jwtAuthenticationFilter(){
+    public Filter jwtAuthenticationFilter() {
         return new JwtAuthenticationFilter();
     }
 }
