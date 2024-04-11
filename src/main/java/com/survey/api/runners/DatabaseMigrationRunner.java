@@ -32,6 +32,8 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     private PasswordEncoder passwordEncoder;
     @Autowired
     private LifeSatisfactionRepository lifeSatisfactionRepository;
+    @Autowired
+    private HealthConditionRepository healthConditionRepository;
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -42,6 +44,7 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
         addAgeCategories();
         addStressLevels();
         addAdmin();
+        addHealthConditions();
     }
     private void addGreeneryAreaCategories() {
         if (greeneryAreaCategoryRepository.count() == 0){
@@ -94,6 +97,15 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
             identityUser.setRole("Admin");
             identityUser.setPasswordHash(passwordEncoder.encode("qwerty"));
             identityUserRepository.save(identityUser);
+        }
+    }
+
+    private void addHealthConditions() {
+        if (healthConditionRepository.count() == 0) {
+            List<HealthCondition> healthConditions = Stream.of("low", "medium", "high")
+                    .map(HealthCondition::new)
+                    .toList();
+            healthConditionRepository.saveAll(healthConditions);
         }
     }
 }
