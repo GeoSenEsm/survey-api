@@ -34,6 +34,8 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     private LifeSatisfactionRepository lifeSatisfactionRepository;
     @Autowired
     private HealthConditionRepository healthConditionRepository;
+    @Autowired
+    private EducationCategoryRepository educationCategoryRepository;
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -45,6 +47,7 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
         addStressLevels();
         addAdmin();
         addHealthConditions();
+        addEducationCategories();
     }
     private void addGreeneryAreaCategories() {
         if (greeneryAreaCategoryRepository.count() == 0){
@@ -106,6 +109,16 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
                     .map(HealthCondition::new)
                     .toList();
             healthConditionRepository.saveAll(healthConditions);
+        }
+    }
+
+    private void addEducationCategories() {
+        if (educationCategoryRepository.count() == 0) {
+            List<EducationCategory> educationCategories = Stream.of("primary education", "secondary education",
+                            "undergraduate education", "graduate education")
+                    .map(EducationCategory::new)
+                    .toList();
+            educationCategoryRepository.saveAll(educationCategories);
         }
     }
 }
