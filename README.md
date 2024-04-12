@@ -1,0 +1,1 @@
+For dev environments only - put credentials into the application-dev.properties

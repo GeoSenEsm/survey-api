@@ -1,4 +1,5 @@
 package com.survey.domain.models;
+
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -6,15 +7,15 @@ import lombok.NoArgsConstructor;
 @Entity
 @Data
 @NoArgsConstructor
-public class GreeneryAreaCategory {
+public class HealthCondition {
     @Id
-    @GeneratedValue(strategy =  GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     private String display;
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;
 
-    public GreeneryAreaCategory(String display) {
+    public HealthCondition(String display) {
         this.display = display;
     }
 }
