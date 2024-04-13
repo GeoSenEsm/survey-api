@@ -1,0 +1,1 @@
+DROP TABLE quality_of_sleep;
