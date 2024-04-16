@@ -1,5 +1,6 @@
 package com.survey.api.runners;
 
+import com.survey.application.services.MedicationUseService;
 import com.survey.domain.models.*;
 import com.survey.domain.repository.*;
 import org.springframework.boot.ApplicationArguments;
@@ -38,6 +39,8 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     private EducationCategoryRepository educationCategoryRepository;
     @Autowired
     private QualityOfSleepRepository qualityOfSleepRepository;
+    @Autowired
+    private MedicationUseRepository medicationUseRepository;
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -51,6 +54,7 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
         addHealthConditions();
         addEducationCategories();
         addQualityOfSleep();
+        addMedicationUse();
     }
     private void addGreeneryAreaCategories() {
         if (greeneryAreaCategoryRepository.count() == 0){
@@ -128,6 +132,12 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
         if (qualityOfSleepRepository.count() == 0) {
             List<QualityOfSleep> qualityOfSleep = Stream.of("low", "medium", "high").map(QualityOfSleep::new).toList();
             qualityOfSleepRepository.saveAll(qualityOfSleep);
+        }
+    }
+    private void addMedicationUse() {
+        if (medicationUseRepository.count() == 0) {
+            List<MedicationUse> medicationUses = Stream.of("yes", "no").map(MedicationUse::new).toList();
+            medicationUseRepository.saveAll(medicationUses);
         }
     }
 }

@@ -50,6 +50,7 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.GET, "/api/healthconditions").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/educationcategories").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/qualityofsleep").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/medicationuse").permitAll();
                 })
                 .httpBasic(Customizer.withDefaults());
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
