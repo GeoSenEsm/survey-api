@@ -5,11 +5,12 @@ import lombok.Getter;
 import lombok.Setter;
 
 
+
 @Getter
 @Setter
 public class RespondentDataDto {
     @NotNull
-    private Integer genderId;
+    private String gender;
     @NotNull
     private Integer ageCategoryId;
     @NotNull

@@ -24,7 +24,7 @@ public class RespondentDataController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createRespondentData(@Validated @RequestBody RespondentDataDto dto) {
+    public ResponseEntity<String> createRespondent(@Validated @RequestBody RespondentDataDto dto) {
             return respondentDataService.createRespondent(dto);
     }
 }

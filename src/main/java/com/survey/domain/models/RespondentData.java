@@ -16,8 +16,7 @@ public class RespondentData {
     //private UUID identityUserId;
 
 
-    private Integer genderId;
-
+    private Integer gender;
     private Integer ageCategoryId;
     private Integer occupationCategoryId;
     private Integer educationCategoryId;

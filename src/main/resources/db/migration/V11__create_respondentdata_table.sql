@@ -1,6 +1,6 @@
 CREATE TABLE respondent_data (
     id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    gender_id INT,
+    gender INT,
     age_category_id INT,
     occupation_category_id INT,
     education_category_id INT,
@@ -9,4 +9,12 @@ CREATE TABLE respondent_data (
     life_satisfaction_id INT,
     stress_level_id INT,
     quality_of_sleep_id INT,
+    FOREIGN KEY (age_category_id) REFERENCES age_category(id),
+    FOREIGN KEY (occupation_category_id) REFERENCES occupation_category(id),
+    FOREIGN KEY (education_category_id) REFERENCES education_category(id),
+    FOREIGN KEY (health_condition_id) REFERENCES health_condition(id),
+    FOREIGN KEY (medication_use_id) REFERENCES medication_use(id),
+    FOREIGN KEY (life_satisfaction_id) REFERENCES life_satisfaction(id),
+    FOREIGN KEY (stress_level_id) REFERENCES stress_level(id),
+    FOREIGN KEY (quality_of_sleep_id) REFERENCES quality_of_sleep(id),
 );
