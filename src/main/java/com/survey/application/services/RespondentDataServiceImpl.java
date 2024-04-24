@@ -2,14 +2,22 @@ package com.survey.application.services;
 
 import com.survey.application.dtos.RespondentDataDto;
 import com.survey.domain.models.Gender;
+import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.RespondentData;
 import com.survey.domain.repository.*;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,6 +25,8 @@ import java.util.Map;
 public class RespondentDataServiceImpl implements RespondentDataService{
     private final RespondentDataRepository respondentDataRepository;
     private final Map<String, JpaRepository<?, Integer>> repositoryMap;
+    @Autowired
+    private HttpServletRequest request;
 
     @Autowired
     public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, AgeCategoryRepository ageCategoryRepository, OccupationCategoryRepository occupationCategoryRepository, EducationCategoryRepository educationCategoryRepository, HealthConditionRepository healthConditionRepository, MedicationUseRepository medicationUseRepository, LifeSatisfactionRepository lifeSatisfactionRepository, StressLevelRepository stressLevelRepository, QualityOfSleepRepository qualityOfSleepRepository) {
@@ -50,6 +60,15 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         return gender.equals("male") || gender.equals("female");
     }
 
+    private String getCurrentUserToken() {
+        String token = request.getHeader("Authorization");
+        if (token != null && token.startsWith("Bearer ")) {
+            return token.substring(7); // Extract the token part without "Bearer "
+        }
+        return null;
+    }
+
+
     @Override
     public ResponseEntity<String> createRespondent(RespondentDataDto dto) {
         if (dto.getGender() == null || !isValidGender(dto.getGender())) {
@@ -65,6 +84,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
             }
         }
 
+
         RespondentData respondentData = new RespondentData();
         respondentData.setGender(Gender.valueOf(dto.getGender()).getId());
         respondentData.setAgeCategoryId(dto.getAgeCategoryId());
@@ -77,6 +97,15 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         respondentData.setQualityOfSleepId(dto.getQualityOfSleepId());
         respondentDataRepository.save(respondentData);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body("Respondent created successfully.");
+        String currentUserName = "";
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (!(authentication instanceof AnonymousAuthenticationToken)) {
+            currentUserName = authentication.getName();
+        }else{
+            currentUserName = "no user";
+        }
+
+
+        return ResponseEntity.status(HttpStatus.CREATED).body("Respondent created successfully. : " + currentUserName);
     }
 }
