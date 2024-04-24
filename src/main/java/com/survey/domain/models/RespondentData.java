@@ -13,9 +13,7 @@ public class RespondentData {
     @Id
     @GeneratedValue(strategy =  GenerationType.UUID)
     private UUID id;
-    //private UUID identityUserId;
-
-
+    private UUID identityUserId;
     private Integer gender;
     private Integer ageCategoryId;
     private Integer occupationCategoryId;
