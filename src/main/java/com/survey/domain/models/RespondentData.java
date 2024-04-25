@@ -23,5 +23,6 @@ public class RespondentData {
     private Integer lifeSatisfactionId;
     private Integer stressLevelId;
     private Integer qualityOfSleepId;
+    private Integer greeneryAreaCategoryId;
 }
 

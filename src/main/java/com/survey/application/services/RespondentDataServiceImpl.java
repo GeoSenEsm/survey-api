@@ -1,5 +1,6 @@
 package com.survey.application.services;
 
+import com.survey.api.security.TokenProvider;
 import com.survey.application.dtos.RespondentDataDto;
 import com.survey.domain.models.Gender;
 import com.survey.domain.models.IdentityUser;
@@ -22,10 +23,12 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     private final Map<String, JpaRepository<?, Integer>> repositoryMap;
     @Autowired
     private IdentityUserRepository identityUserRepository;
+    private final TokenProvider tokenProvider;
 
     @Autowired
-    public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, AgeCategoryRepository ageCategoryRepository, OccupationCategoryRepository occupationCategoryRepository, EducationCategoryRepository educationCategoryRepository, HealthConditionRepository healthConditionRepository, MedicationUseRepository medicationUseRepository, LifeSatisfactionRepository lifeSatisfactionRepository, StressLevelRepository stressLevelRepository, QualityOfSleepRepository qualityOfSleepRepository) {
+    public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, AgeCategoryRepository ageCategoryRepository, OccupationCategoryRepository occupationCategoryRepository, EducationCategoryRepository educationCategoryRepository, HealthConditionRepository healthConditionRepository, MedicationUseRepository medicationUseRepository, LifeSatisfactionRepository lifeSatisfactionRepository, StressLevelRepository stressLevelRepository, QualityOfSleepRepository qualityOfSleepRepository, GreeneryAreaCategoryRepository greeneryAreaCategoryRepository, TokenProvider tokenProvider) {
         this.respondentDataRepository = respondentDataRepository;
+        this.tokenProvider = tokenProvider;
         this.repositoryMap = new HashMap<>();
         repositoryMap.put("ageCategory", ageCategoryRepository);
         repositoryMap.put("occupationCategory", occupationCategoryRepository);
@@ -35,6 +38,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         repositoryMap.put("lifeSatisfaction", lifeSatisfactionRepository);
         repositoryMap.put("stressLevel", stressLevelRepository);
         repositoryMap.put("qualityOfSleep", qualityOfSleepRepository);
+        repositoryMap.put("greeneryAreaCategory", greeneryAreaCategoryRepository);
     }
 
     private Integer getIdByFieldName(RespondentDataDto dto, String fieldName) {
@@ -47,6 +51,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
             case "lifeSatisfaction" -> dto.getLifeSatisfactionId();
             case "stressLevel" -> dto.getStressLevelId();
             case "qualityOfSleep" -> dto.getQualityOfSleepId();
+            case "greeneryAreaCategory" -> dto.getGreeneryAreaCategoryId();
             default -> null;
         };
     }
@@ -66,13 +71,11 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
 
     @Override
-    public ResponseEntity<String> createRespondent(RespondentDataDto dto) {
-        String currentUserUsername = dto.getUsername();
-        UUID currentUserUUID = getUserUUID(currentUserUsername);
+    public ResponseEntity<String> createRespondent(RespondentDataDto dto, String token) {
+        tokenProvider.validateToken(token);
 
-        if (currentUserUUID == null){
-            return ResponseEntity.badRequest().body("No user with username: " + currentUserUsername);
-        }
+        String usernameFromJwt = tokenProvider.getUsernameFromJwt(token);
+        UUID currentUserUUID = getUserUUID(usernameFromJwt);
 
         if (doesRespondentDataExist(currentUserUUID)) {
             return ResponseEntity.badRequest().body("Respondent data record already exists for this user.");
@@ -102,7 +105,9 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         respondentData.setLifeSatisfactionId(dto.getLifeSatisfactionId());
         respondentData.setStressLevelId(dto.getStressLevelId());
         respondentData.setQualityOfSleepId(dto.getQualityOfSleepId());
+        respondentData.setGreeneryAreaCategoryId(dto.getGreeneryAreaCategoryId());
         respondentDataRepository.save(respondentData);
+
 
         return ResponseEntity.status(HttpStatus.CREATED).body("Respondent data created successfully.");
     }

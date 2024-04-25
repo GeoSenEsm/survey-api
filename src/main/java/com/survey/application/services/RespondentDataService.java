@@ -4,5 +4,5 @@ import com.survey.application.dtos.RespondentDataDto;
 import org.springframework.http.ResponseEntity;
 
 public interface RespondentDataService {
-    ResponseEntity<String> createRespondent(RespondentDataDto dto);
+    ResponseEntity<String> createRespondent(RespondentDataDto dto, String token);
 }

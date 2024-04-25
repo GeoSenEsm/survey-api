@@ -10,6 +10,7 @@ CREATE TABLE respondent_data (
     life_satisfaction_id INT,
     stress_level_id INT,
     quality_of_sleep_id INT,
+    greenery_area_category_id INT,
     FOREIGN KEY (identity_user_id) REFERENCES identity_user(id),
     FOREIGN KEY (age_category_id) REFERENCES age_category(id),
     FOREIGN KEY (occupation_category_id) REFERENCES occupation_category(id),
@@ -19,4 +20,5 @@ CREATE TABLE respondent_data (
     FOREIGN KEY (life_satisfaction_id) REFERENCES life_satisfaction(id),
     FOREIGN KEY (stress_level_id) REFERENCES stress_level(id),
     FOREIGN KEY (quality_of_sleep_id) REFERENCES quality_of_sleep(id),
+    FOREIGN KEY (greenery_area_category_id) REFERENCES greenery_area_category(id),
 );
