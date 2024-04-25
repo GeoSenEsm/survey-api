@@ -1,24 +1,16 @@
 package com.survey.application.services;
 
-import com.survey.api.controllers.AuthenticationController;
 import com.survey.application.dtos.RespondentDataDto;
 import com.survey.domain.models.Gender;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.RespondentData;
 import com.survey.domain.repository.*;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 
-import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -29,12 +21,10 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     private final RespondentDataRepository respondentDataRepository;
     private final Map<String, JpaRepository<?, Integer>> repositoryMap;
     @Autowired
-    private final UserDetailsServiceImpl userDetailsService;
-    @Autowired
     private IdentityUserRepository identityUserRepository;
 
     @Autowired
-    public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, AgeCategoryRepository ageCategoryRepository, OccupationCategoryRepository occupationCategoryRepository, EducationCategoryRepository educationCategoryRepository, HealthConditionRepository healthConditionRepository, MedicationUseRepository medicationUseRepository, LifeSatisfactionRepository lifeSatisfactionRepository, StressLevelRepository stressLevelRepository, QualityOfSleepRepository qualityOfSleepRepository, UserDetailsServiceImpl userDetailsService) {
+    public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, AgeCategoryRepository ageCategoryRepository, OccupationCategoryRepository occupationCategoryRepository, EducationCategoryRepository educationCategoryRepository, HealthConditionRepository healthConditionRepository, MedicationUseRepository medicationUseRepository, LifeSatisfactionRepository lifeSatisfactionRepository, StressLevelRepository stressLevelRepository, QualityOfSleepRepository qualityOfSleepRepository) {
         this.respondentDataRepository = respondentDataRepository;
         this.repositoryMap = new HashMap<>();
         repositoryMap.put("ageCategory", ageCategoryRepository);
@@ -45,7 +35,6 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         repositoryMap.put("lifeSatisfaction", lifeSatisfactionRepository);
         repositoryMap.put("stressLevel", stressLevelRepository);
         repositoryMap.put("qualityOfSleep", qualityOfSleepRepository);
-        this.userDetailsService = userDetailsService;
     }
 
     private Integer getIdByFieldName(RespondentDataDto dto, String fieldName) {
@@ -78,10 +67,12 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
     @Override
     public ResponseEntity<String> createRespondent(RespondentDataDto dto) {
+        String currentUserUsername = dto.getUsername();
+        UUID currentUserUUID = getUserUUID(currentUserUsername);
 
-        String currentUsername = userDetailsService.getCurrentUsername();
-
-        UUID currentUserUUID = getUserUUID("Admin");
+        if (currentUserUUID == null){
+            return ResponseEntity.badRequest().body("No user with username: " + currentUserUsername);
+        }
 
         if (doesRespondentDataExist(currentUserUUID)) {
             return ResponseEntity.badRequest().body("Respondent data record already exists for this user.");
@@ -113,6 +104,6 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         respondentData.setQualityOfSleepId(dto.getQualityOfSleepId());
         respondentDataRepository.save(respondentData);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body("Respondent created successfully. : " + currentUsername);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Respondent data created successfully.");
     }
 }

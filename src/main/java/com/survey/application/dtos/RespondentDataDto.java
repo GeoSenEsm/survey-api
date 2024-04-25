@@ -10,6 +10,8 @@ import lombok.Setter;
 @Setter
 public class RespondentDataDto {
     @NotNull
+    private String username;
+    @NotNull
     private String gender;
     @NotNull
     private Integer ageCategoryId;
