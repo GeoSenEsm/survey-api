@@ -5,17 +5,13 @@ import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.UUID;
+
 
 @Getter
 @Setter
-public class RespondentDataDto {
-    @NotNull
-    private UUID id;
-    @NotNull
-    private UUID identityUserId;
+public class CreateRespondentDataDto {
     @Pattern(regexp = "^male|female$")
-    private int gender;
+    private String gender;
     @NotNull
     private Integer ageCategoryId;
     @NotNull

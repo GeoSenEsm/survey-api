@@ -1,10 +1,11 @@
 package com.survey.api.controllers;
 
+import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.application.dtos.RespondentDataDto;
 import com.survey.application.services.RespondentDataService;
+import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,11 +23,8 @@ public class RespondentDataController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createRespondent(@Validated @RequestBody RespondentDataDto dto,
-                                                   @RequestHeader(value="Authorization", required = false) String token) {
-        if (token == null){
-            return ResponseEntity.badRequest().body("Token is missing in headers.");
-        }
+    public RespondentDataDto createRespondent(@Validated @RequestBody CreateRespondentDataDto dto,
+                                                    @RequestHeader(value="Authorization", required = false) String token) throws BadRequestException {
         return respondentDataService.createRespondent(dto, token);
     }
 }

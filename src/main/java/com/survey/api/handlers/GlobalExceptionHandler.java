@@ -1,5 +1,6 @@
 package com.survey.api.handlers;
 
+import org.apache.coyote.BadRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -38,4 +39,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleBadCredentialsException(BadCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
     }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<String> handleBadRequestException(BadRequestException ex){
+        return ResponseEntity.badRequest().body("Bad Request: " + ex);
+    }
+
+
 }
