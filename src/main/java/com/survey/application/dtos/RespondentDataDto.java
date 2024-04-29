@@ -1,5 +1,6 @@
 package com.survey.application.dtos;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
@@ -14,8 +15,8 @@ public class RespondentDataDto {
     private UUID id;
     @NotNull
     private UUID identityUserId;
-    @Pattern(regexp = "^male|female$")
-    private int gender;
+    @NotNull
+    private String gender;
     @NotNull
     private Integer ageCategoryId;
     @NotNull
@@ -23,15 +24,16 @@ public class RespondentDataDto {
     @NotNull
     private Integer educationCategoryId;
     @NotNull
-    private Integer healthConditionId;
+    private Integer greeneryAreaCategoryId;
     @NotNull
     private Integer medicationUseId;
     @NotNull
-    private Integer lifeSatisfactionId;
+    private Integer healthConditionId;
     @NotNull
     private Integer stressLevelId;
     @NotNull
-    private Integer qualityOfSleepId;
+    private Integer lifeSatisfactionId;
     @NotNull
-    private Integer greeneryAreaCategoryId;
+    private Integer qualityOfSleepId;
+
 }

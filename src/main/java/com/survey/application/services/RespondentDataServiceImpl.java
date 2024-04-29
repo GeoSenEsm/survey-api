@@ -13,58 +13,40 @@ import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeMap;
 import org.modelmapper.convention.MatchingStrategies;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class RespondentDataServiceImpl implements RespondentDataService{
     private final RespondentDataRepository respondentDataRepository;
-    private final Map<String, JpaRepository<?, Integer>> repositoryMap;
+    private final ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl;
+    private final TokenProvider tokenProvider;
     @Autowired
     private IdentityUserRepository identityUserRepository;
-    private final TokenProvider tokenProvider;
     @Autowired
     private final ModelMapper modelMapper;
     @Autowired
     GlobalExceptionHandler globalExceptionHandler;
 
     @Autowired
-    public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, AgeCategoryRepository ageCategoryRepository, OccupationCategoryRepository occupationCategoryRepository, EducationCategoryRepository educationCategoryRepository, HealthConditionRepository healthConditionRepository, MedicationUseRepository medicationUseRepository, LifeSatisfactionRepository lifeSatisfactionRepository, StressLevelRepository stressLevelRepository, QualityOfSleepRepository qualityOfSleepRepository, GreeneryAreaCategoryRepository greeneryAreaCategoryRepository, TokenProvider tokenProvider, ModelMapper modelMapper) {
+    public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl, TokenProvider tokenProvider, ModelMapper modelMapper) {
         this.respondentDataRepository = respondentDataRepository;
+        this.foreignKeyValidationServiceImpl = foreignKeyValidationServiceImpl;
         this.tokenProvider = tokenProvider;
         this.modelMapper = modelMapper;
-        this.repositoryMap = new HashMap<>();
-        repositoryMap.put("ageCategory", ageCategoryRepository);
-        repositoryMap.put("occupationCategory", occupationCategoryRepository);
-        repositoryMap.put("educationCategory", educationCategoryRepository);
-        repositoryMap.put("healthCondition", healthConditionRepository);
-        repositoryMap.put("medicationUse", medicationUseRepository);
-        repositoryMap.put("lifeSatisfaction", lifeSatisfactionRepository);
-        repositoryMap.put("stressLevel", stressLevelRepository);
-        repositoryMap.put("qualityOfSleep", qualityOfSleepRepository);
-        repositoryMap.put("greeneryAreaCategory", greeneryAreaCategoryRepository);
+
+        modelMapper.getConfiguration().setMatchingStrategy(MatchingStrategies.STRICT);
+        TypeMap<CreateRespondentDataDto, RespondentData> typeMap =
+                modelMapper.createTypeMap(CreateRespondentDataDto.class, RespondentData.class);
+        typeMap.addMappings(mapper -> {
+            mapper.skip(RespondentData::setId);
+            mapper.skip(RespondentData::setIdentityUserId);
+            mapper.skip(RespondentData::setGender);
+        });
     }
 
-    private Integer getIdByFieldName(CreateRespondentDataDto dto, String fieldName) {
-        return switch (fieldName) {
-            case "ageCategory" -> dto.getAgeCategoryId();
-            case "occupationCategory" -> dto.getOccupationCategoryId();
-            case "educationCategory" -> dto.getEducationCategoryId();
-            case "healthCondition" -> dto.getHealthConditionId();
-            case "medicationUse" -> dto.getMedicationUseId();
-            case "lifeSatisfaction" -> dto.getLifeSatisfactionId();
-            case "stressLevel" -> dto.getStressLevelId();
-            case "qualityOfSleep" -> dto.getQualityOfSleepId();
-            case "greeneryAreaCategory" -> dto.getGreeneryAreaCategoryId();
-            default -> null;
-        };
-    }
 
     private UUID getUserUUID(String username){
         Optional<IdentityUser> optionalUser = identityUserRepository.findByUsername(username);
@@ -77,10 +59,11 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
 
     @Override
-    public RespondentDataDto createRespondent(CreateRespondentDataDto dto, String token) throws BadRequestException {
-        if (token == null){
+    public RespondentDataDto createRespondent(CreateRespondentDataDto dto, String tokenBearerPrefix) throws BadRequestException {
+        if (tokenBearerPrefix == null){
             throw new BadCredentialsException("Token is missing in headers.");
         }
+        String token = tokenBearerPrefix.substring(7);
 
         tokenProvider.validateToken(token);
 
@@ -91,36 +74,15 @@ public class RespondentDataServiceImpl implements RespondentDataService{
             throw new BadRequestException("Respondent data already exists for this user.");
         }
 
+        foreignKeyValidationServiceImpl.validateForeignKeys(dto);
 
-        // foreign keys validation
-        for (String fieldName: repositoryMap.keySet()){
-            Integer id = getIdByFieldName(dto, fieldName);
-            JpaRepository<?, Integer> repository = repositoryMap.get(fieldName);
-            if (id == null || !repository.existsById(id)){
-                throw new BadRequestException("Invalid foreign key id.");
-            }
-        }
-
-
-        RespondentData respondentData = new RespondentData();
+        RespondentData respondentData = modelMapper.map(dto, RespondentData.class);
         respondentData.setIdentityUserId(currentUserUUID);
         respondentData.setGender(Gender.valueOf(dto.getGender()).getId());
-        respondentData.setAgeCategoryId(dto.getAgeCategoryId());
-        respondentData.setOccupationCategoryId(dto.getOccupationCategoryId());
-        respondentData.setEducationCategoryId(dto.getEducationCategoryId());
-        respondentData.setHealthConditionId(dto.getHealthConditionId());
-        respondentData.setMedicationUseId(dto.getMedicationUseId());
-        respondentData.setLifeSatisfactionId(dto.getLifeSatisfactionId());
-        respondentData.setStressLevelId(dto.getStressLevelId());
-        respondentData.setQualityOfSleepId(dto.getQualityOfSleepId());
-        respondentData.setGreeneryAreaCategoryId(dto.getGreeneryAreaCategoryId());
-
-/*        RespondentData respondentData = modelMapper.map(dto, RespondentData.class);
-        respondentData.setIdentityUserId(currentUserUUID);*/
 
         RespondentData savedRespondentData = respondentDataRepository.save(respondentData);
-
         RespondentDataDto respondentDataDto = modelMapper.map(savedRespondentData, RespondentDataDto.class);
+        respondentDataDto.setGender(dto.getGender());
 
         return respondentDataDto;
     }

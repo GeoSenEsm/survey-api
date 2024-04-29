@@ -10,6 +10,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class CreateRespondentDataDto {
+    @NotNull
     @Pattern(regexp = "^male|female$")
     private String gender;
     @NotNull
@@ -19,15 +20,16 @@ public class CreateRespondentDataDto {
     @NotNull
     private Integer educationCategoryId;
     @NotNull
-    private Integer healthConditionId;
+    private Integer greeneryAreaCategoryId;
     @NotNull
     private Integer medicationUseId;
     @NotNull
-    private Integer lifeSatisfactionId;
+    private Integer healthConditionId;
     @NotNull
     private Integer stressLevelId;
     @NotNull
-    private Integer qualityOfSleepId;
+    private Integer lifeSatisfactionId;
     @NotNull
-    private Integer greeneryAreaCategoryId;
+    private Integer qualityOfSleepId;
+
 }

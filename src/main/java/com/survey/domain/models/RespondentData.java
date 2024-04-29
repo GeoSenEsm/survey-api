@@ -18,11 +18,12 @@ public class RespondentData {
     private Integer ageCategoryId;
     private Integer occupationCategoryId;
     private Integer educationCategoryId;
-    private Integer healthConditionId;
-    private Integer medicationUseId;
-    private Integer lifeSatisfactionId;
-    private Integer stressLevelId;
-    private Integer qualityOfSleepId;
     private Integer greeneryAreaCategoryId;
+    private Integer medicationUseId;
+    private Integer healthConditionId;
+    private Integer stressLevelId;
+    private Integer lifeSatisfactionId;
+    private Integer qualityOfSleepId;
+
 }
 
