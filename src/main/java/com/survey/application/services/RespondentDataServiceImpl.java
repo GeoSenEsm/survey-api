@@ -16,13 +16,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
+import javax.management.InstanceAlreadyExistsException;
+import javax.management.InvalidAttributeValueException;
 import java.util.*;
 
 @Service
 public class RespondentDataServiceImpl implements RespondentDataService{
     private final RespondentDataRepository respondentDataRepository;
     private final ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl;
-    private final TokenProvider tokenProvider;
+    private final ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl;
     @Autowired
     private IdentityUserRepository identityUserRepository;
     @Autowired
@@ -31,10 +33,10 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     GlobalExceptionHandler globalExceptionHandler;
 
     @Autowired
-    public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl, TokenProvider tokenProvider, ModelMapper modelMapper) {
+    public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl, ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl, ModelMapper modelMapper) {
         this.respondentDataRepository = respondentDataRepository;
         this.foreignKeyValidationServiceImpl = foreignKeyValidationServiceImpl;
-        this.tokenProvider = tokenProvider;
+        this.claimsPrincipalServiceImpl = claimsPrincipalServiceImpl;
         this.modelMapper = modelMapper;
 
         modelMapper.getConfiguration().setMatchingStrategy(MatchingStrategies.STRICT);
@@ -59,19 +61,18 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
 
     @Override
-    public RespondentDataDto createRespondent(CreateRespondentDataDto dto, String tokenBearerPrefix) throws BadRequestException {
-        if (tokenBearerPrefix == null){
-            throw new BadCredentialsException("Token is missing in headers.");
+    public RespondentDataDto createRespondent(CreateRespondentDataDto dto, String tokenWithPrefix)
+            throws BadCredentialsException, InvalidAttributeValueException, InstanceAlreadyExistsException {
+
+        String usernameFromJwt = claimsPrincipalServiceImpl.getCurrentUsername(tokenWithPrefix);
+        if (usernameFromJwt == null){
+            throw new BadCredentialsException("Invalid credentials");
         }
-        String token = tokenBearerPrefix.substring(7);
 
-        tokenProvider.validateToken(token);
-
-        String usernameFromJwt = tokenProvider.getUsernameFromJwt(token);
         UUID currentUserUUID = getUserUUID(usernameFromJwt);
 
         if (doesRespondentDataExist(currentUserUUID)) {
-            throw new BadRequestException("Respondent data already exists for this user.");
+            throw new InstanceAlreadyExistsException("Respondent data already exists for this user.");
         }
 
         foreignKeyValidationServiceImpl.validateForeignKeys(dto);

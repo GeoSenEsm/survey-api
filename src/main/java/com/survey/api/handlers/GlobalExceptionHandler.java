@@ -3,12 +3,15 @@ package com.survey.api.handlers;
 import org.apache.coyote.BadRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import javax.management.InstanceAlreadyExistsException;
+import javax.management.InvalidAttributeValueException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -40,9 +43,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
     }
 
-    @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<String> handleBadRequestException(BadRequestException ex){
-        return ResponseEntity.badRequest().body("Bad Request: " + ex);
+    @ExceptionHandler(InvalidAttributeValueException.class)
+    public ResponseEntity<String> handleInvalidAttributeValueException(InvalidAttributeValueException ex) {
+        return ResponseEntity.badRequest().body(ex.getMessage());
+    }
+
+    @ExceptionHandler(InstanceAlreadyExistsException.class)
+    public ResponseEntity<String> handleInstanceAlreadyExistsException(InstanceAlreadyExistsException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 
 
