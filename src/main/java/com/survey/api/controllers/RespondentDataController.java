@@ -6,6 +6,7 @@ import com.survey.application.services.RespondentDataService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -26,9 +27,10 @@ public class RespondentDataController {
     }
 
     @PostMapping
-    public RespondentDataDto createRespondent(@Validated @RequestBody CreateRespondentDataDto dto,
+    public ResponseEntity<RespondentDataDto> createRespondent(@Validated @RequestBody CreateRespondentDataDto dto,
                                               @RequestHeader(value="Authorization", required = false) String token
     ) throws BadRequestException, InvalidAttributeValueException, InstanceAlreadyExistsException {
-        return respondentDataService.createRespondent(dto, token);
+        RespondentDataDto createdRespondentData = respondentDataService.createRespondent(dto, token);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdRespondentData);
     }
 }
