@@ -3,6 +3,8 @@ ON respondent_data
 AFTER INSERT
 AS
 BEGIN
+    SET NOCOUNT ON;
+
     DECLARE @groupId UNIQUEIDENTIFIER;
 
     SELECT @groupId = id
@@ -15,4 +17,6 @@ BEGIN
         inserted.id,
         @groupId
     FROM inserted;
+
+    SET NOCOUNT OFF;
 END;
