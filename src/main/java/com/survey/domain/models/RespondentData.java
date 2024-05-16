@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -24,6 +26,13 @@ public class RespondentData {
     private Integer stressLevelId;
     private Integer lifeSatisfactionId;
     private Integer qualityOfSleepId;
+
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "respondent_to_group",
+        joinColumns = @JoinColumn(name = "respondent_id"),
+        inverseJoinColumns = @JoinColumn(name = "group_id"))
+    private Set<RespondentGroup> respondentGroups = new HashSet<>();
 
 }
 
