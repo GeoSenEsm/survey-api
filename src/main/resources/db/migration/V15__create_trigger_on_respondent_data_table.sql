@@ -12,7 +12,7 @@ BEGIN
     INSERT INTO respondent_to_group (id, respondent_id, group_id)
     SELECT
         NEWID(),
-        inserted.identity_user_id,
+        inserted.id,
         @groupId
     FROM inserted;
 END;
