@@ -1,6 +1,6 @@
 CREATE TABLE respondent_data (
     id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    identity_user_id UNIQUEIDENTIFIER,
+    identity_user_id UNIQUEIDENTIFIER UNIQUE,
     gender INT,
     age_category_id INT,
     occupation_category_id INT,
