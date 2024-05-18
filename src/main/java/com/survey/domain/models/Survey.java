@@ -23,4 +23,6 @@ public class Survey {
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;
 
+    @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<SurveySection> surveySections = new HashSet<>();
 }
