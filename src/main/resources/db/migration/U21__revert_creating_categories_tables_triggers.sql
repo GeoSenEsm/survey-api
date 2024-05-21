@@ -4,7 +4,7 @@ DECLARE @DropSQL NVARCHAR(MAX);
 DECLARE TriggerCursor CURSOR FOR
 SELECT name
 FROM sys.triggers
-WHERE name LIKE '%_after_update' AND name like '%_after_insert';
+WHERE name LIKE '%_after_update' OR name like '%_after_insert';
 
 OPEN TriggerCursor;
 FETCH NEXT FROM TriggerCursor INTO @TriggerName;
