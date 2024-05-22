@@ -35,7 +35,8 @@ BEGIN
             rg.id AS group_id
         FROM inserted rd
         JOIN health_condition gac ON rd.health_condition_id = gac.id
-        JOIN respondents_group rg ON rg.name = 'Kategoria stanu zdrowia ' + gac.display;
+        JOIN respondents_group rg ON rg.name = 'Stan zdrowia ' + gac.display;
+
 
     INSERT INTO respondent_to_group (respondent_id, group_id)
         SELECT
@@ -43,7 +44,8 @@ BEGIN
             rg.id AS group_id
         FROM inserted rd
         JOIN medication_use gac ON rd.medication_use_id = gac.id
-        JOIN respondents_group rg ON rg.name = 'Kategoria stosowania leków ' + gac.display;
+        JOIN respondents_group rg ON rg.name = 'Użycie leków ' + gac.display;
+
 
     INSERT INTO respondent_to_group (respondent_id, group_id)
         SELECT
@@ -51,7 +53,8 @@ BEGIN
             rg.id AS group_id
         FROM inserted rd
         JOIN life_satisfaction gac ON rd.life_satisfaction_id = gac.id
-        JOIN respondents_group rg ON rg.name = 'Kategoria zadowolenia z życia ' + gac.display;
+        JOIN respondents_group rg ON rg.name = 'Zadowolenie z życia ' + gac.display;
+
 
     INSERT INTO respondent_to_group (respondent_id, group_id)
         SELECT
@@ -59,7 +62,8 @@ BEGIN
             rg.id AS group_id
         FROM inserted rd
         JOIN stress_level gac ON rd.stress_level_id = gac.id
-        JOIN respondents_group rg ON rg.name = 'Kategoria poziomu stresu ' + gac.display;
+        JOIN respondents_group rg ON rg.name = 'Poziom stresu ' + gac.display;
+        
 
     INSERT INTO respondent_to_group (respondent_id, group_id)
         SELECT
@@ -67,7 +71,8 @@ BEGIN
             rg.id AS group_id
         FROM inserted rd
         JOIN quality_of_sleep gac ON rd.quality_of_sleep_id = gac.id
-        JOIN respondents_group rg ON rg.name = 'Kategoria jakości snu ' + gac.display;
+        JOIN respondents_group rg ON rg.name = 'Jakość snu ' + gac.display;
+        
 
     INSERT INTO respondent_to_group (respondent_id, group_id)
     SELECT
@@ -137,10 +142,10 @@ BEGIN
             FROM respondent_to_group rtg
             JOIN inserted new_rd ON rtg.respondent_id = new_rd.id
             JOIN health_condition new_gac ON new_rd.health_condition_id = new_gac.id
-            JOIN respondents_group new_rg ON new_rg.name = 'Kategoria stanu zdrowia ' + new_gac.display
+            JOIN respondents_group new_rg ON new_rg.name = 'Stan zdrowia ' + new_gac.display
             JOIN deleted old_rd ON rtg.respondent_id = old_rd.id
             JOIN health_condition old_gac ON old_rd.health_condition_id = old_gac.id
-            JOIN respondents_group old_rg ON old_rg.name = 'Kategoria stanu zdrowia ' + old_gac.display
+            JOIN respondents_group old_rg ON old_rg.name = 'Stan zdrowia ' + old_gac.display
             WHERE rtg.group_id = old_rg.id;
         END;
 
@@ -151,10 +156,10 @@ IF UPDATE(medication_use_id)
             FROM respondent_to_group rtg
             JOIN inserted new_rd ON rtg.respondent_id = new_rd.id
             JOIN medication_use new_gac ON new_rd.medication_use_id = new_gac.id
-            JOIN respondents_group new_rg ON new_rg.name = 'Kategoria stosowania leków ' + new_gac.display
+            JOIN respondents_group new_rg ON new_rg.name = 'Użycie leków ' + new_gac.display
             JOIN deleted old_rd ON rtg.respondent_id = old_rd.id
             JOIN medication_use old_gac ON old_rd.medication_use_id = old_gac.id
-            JOIN respondents_group old_rg ON old_rg.name = 'Kategoria stosowania leków ' + old_gac.display
+            JOIN respondents_group old_rg ON old_rg.name = 'Użycie leków ' + old_gac.display
             WHERE rtg.group_id = old_rg.id;
         END;
 
@@ -165,10 +170,10 @@ IF UPDATE(medication_use_id)
             FROM respondent_to_group rtg
             JOIN inserted new_rd ON rtg.respondent_id = new_rd.id
             JOIN life_satisfaction new_gac ON new_rd.life_satisfaction_id = new_gac.id
-            JOIN respondents_group new_rg ON new_rg.name = 'Kategoria zadowolenia z życia ' + new_gac.display
+            JOIN respondents_group new_rg ON new_rg.name = 'Zadowolenie z życia ' + new_gac.display
             JOIN deleted old_rd ON rtg.respondent_id = old_rd.id
             JOIN life_satisfaction old_gac ON old_rd.life_satisfaction_id = old_gac.id
-            JOIN respondents_group old_rg ON old_rg.name = 'Kategoria zadowolenia z życia ' + old_gac.display
+            JOIN respondents_group old_rg ON old_rg.name = 'Zadowolenie z życia ' + old_gac.display
             WHERE rtg.group_id = old_rg.id;
         END;
 
@@ -179,10 +184,10 @@ IF UPDATE(medication_use_id)
             FROM respondent_to_group rtg
             JOIN inserted new_rd ON rtg.respondent_id = new_rd.id
             JOIN stress_level new_gac ON new_rd.stress_level_id = new_gac.id
-            JOIN respondents_group new_rg ON new_rg.name = 'Kategoria poziomu stresu ' + new_gac.display
+            JOIN respondents_group new_rg ON new_rg.name = 'Poziom stresu ' + new_gac.display
             JOIN deleted old_rd ON rtg.respondent_id = old_rd.id
             JOIN stress_level old_gac ON old_rd.stress_level_id = old_gac.id
-            JOIN respondents_group old_rg ON old_rg.name = 'Kategoria poziomu stresu ' + old_gac.display
+            JOIN respondents_group old_rg ON old_rg.name = 'Poziom stresu ' + old_gac.display
             WHERE rtg.group_id = old_rg.id;
         END;
 
@@ -193,10 +198,10 @@ IF UPDATE(medication_use_id)
             FROM respondent_to_group rtg
             JOIN inserted new_rd ON rtg.respondent_id = new_rd.id
             JOIN quality_of_sleep new_gac ON new_rd.quality_of_sleep_id = new_gac.id
-            JOIN respondents_group new_rg ON new_rg.name = 'Kategoria jakości snu ' + new_gac.display
+            JOIN respondents_group new_rg ON new_rg.name = 'Jakość snu ' + new_gac.display
             JOIN deleted old_rd ON rtg.respondent_id = old_rd.id
             JOIN quality_of_sleep old_gac ON old_rd.quality_of_sleep_id = old_gac.id
-            JOIN respondents_group old_rg ON old_rg.name = 'Kategoria jakości snu ' + old_gac.display
+            JOIN respondents_group old_rg ON old_rg.name = 'Jakość snu ' + old_gac.display
             WHERE rtg.group_id = old_rg.id;
         END;
 
