@@ -37,6 +37,7 @@ BEGIN
         JOIN health_condition gac ON rd.health_condition_id = gac.id
         JOIN respondents_group rg ON rg.name = 'Stan zdrowia ' + gac.display;
 
+
     INSERT INTO respondent_to_group (respondent_id, group_id)
         SELECT
             rd.id AS respondent_id,
@@ -44,6 +45,7 @@ BEGIN
         FROM inserted rd
         JOIN medication_use gac ON rd.medication_use_id = gac.id
         JOIN respondents_group rg ON rg.name = 'Użycie leków ' + gac.display;
+
 
     INSERT INTO respondent_to_group (respondent_id, group_id)
         SELECT
@@ -53,6 +55,7 @@ BEGIN
         JOIN life_satisfaction gac ON rd.life_satisfaction_id = gac.id
         JOIN respondents_group rg ON rg.name = 'Zadowolenie z życia ' + gac.display;
 
+
     INSERT INTO respondent_to_group (respondent_id, group_id)
         SELECT
             rd.id AS respondent_id,
@@ -60,6 +63,7 @@ BEGIN
         FROM inserted rd
         JOIN stress_level gac ON rd.stress_level_id = gac.id
         JOIN respondents_group rg ON rg.name = 'Poziom stresu ' + gac.display;
+        
 
     INSERT INTO respondent_to_group (respondent_id, group_id)
         SELECT
@@ -68,6 +72,7 @@ BEGIN
         FROM inserted rd
         JOIN quality_of_sleep gac ON rd.quality_of_sleep_id = gac.id
         JOIN respondents_group rg ON rg.name = 'Jakość snu ' + gac.display;
+        
 
     INSERT INTO respondent_to_group (respondent_id, group_id)
     SELECT
