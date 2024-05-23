@@ -1,9 +1,9 @@
 package com.survey.domain.models.enums;
 
 public enum Visibility {
-    ALWAYS(0),
-    GROUP_SPECIFIC(1),
-    ANSWER_TRIGGERED(2);
+    always(0),
+    group_specific(1),
+    answer_triggered(2);
 
     private final int value;
 

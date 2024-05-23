@@ -1,6 +1,7 @@
 package com.survey.domain.models;
 
 import com.survey.domain.models.enums.QuestionType;
+import com.survey.domain.models.enums.QuestionTypeConverter;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -30,8 +31,8 @@ public class Question {
     @Column(nullable = false)
     private String content;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "question_type", nullable = false)
+    @Column(nullable = false)
+    @Convert(converter = QuestionTypeConverter.class)
     private QuestionType questionType;
 
     @Column(nullable = false)

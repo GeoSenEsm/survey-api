@@ -1,5 +1,6 @@
 package com.survey.application.dtos;
 
+import com.survey.api.validation.ValidGender;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
@@ -11,7 +12,7 @@ import lombok.Setter;
 @Setter
 public class CreateRespondentDataDto {
     @NotNull
-    @Pattern(regexp = "^male|female$")
+    @ValidGender
     private String gender;
     @NotNull
     private Integer ageCategoryId;

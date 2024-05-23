@@ -1,8 +1,8 @@
 package com.survey.domain.models.enums;
 
 public enum QuestionType {
-    SINGLE_TEXT_SELECTION(0),
-    DISCRETE_NUMBER_SELECTION(1);
+    single_text_selection(0),
+    discrete_number_selection(1);
 
     private final int value;
 

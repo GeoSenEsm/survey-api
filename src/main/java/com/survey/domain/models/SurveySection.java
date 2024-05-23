@@ -1,6 +1,8 @@
 package com.survey.domain.models;
 
+import com.survey.domain.models.enums.QuestionType;
 import com.survey.domain.models.enums.Visibility;
+import com.survey.domain.models.enums.VisibilityConverter;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -29,8 +31,8 @@ public class SurveySection {
     @JoinColumn(name = "survey_id", nullable = false)
     private Survey survey;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Convert(converter = VisibilityConverter.class)
     private Visibility visibility;
 
     @Column(name = "row_version", insertable = false)
