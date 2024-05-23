@@ -1,5 +1,7 @@
 package com.survey.domain.models.enums;
 
+import java.util.Arrays;
+
 public enum Visibility {
     always(0),
     group_specific(1),
@@ -16,11 +18,9 @@ public enum Visibility {
     }
 
     public static Visibility fromValue(int value) {
-        for (Visibility visibility : values()) {
-            if (visibility.value == value) {
-                return visibility;
-            }
-        }
-        throw new IllegalArgumentException("Unknown enum value: " + value);
+        return Arrays.stream(Visibility.values())
+                .filter(visibility -> visibility.value == value)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown enum value: " + value));
     }
 }

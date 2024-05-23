@@ -1,5 +1,7 @@
 package com.survey.domain.models.enums;
 
+import java.util.Arrays;
+
 public enum QuestionType {
     single_text_selection(0),
     discrete_number_selection(1);
@@ -15,11 +17,9 @@ public enum QuestionType {
     }
 
     public static QuestionType fromValue(int value) {
-        for (QuestionType type : values()) {
-            if (type.value == value) {
-                return type;
-            }
-        }
-        throw new IllegalArgumentException("Unknown enum value: " + value);
+        return Arrays.stream(QuestionType.values())
+                .filter(questionType -> questionType.value == value)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown enum value: " + value));
     }
 }

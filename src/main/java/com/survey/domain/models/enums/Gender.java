@@ -1,5 +1,7 @@
 package com.survey.domain.models.enums;
 
+import java.util.Arrays;
+
 public enum Gender {
     male(1),
     female(2);
@@ -15,12 +17,10 @@ public enum Gender {
     }
 
     public static Gender fromValue(int value){
-        for (Gender gender : values()){
-            if (gender.value == value){
-                return gender;
-            }
-        }
-        throw new IllegalArgumentException("Unknown enum value: " + value);
+        return Arrays.stream(Gender.values())
+                .filter(gender -> gender.value == value)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown enum value: " + value));
     }
 
 }

@@ -1,9 +1,8 @@
 package com.survey.api.controllers;
 
-import com.survey.application.dtos.surveyDtos.CreateSurveyRequestDto;
-import com.survey.application.dtos.surveyDtos.ResponseSurveyRequestDto;
+import com.survey.application.dtos.surveyDtos.CreateSurveyDto;
+import com.survey.application.dtos.surveyDtos.ResponseSurveyDto;
 import com.survey.application.services.SurveyService;
-import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,8 +24,8 @@ public class SurveyController {
     }
 
     @PostMapping
-    public ResponseEntity<ResponseSurveyRequestDto> createSurvey(@Validated @RequestBody CreateSurveyRequestDto createSurveyRequestDto){
-        ResponseSurveyRequestDto responseDto = surveyService.createSurvey(createSurveyRequestDto);
+    public ResponseEntity<ResponseSurveyDto> createSurvey(@Validated @RequestBody CreateSurveyDto createSurveyDto){
+        ResponseSurveyDto responseDto = surveyService.createSurvey(createSurveyDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
     }
 }

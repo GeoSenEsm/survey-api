@@ -2,6 +2,7 @@ package com.survey.application.services;
 
 import com.survey.application.dtos.surveyDtos.CreateOptionDto;
 import com.survey.application.dtos.surveyDtos.CreateQuestionDto;
+import com.survey.application.dtos.surveyDtos.CreateSurveyDto;
 import com.survey.application.dtos.surveyDtos.CreateSurveySectionDto;
 import org.springframework.stereotype.Service;
 
@@ -13,10 +14,10 @@ import java.util.Set;
 public class OrderValidationServiceImpl implements OrderValidationService{
 
     @Override
-    public boolean validateOrders(List<CreateSurveySectionDto> surveySections) {
+    public boolean validateOrders(List<CreateSurveySectionDto> createSurveySectionDtos) {
         Set<Integer> sectionOrders = new HashSet<>();
 
-        for (CreateSurveySectionDto sectionDto : surveySections) {
+        for (CreateSurveySectionDto sectionDto : createSurveySectionDtos) {
             if (!sectionOrders.add(sectionDto.getOrder())) {
                 return false;
             }

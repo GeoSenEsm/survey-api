@@ -7,17 +7,11 @@ import jakarta.persistence.Converter;
 public class VisibilityConverter implements AttributeConverter<Visibility, Integer> {
     @Override
     public Integer convertToDatabaseColumn(Visibility visibility) {
-        if (visibility == null){
-            return null;
-        }
-        return visibility.getValue();
+        return visibility != null ? visibility.getValue() : null;
     }
 
     @Override
     public Visibility convertToEntityAttribute(Integer dbValue) {
-        if (dbValue == null){
-            return null;
-        }
-        return Visibility.fromValue(dbValue);
+        return dbValue != null ? Visibility.fromValue(dbValue) : null;
     }
 }

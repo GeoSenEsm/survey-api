@@ -12,11 +12,10 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class SurveyServiceImpl implements SurveyService {
 
     private final SurveyRepository surveyRepository;
@@ -31,7 +30,11 @@ public class SurveyServiceImpl implements SurveyService {
     private final EntityManager entityManager;
 
     @Autowired
-    public SurveyServiceImpl(SurveyRepository surveyRepository, SurveySectionRepository surveySectionRepository, QuestionRepository questionRepository, OptionRepository optionRepository, RespondentGroupRepository respondentGroupRepository, SectionToUserGroupRepository sectionToUserGroupRepository, ModelMapper modelMapper, OrderValidationService orderValidationService, EntityManager entityManager) {
+    public SurveyServiceImpl(SurveyRepository surveyRepository, SurveySectionRepository surveySectionRepository,
+                             QuestionRepository questionRepository, OptionRepository optionRepository,
+                             RespondentGroupRepository respondentGroupRepository,
+                             SectionToUserGroupRepository sectionToUserGroupRepository,
+                             ModelMapper modelMapper, OrderValidationService orderValidationService, EntityManager entityManager) {
         this.surveyRepository = surveyRepository;
         this.surveySectionRepository = surveySectionRepository;
         this.questionRepository = questionRepository;
@@ -43,38 +46,35 @@ public class SurveyServiceImpl implements SurveyService {
         this.entityManager = entityManager;
     }
 
-    @Transactional
     @Override
-    public ResponseSurveyRequestDto createSurvey(CreateSurveyRequestDto createSurveyRequestDto) {
-        if (!orderValidationService.validateOrders(createSurveyRequestDto.getSurveySection())){
+    public ResponseSurveyDto createSurvey(CreateSurveyDto createSurveyDto) {
+        if (!orderValidationService.validateOrders(createSurveyDto.getSurveySections())) {
             throw new IllegalArgumentException("Order of sections/questions/options not correct!");
         }
 
-        Survey survey = saveSurvey(createSurveyRequestDto);
+        Survey survey = saveSurvey(createSurveyDto);
 
-        ResponseSurveyRequestDto responseWrapperDto = new ResponseSurveyRequestDto();
-        responseWrapperDto.setSurvey(modelMapper.map(survey, ResponseSurveyDto.class));
+        ResponseSurveyDto responseDto = modelMapper.map(survey, ResponseSurveyDto.class);
 
         List<ResponseSurveySectionDto> responseSections = new ArrayList<>();
-        for (CreateSurveySectionDto createSectionDto : createSurveyRequestDto.getSurveySection()) {
+        for (CreateSurveySectionDto createSectionDto : createSurveyDto.getSurveySections()) {
             SurveySection section = saveSurveySection(createSectionDto, survey);
-
             handleRespondentGroup(createSectionDto, section);
 
             List<ResponseQuestionDto> responseQuestions = saveQuestions(createSectionDto, section);
 
             ResponseSurveySectionDto responseSurveySectionDto = modelMapper.map(section, ResponseSurveySectionDto.class);
-
             responseSurveySectionDto.setQuestions(responseQuestions);
 
             responseSections.add(responseSurveySectionDto);
         }
-        responseWrapperDto.setSurveySection(responseSections);
-        return responseWrapperDto;
+        responseDto.setSurveySections(responseSections);
+        return responseDto;
     }
 
-    private Survey saveSurvey(CreateSurveyRequestDto createSurveyRequestDto) {
-        Survey survey = modelMapper.map(createSurveyRequestDto.getSurvey(), Survey.class);
+    private Survey saveSurvey(CreateSurveyDto createSurveyDto) {
+        Survey survey = new Survey();
+        survey.setName(createSurveyDto.getName());
 
         Survey dbSurvey = surveyRepository.saveAndFlush(survey);
         entityManager.refresh(dbSurvey);
@@ -96,27 +96,28 @@ public class SurveyServiceImpl implements SurveyService {
     }
 
     private void handleRespondentGroup(CreateSurveySectionDto createSectionDto, SurveySection section) {
-
-        if (createSectionDto.getGroupId() != null) {
+        if (createSectionDto.getGroupId() == null) {
             if (createSectionDto.getVisibility().equals(Visibility.group_specific.name())) {
-                Optional<RespondentGroup> optionalRespondentGroup = respondentGroupRepository.findById(UUID.fromString(createSectionDto.getGroupId()));
-                if (optionalRespondentGroup.isPresent()) {
-                    SectionToUserGroup sectionToUserGroup = new SectionToUserGroup();
-                    sectionToUserGroup.setSection(section);
-                    sectionToUserGroup.setGroup(optionalRespondentGroup.get());
-                    sectionToUserGroupRepository.save(sectionToUserGroup);
-                } else {
-                    throw new NoSuchElementException("Respondent group not found for ID: " + createSectionDto.getGroupId());
-                }
-            } else {
-                throw new IllegalArgumentException("Set section visibility to group_specific or remove groupId.");
-            }
-        } else {
-            if(createSectionDto.getVisibility().equals(Visibility.group_specific.name())){
                 throw new IllegalArgumentException("Setting visibility as group_specific must be followed by giving groupId.");
             }
+            return;
         }
+
+        if (!createSectionDto.getVisibility().equals(Visibility.group_specific.name())) {
+            throw new IllegalArgumentException("Set section visibility to group_specific or remove groupId.");
+        }
+
+        Optional<RespondentGroup> optionalRespondentGroup = respondentGroupRepository.findById(UUID.fromString(createSectionDto.getGroupId()));
+        if (optionalRespondentGroup.isEmpty()) {
+            throw new NoSuchElementException("Respondent group not found for ID: " + createSectionDto.getGroupId());
+        }
+
+        SectionToUserGroup sectionToUserGroup = new SectionToUserGroup();
+        sectionToUserGroup.setSection(section);
+        sectionToUserGroup.setGroup(optionalRespondentGroup.get());
+        sectionToUserGroupRepository.save(sectionToUserGroup);
     }
+
 
     private List<ResponseQuestionDto> saveQuestions(CreateSurveySectionDto createSectionDto, SurveySection section) {
         List<ResponseQuestionDto> responseQuestions = new ArrayList<>();
@@ -145,6 +146,7 @@ public class SurveyServiceImpl implements SurveyService {
         return dbQuestion;
     }
 
+
     private List<ResponseOptionDto> saveOptions(CreateQuestionDto createQuestionDto, Question question) {
         List<ResponseOptionDto> responseOptions = new ArrayList<>();
         for (CreateOptionDto createOptionDto : createQuestionDto.getOptions()) {
@@ -152,8 +154,7 @@ public class SurveyServiceImpl implements SurveyService {
             option.setOrder(createOptionDto.getOrder());
             option.setLabel(createOptionDto.getLabel());
             option.setQuestion(question);
-            Option dbOption = optionRepository.saveAndFlush(option);
-            entityManager.refresh(dbOption);
+            Option dbOption = optionRepository.saveAndFlush(option); entityManager.refresh(dbOption);
 
             responseOptions.add(modelMapper.map(dbOption, ResponseOptionDto.class));
         }

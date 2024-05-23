@@ -29,4 +29,6 @@ public class Option {
 
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;
+
+
 }
