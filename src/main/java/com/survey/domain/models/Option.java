@@ -15,7 +15,7 @@ import java.util.UUID;
 })
 public class Option {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @Column(name = "[order]", nullable = false)

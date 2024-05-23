@@ -18,7 +18,7 @@ import java.util.UUID;
 })
 public class Question {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @Column(name = "[order]", nullable = false)

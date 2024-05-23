@@ -1,7 +1,6 @@
 package com.survey.application.dtos.surveyDtos;
 
 import com.survey.api.validation.ValidVisibility;
-import com.survey.domain.models.enums.Visibility;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Getter;
@@ -11,7 +10,7 @@ import java.util.List;
 
 @Getter
 @Setter
-public class SurveySectionDto {
+public class CreateSurveySectionDto {
 
     @NotNull
     @Min(1)
@@ -28,6 +27,6 @@ public class SurveySectionDto {
     private String groupId; // it also can be null
 
     @NotEmpty
-    private List<@Valid QuestionDto> questions;
+    private List<@Valid CreateQuestionDto> questions;
 
 }

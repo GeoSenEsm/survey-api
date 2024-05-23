@@ -19,7 +19,7 @@ import java.util.UUID;
 })
 public class SurveySection {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @Column(name = "[order]", nullable = false)

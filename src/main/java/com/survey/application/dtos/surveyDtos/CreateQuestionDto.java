@@ -1,7 +1,6 @@
 package com.survey.application.dtos.surveyDtos;
 
 import com.survey.api.validation.ValidQuestionType;
-import com.survey.domain.models.enums.QuestionType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Getter;
@@ -11,7 +10,7 @@ import java.util.List;
 
 @Getter
 @Setter
-public class QuestionDto {
+public class CreateQuestionDto {
 
     @NotNull
     @Min(1)
@@ -31,5 +30,5 @@ public class QuestionDto {
 
     @NotEmpty
     @Size(min = 2)
-    private List<@Valid OptionDto> options;
+    private List<@Valid CreateOptionDto> options;
 }

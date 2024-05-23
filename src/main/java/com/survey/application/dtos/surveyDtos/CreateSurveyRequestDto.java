@@ -1,7 +1,6 @@
 package com.survey.application.dtos.surveyDtos;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,8 +11,8 @@ import java.util.List;
 @Setter
 public class CreateSurveyRequestDto {
     @NotNull
-    private @Valid SurveyDto survey;
+    private @Valid CreateSurveyDto survey;
 
     @NotNull
-    private List<@Valid SurveySectionDto> surveySection;
+    private List<@Valid CreateSurveySectionDto> surveySection;
 }

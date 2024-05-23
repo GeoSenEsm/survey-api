@@ -6,7 +6,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class OptionDto {
+public class CreateOptionDto {
 
     @NotNull
     @Min(1)

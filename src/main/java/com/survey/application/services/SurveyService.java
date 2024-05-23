@@ -1,8 +1,9 @@
 package com.survey.application.services;
 
 import com.survey.application.dtos.surveyDtos.CreateSurveyRequestDto;
+import com.survey.application.dtos.surveyDtos.ResponseSurveyRequestDto;
 
 public interface SurveyService {
 
-    void createSurvey(CreateSurveyRequestDto createSurveyRequestDto);
+    ResponseSurveyRequestDto createSurvey(CreateSurveyRequestDto createSurveyRequestDto);
 }
