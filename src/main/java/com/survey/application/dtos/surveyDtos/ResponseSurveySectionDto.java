@@ -15,6 +15,7 @@ public class ResponseSurveySectionDto {
     private String name;
     private Visibility visibility;
     private String groupId;
+    private Long rowVersion;
 
     private List<ResponseQuestionDto> questions;
 

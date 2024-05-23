@@ -15,6 +15,7 @@ public class ResponseQuestionDto {
     private String content;
     private QuestionType questionType;
     private boolean required;
+    private Long rowVersion;
 
     private List<ResponseOptionDto> options;
 }

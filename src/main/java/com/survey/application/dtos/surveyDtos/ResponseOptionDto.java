@@ -11,4 +11,5 @@ public class ResponseOptionDto {
     private UUID id;
     private Integer order;
     private String label;
+    private Long rowVersion;
 }
