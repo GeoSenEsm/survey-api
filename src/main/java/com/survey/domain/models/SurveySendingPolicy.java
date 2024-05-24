@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -21,8 +23,8 @@ public class SurveySendingPolicy {
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;
 
-    public SurveySendingPolicy(Survey survey) {
-        this.survey = survey;
-    }
+    @OneToMany(mappedBy = "surveySendingPolicy", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SurveyParticipationTimeSlot> timeSlots = new ArrayList<>();
+
 
 }

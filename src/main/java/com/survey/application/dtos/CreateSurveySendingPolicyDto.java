@@ -1,5 +1,6 @@
 package com.survey.application.dtos;
 
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,7 +14,7 @@ public class CreateSurveySendingPolicyDto {
     @NotNull
     private UUID surveyId;
 
-    @NotNull
+    @NotEmpty
     private List<SurveyParticipationTimeStartFinishDto> surveyParticipationTimeSlots;
 
 }

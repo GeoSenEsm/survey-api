@@ -1,6 +1,6 @@
 package com.survey.application.dtos;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,9 +9,9 @@ import java.time.OffsetDateTime;
 @Getter
 @Setter
 public class SurveyParticipationTimeStartFinishDto {
-    @NotNull
+    @NotEmpty
     private OffsetDateTime start;
-    @NotNull
+    @NotEmpty
     private OffsetDateTime finish;
 
 }

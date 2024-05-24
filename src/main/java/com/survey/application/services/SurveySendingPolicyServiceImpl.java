@@ -1,10 +1,8 @@
 package com.survey.application.services;
 
 import com.survey.application.dtos.CreateSurveySendingPolicyDto;
-import com.survey.application.dtos.SurveyParticipationTimeStartFinishDto;
 import com.survey.application.dtos.SurveySendingPolicyDto;
 import com.survey.domain.models.*;
-import com.survey.domain.repository.SurveyParticipationTimeSlotRepository;
 import com.survey.domain.repository.SurveyRepository;
 import com.survey.domain.repository.SurveySendingPolicyRepository;
 
@@ -15,90 +13,55 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.management.InstanceAlreadyExistsException;
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.NoSuchElementException;
-
+import javax.management.InvalidAttributeValueException;
 import java.util.UUID;
-
+import java.util.stream.Collectors;
 
 @Service
 public class SurveySendingPolicyServiceImpl implements SurveySendingPolicyService {
-    private final SurveySendingPolicyRepository surveySendingPolicyRepository;
-    private final SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository;
-    private final SurveyRepository surveyRepository;
-    private final ModelMapper modelMapper;
-    @PersistenceContext
-    private final EntityManager entityManager;
 
     @Autowired
-    public SurveySendingPolicyServiceImpl(SurveySendingPolicyRepository surveySendingPolicyRepository,
-                                          SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository,
-                                          SurveyRepository surveyRepository,
-                                          ModelMapper modelMapper,
-                                          EntityManager entityManager) {
-        this.surveySendingPolicyRepository = surveySendingPolicyRepository;
-        this.surveyParticipationTimeSlotRepository = surveyParticipationTimeSlotRepository;
-        this.surveyRepository = surveyRepository;
-        this.modelMapper = modelMapper;
-        this.entityManager = entityManager;
-    }
+    private SurveySendingPolicyRepository surveySendingPolicyRepository;
 
-    private boolean doesSurveySendingPolicyExist(UUID surveyId) {
-        return surveySendingPolicyRepository.existsInSurveySendingPolicyBySurveyId(surveyId);
-    }
+    @Autowired
+    private SurveyRepository surveyRepository;
 
-    private boolean doesSurveyExist(UUID surveyId) {
-        return surveyRepository.existsInSurveyById(surveyId);
-    }
+    @Autowired
+    private TimeSlotsValidationService timeSlotsValidationService;
 
-    private void validateTimeSlots(List<SurveyParticipationTimeStartFinishDto> timeSlotList) {
-        for (SurveyParticipationTimeStartFinishDto timeSlotDto : timeSlotList) {
-            OffsetDateTime start = timeSlotDto.getStart();
-            OffsetDateTime finish = timeSlotDto.getFinish();
+    @Autowired
+    private ModelMapper modelMapper;
 
-            if (start.isAfter(finish)) {
-                throw new IllegalArgumentException("Start time must be before finish time.");
-            }
-        }
-    }
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Override
     @Transactional
-    public SurveySendingPolicyDto addSurveySendingPolicy(CreateSurveySendingPolicyDto createSurveySendingPolicyDto) throws InstanceAlreadyExistsException, NoSuchElementException,  IllegalArgumentException {
+    public SurveySendingPolicyDto createSurveySendingPolicy(CreateSurveySendingPolicyDto dto) throws InvalidAttributeValueException {
 
-        UUID currentSurveyUUID = createSurveySendingPolicyDto.getSurveyId();
+        SurveySendingPolicy surveySendingPolicy = new SurveySendingPolicy();
+        UUID currentSurveyId = dto.getSurveyId();
 
-        if (doesSurveySendingPolicyExist(currentSurveyUUID)) {
-            throw new InstanceAlreadyExistsException("Survey sending policy already exists for this survey.");
-        }
+        surveySendingPolicy.setSurvey(surveyRepository.findById(currentSurveyId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid survey ID - survey doesn't exist")));
 
-        if (!doesSurveyExist(currentSurveyUUID)) {
-            throw new NoSuchElementException("Survey doesn't exist.");
-        }
+        timeSlotsValidationService.validateTimeSlots(dto);
 
-        List<SurveyParticipationTimeStartFinishDto> timeSlotList = createSurveySendingPolicyDto.getSurveyParticipationTimeSlots();
-        validateTimeSlots(timeSlotList);
-
-        Survey survey = surveyRepository.getSurveyById(currentSurveyUUID);
-        SurveySendingPolicy surveySendingPolicy = new SurveySendingPolicy(survey);
+        surveySendingPolicy.setTimeSlots(
+                dto.getSurveyParticipationTimeSlots().stream()
+                        .map(slotDto -> {
+                            SurveyParticipationTimeSlot slot = new SurveyParticipationTimeSlot();
+                            slot.setStart(slotDto.getStart());
+                            slot.setFinish(slotDto.getFinish());
+                            slot.setSurveySendingPolicy(surveySendingPolicy);
+                            return slot;
+                        }).collect(Collectors.toList())
+        );
         SurveySendingPolicy saveSurveySendingPolicy = surveySendingPolicyRepository.saveAndFlush(surveySendingPolicy);
         entityManager.refresh(saveSurveySendingPolicy);
-
-
-        for (SurveyParticipationTimeStartFinishDto timeSlotDto : timeSlotList) {
-            OffsetDateTime start = timeSlotDto.getStart();
-            OffsetDateTime finish = timeSlotDto.getFinish();
-
-            SurveyParticipationTimeSlot timeSlot = new SurveyParticipationTimeSlot(start, finish, saveSurveySendingPolicy);
-            surveyParticipationTimeSlotRepository.save(timeSlot);
-        }
-
         SurveySendingPolicyDto surveySendingPolicyDto = modelMapper.map(saveSurveySendingPolicy, SurveySendingPolicyDto.class);
-        surveySendingPolicyDto.setSurveyId(currentSurveyUUID);
+        surveySendingPolicyDto.setSurveyId(currentSurveyId);
 
         return surveySendingPolicyDto;
-
     }
 }

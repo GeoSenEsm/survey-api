@@ -25,10 +25,4 @@ public class SurveyParticipationTimeSlot {
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;
 
-    public SurveyParticipationTimeSlot(OffsetDateTime start, OffsetDateTime finish, SurveySendingPolicy surveySendingPolicy) {
-        this.start = start;
-        this.finish = finish;
-        this.surveySendingPolicy = surveySendingPolicy;
-    }
-
 }
