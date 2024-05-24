@@ -43,13 +43,11 @@ public class SurveyServiceImpl implements SurveyService {
 
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto){
         Survey survey = new Survey();
+
         survey.setName(createSurveyDto.getName());
-
-        List<SurveySection> surveySections = createSurveyDto.getSurveySections().stream()
-                        .map(sectionDto -> mapToSurveySection(sectionDto, survey))
-                        .collect(Collectors.toList());
-
-        survey.setSurveySections(surveySections);
+        survey.setSurveySections(createSurveyDto.getSurveySections().stream()
+                .map(sectionDto -> mapToSurveySection(sectionDto, survey))
+                .collect(Collectors.toList()));
         return survey;
     }
 
@@ -58,13 +56,13 @@ public class SurveyServiceImpl implements SurveyService {
         surveySection.setSurvey(surveyEntity);
 
         SectionToUserGroup sectionToUserGroup = getSectionToUserGroup(sectionDto, surveySection);
+
         surveySection.setSectionToUserGroups(sectionToUserGroup != null ? List.of(sectionToUserGroup) : null);
-
-        List<Question> questions = sectionDto.getQuestions().stream()
+        surveySection.setQuestions(sectionDto.getQuestions().stream()
                 .map(questionDto -> mapToQuestion(questionDto, surveySection))
-                .collect(Collectors.toList());
+                .collect(Collectors.toList())
+        );
 
-        surveySection.setQuestions(questions);
         return surveySection;
     }
 
@@ -72,11 +70,9 @@ public class SurveyServiceImpl implements SurveyService {
         Question question = modelMapper.map(questionDto, Question.class);
         question.setSection(surveySection);
 
-        List<Option> options = questionDto.getOptions().stream()
+        question.setOptions(questionDto.getOptions().stream()
                 .map(optionDto -> mapToOption(optionDto, question))
-                .collect(Collectors.toList());
-
-        question.setOptions(options);
+                .collect(Collectors.toList()));
         return question;
     }
 
