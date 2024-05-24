@@ -1,14 +1,12 @@
 package com.survey.application.services;
 
 import com.survey.api.handlers.GlobalExceptionHandler;
-import com.survey.api.security.TokenProvider;
 import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.application.dtos.RespondentDataDto;
-import com.survey.domain.models.Gender;
+import com.survey.domain.models.enums.Gender;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.RespondentData;
 import com.survey.domain.repository.*;
-import org.apache.coyote.BadRequestException;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeMap;
 import org.modelmapper.convention.MatchingStrategies;
@@ -79,7 +77,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
         RespondentData respondentData = modelMapper.map(dto, RespondentData.class);
         respondentData.setIdentityUserId(currentUserUUID);
-        respondentData.setGender(Gender.valueOf(dto.getGender()).getId());
+        respondentData.setGender(Gender.valueOf(dto.getGender()));
 
         RespondentData savedRespondentData = respondentDataRepository.save(respondentData);
         RespondentDataDto respondentDataDto = modelMapper.map(savedRespondentData, RespondentDataDto.class);

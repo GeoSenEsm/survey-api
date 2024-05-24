@@ -1,5 +1,7 @@
 package com.survey.domain.models;
 
+import com.survey.domain.models.enums.Gender;
+import com.survey.domain.models.enums.GenderConverter;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,7 +18,9 @@ public class RespondentData {
     @GeneratedValue(strategy =  GenerationType.UUID)
     private UUID id;
     private UUID identityUserId;
-    private Integer gender;
+
+    @Convert(converter = GenderConverter.class)
+    private Gender gender;
     private Integer ageCategoryId;
     private Integer occupationCategoryId;
     private Integer educationCategoryId;
