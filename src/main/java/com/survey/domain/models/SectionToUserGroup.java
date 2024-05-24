@@ -12,7 +12,7 @@ import java.util.UUID;
 @Table(name = "section_to_user_group")
 public class SectionToUserGroup {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @ManyToOne

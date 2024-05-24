@@ -4,9 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Entity
 @Data
@@ -14,7 +12,7 @@ import java.util.UUID;
 @Table(name = "survey")
 public class Survey {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @Column(nullable = false)
@@ -24,5 +22,6 @@ public class Survey {
     private byte[] rowVersion;
 
     @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<SurveySection> surveySections = new HashSet<>();
+    private List<SurveySection> surveySections = new ArrayList<>();
+
 }

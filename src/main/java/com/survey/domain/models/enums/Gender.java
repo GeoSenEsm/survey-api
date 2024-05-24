@@ -2,14 +2,13 @@ package com.survey.domain.models.enums;
 
 import java.util.Arrays;
 
-public enum Visibility {
-    always(0),
-    group_specific(1),
-    answer_triggered(2);
+public enum Gender {
+    male(1),
+    female(2);
 
     private final int value;
 
-    Visibility(int value) {
+    Gender(int value){
         this.value = value;
     }
 
@@ -17,10 +16,11 @@ public enum Visibility {
         return value;
     }
 
-    public static Visibility fromValue(int value) {
-        return Arrays.stream(Visibility.values())
-                .filter(visibility -> visibility.value == value)
+    public static Gender fromValue(int value){
+        return Arrays.stream(Gender.values())
+                .filter(gender -> gender.value == value)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Unknown enum value: " + value));
     }
+
 }

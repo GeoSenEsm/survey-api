@@ -42,6 +42,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(r -> {
                     r.requestMatchers(HttpMethod.POST,"/api/authentication/login").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/authentication/respondents").permitAll();
+                    r.requestMatchers(HttpMethod.POST, "/api/surveys").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/greeneryareacategories").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/occupationcategories").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/lifesatisfaction").permitAll();
