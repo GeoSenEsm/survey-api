@@ -53,6 +53,7 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.GET, "/api/qualityofsleep").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/medicationuse").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/respondents").permitAll();
+                    r.requestMatchers(HttpMethod.POST, "/api/surveysendingpolicies").permitAll();
                 })
                 .httpBasic(Customizer.withDefaults());
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
