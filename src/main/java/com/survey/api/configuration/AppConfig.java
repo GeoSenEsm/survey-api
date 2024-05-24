@@ -1,10 +1,15 @@
 package com.survey.api.configuration;
 
+import com.survey.application.dtos.surveyDtos.CreateQuestionDto;
+import com.survey.application.dtos.surveyDtos.CreateSurveySectionDto;
+import com.survey.domain.models.Question;
+import com.survey.domain.models.SurveySection;
 import lombok.Getter;
 import lombok.Setter;
 import org.flywaydb.core.Flyway;
 import org.modelmapper.AbstractConverter;
 import org.modelmapper.ModelMapper;
+import org.modelmapper.PropertyMap;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
@@ -52,6 +57,20 @@ public class AppConfig {
 
                 ByteBuffer buffer = ByteBuffer.wrap(timestampBytes);
                 return buffer.getLong();
+            }
+        });
+
+        modelMapper.addMappings(new PropertyMap<CreateQuestionDto, Question>() {
+            @Override
+            protected void configure() {
+                skip(destination.getOptions());
+            }
+        });
+
+        modelMapper.addMappings(new PropertyMap<CreateSurveySectionDto, SurveySection>() {
+            @Override
+            protected void configure() {
+                skip(destination.getQuestions());
             }
         });
 

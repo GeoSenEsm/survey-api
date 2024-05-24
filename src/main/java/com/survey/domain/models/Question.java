@@ -6,15 +6,14 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Entity
 @Data
 @NoArgsConstructor
 @Table(name = "question", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"order", "section_id"})
+        @UniqueConstraint(columnNames = {"order", "section_id",}),
+        @UniqueConstraint(columnNames = {"label", "section_id"})
 })
 public class Question {
     @Id
@@ -42,5 +41,6 @@ public class Question {
     private byte[] rowVersion;
 
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<Option> options = new HashSet<>();
+    private List<Option> options = new ArrayList<>();
+
 }
