@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -44,11 +45,10 @@ public class SurveyServiceImpl implements SurveyService {
         Survey survey = new Survey();
         survey.setName(createSurveyDto.getName());
 
-        List<SurveySection> surveySections = new ArrayList<>();
-        for (CreateSurveySectionDto sectionDto : createSurveyDto.getSurveySections()){
-            SurveySection surveySectionEntity = mapToSurveySection(sectionDto, survey);
-            surveySections.add(surveySectionEntity);
-        }
+        List<SurveySection> surveySections = createSurveyDto.getSurveySections().stream()
+                        .map(sectionDto -> mapToSurveySection(sectionDto, survey))
+                        .collect(Collectors.toList());
+
         survey.setSurveySections(surveySections);
         return survey;
     }
@@ -60,11 +60,10 @@ public class SurveyServiceImpl implements SurveyService {
         SectionToUserGroup sectionToUserGroup = getSectionToUserGroup(sectionDto, surveySection);
         surveySection.setSectionToUserGroups(sectionToUserGroup != null ? List.of(sectionToUserGroup) : null);
 
-        List<Question> questions = new ArrayList<>();
-        for (CreateQuestionDto questionDto : sectionDto.getQuestions()){
-            Question question = mapToQuestion(questionDto, surveySection);
-            questions.add(question);
-        }
+        List<Question> questions = sectionDto.getQuestions().stream()
+                .map(questionDto -> mapToQuestion(questionDto, surveySection))
+                .collect(Collectors.toList());
+
         surveySection.setQuestions(questions);
         return surveySection;
     }
@@ -73,11 +72,10 @@ public class SurveyServiceImpl implements SurveyService {
         Question question = modelMapper.map(questionDto, Question.class);
         question.setSection(surveySection);
 
-        List<Option> options = new ArrayList<>();
-        for (CreateOptionDto optionDto : questionDto.getOptions()){
-            Option option = mapToOption(optionDto, question);
-            options.add(option);
-        }
+        List<Option> options = questionDto.getOptions().stream()
+                .map(optionDto -> mapToOption(optionDto, question))
+                .collect(Collectors.toList());
+
         question.setOptions(options);
         return question;
     }
