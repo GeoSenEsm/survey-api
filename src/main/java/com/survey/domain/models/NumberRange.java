@@ -9,26 +9,27 @@ import java.util.UUID;
 @Entity
 @Data
 @NoArgsConstructor
-@Table(name = "[option]", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"order", "question_id"}),
-        @UniqueConstraint(columnNames = {"label", "question_id"})
-})
-public class Option {
+@Table(name = "number_range")
+public class NumberRange {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "[order]", nullable = false)
-    private Integer order;
+    @Column(name = "[from]")
+    private Integer from;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @Column(name = "[to]")
+    private Integer to;
+
+    private String startLabel;
+
+    private String endLabel;
+
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "question_id", nullable = false)
     private Question question;
 
-    private String label;
-
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;
-
 
 }
