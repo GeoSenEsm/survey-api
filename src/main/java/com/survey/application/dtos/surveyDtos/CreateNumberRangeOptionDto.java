@@ -18,11 +18,9 @@ public class CreateNumberRangeOptionDto {
     @Max(10)
     private Integer to;
 
-    @NotBlank
-    @Size(min = 1, max = 50)
+    @Size(max = 50)
     private String startLabel;
 
-    @NotBlank
-    @Size(min = 1, max = 50)
+    @Size(max = 50)
     private String endLabel;
 }
