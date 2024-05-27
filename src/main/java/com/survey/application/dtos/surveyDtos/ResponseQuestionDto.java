@@ -18,4 +18,5 @@ public class ResponseQuestionDto {
     private Long rowVersion;
 
     private List<ResponseOptionDto> options;
+    private ResponseNumberRangeOptionDto numberRange;
 }

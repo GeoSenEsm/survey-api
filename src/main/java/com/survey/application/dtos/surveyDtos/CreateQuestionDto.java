@@ -28,7 +28,9 @@ public class CreateQuestionDto {
     @NotNull
     private boolean required;
 
-    @NotEmpty
     @Size(min = 2)
     private List<@Valid CreateOptionDto> options;
+
+    private @Valid CreateNumberRangeOptionDto numberRange;
+
 }
