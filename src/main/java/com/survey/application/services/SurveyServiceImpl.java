@@ -12,6 +12,8 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,15 +24,17 @@ public class SurveyServiceImpl implements SurveyService {
     private final SurveyRepository surveyRepository;
     private final ModelMapper modelMapper;
     private final RespondentGroupRepository respondentGroupRepository;
+    private final SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository;
     @PersistenceContext
     private final EntityManager entityManager;
 
     @Autowired
-    public SurveyServiceImpl(SurveyRepository surveyRepository, ModelMapper modelMapper, RespondentGroupRepository respondentGroupRepository, EntityManager entityManager) {
+    public SurveyServiceImpl(SurveyRepository surveyRepository, ModelMapper modelMapper, RespondentGroupRepository respondentGroupRepository, EntityManager entityManager, SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository) {
         this.surveyRepository = surveyRepository;
         this.modelMapper = modelMapper;
         this.respondentGroupRepository = respondentGroupRepository;
         this.entityManager = entityManager;
+        this.surveyParticipationTimeSlotRepository = surveyParticipationTimeSlotRepository;
     }
 
     @Override
@@ -40,6 +44,23 @@ public class SurveyServiceImpl implements SurveyService {
         Survey dbSurvey = surveyRepository.saveAndFlush(surveyEntity);
         entityManager.refresh(dbSurvey);
         return modelMapper.map(dbSurvey, ResponseSurveyDto.class);
+    }
+
+    @Override
+    public List<ResponseSurveyDto> getSurveysByCompletionDate(LocalDate completionDate) {
+        OffsetDateTime startOfDay = completionDate.atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
+        OffsetDateTime endOfDay = completionDate.plusDays(1).atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
+
+        List<SurveyParticipationTimeSlot> timeSlots = surveyParticipationTimeSlotRepository.findByFinishBetween(startOfDay, endOfDay);
+
+        List<Survey> surveys = timeSlots.stream()
+                .map(slot -> slot.getSurveySendingPolicy().getSurvey())
+                .distinct()
+                .toList();
+
+        return surveys.stream()
+                .map(survey -> modelMapper.map(survey, ResponseSurveyDto.class))
+                .collect(Collectors.toList());
     }
 
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto){
