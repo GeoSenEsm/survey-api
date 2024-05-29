@@ -15,7 +15,7 @@ public class RespondentToGroup {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "respondent_id")
     private RespondentData respondentData;
 
