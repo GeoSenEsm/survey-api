@@ -63,11 +63,18 @@ public class SurveyServiceImpl implements SurveyService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<ResponseSurveyShortDto> getSurveysShort() {
+        return surveyRepository.findAll().stream()
+                .map(survey -> modelMapper.map(survey, ResponseSurveyShortDto.class))
+                .collect(Collectors.toList());
+    }
+
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto){
         Survey survey = new Survey();
 
         survey.setName(createSurveyDto.getName());
-        survey.setSurveySections(createSurveyDto.getSurveySections().stream()
+        survey.setSections(createSurveyDto.getSections().stream()
                 .map(sectionDto -> mapToSurveySection(sectionDto, survey))
                 .collect(Collectors.toList()));
         return survey;
