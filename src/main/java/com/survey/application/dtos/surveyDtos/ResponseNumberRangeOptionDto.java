@@ -11,7 +11,7 @@ public class ResponseNumberRangeOptionDto {
     private UUID id;
     private Integer from;
     private Integer to;
-    private String startLabel;
-    private String endLabel;
+    private String fromLabel;
+    private String toLabel;
     private Long rowVersion;
 }

@@ -19,8 +19,8 @@ public class CreateNumberRangeOptionDto {
     private Integer to;
 
     @Size(max = 50)
-    private String startLabel;
+    private String fromLabel;
 
     @Size(max = 50)
-    private String endLabel;
+    private String toLabel;
 }
