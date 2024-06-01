@@ -18,5 +18,5 @@ public class CreateSurveyDto {
     private String name;
 
     @NotNull
-    private List<@Valid CreateSurveySectionDto> surveySections;
+    private List<@Valid CreateSurveySectionDto> sections;
 }

@@ -22,6 +22,6 @@ public class Survey {
     private byte[] rowVersion;
 
     @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<SurveySection> surveySections = new ArrayList<>();
+    private List<SurveySection> sections = new ArrayList<>();
 
 }
