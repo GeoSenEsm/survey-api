@@ -21,9 +21,9 @@ public class NumberRange {
     @Column(name = "[to]")
     private Integer to;
 
-    private String startLabel;
+    private String fromLabel;
 
-    private String endLabel;
+    private String toLabel;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "question_id", nullable = false)
