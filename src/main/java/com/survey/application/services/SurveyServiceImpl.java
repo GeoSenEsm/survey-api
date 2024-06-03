@@ -27,18 +27,22 @@ public class SurveyServiceImpl implements SurveyService {
     private final SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository;
     @PersistenceContext
     private final EntityManager entityManager;
+    private final ShowSectionWithOrderValidationService showSectionWithOrderValidationService;
+    private final Dictionary<Integer, String> sectionOrderAndVisibilityDict = new Hashtable<>();
 
     @Autowired
-    public SurveyServiceImpl(SurveyRepository surveyRepository, ModelMapper modelMapper, RespondentGroupRepository respondentGroupRepository, EntityManager entityManager, SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository) {
+    public SurveyServiceImpl(SurveyRepository surveyRepository, ModelMapper modelMapper, RespondentGroupRepository respondentGroupRepository, EntityManager entityManager, SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository, ShowSectionWithOrderValidationService showSectionWithOrderValidationService) {
         this.surveyRepository = surveyRepository;
         this.modelMapper = modelMapper;
         this.respondentGroupRepository = respondentGroupRepository;
         this.entityManager = entityManager;
         this.surveyParticipationTimeSlotRepository = surveyParticipationTimeSlotRepository;
+        this.showSectionWithOrderValidationService = showSectionWithOrderValidationService;
     }
 
     @Override
     public ResponseSurveyDto createSurvey(CreateSurveyDto createSurveyDto) {
+        fillSectionOrderAndVisibilityDict(createSurveyDto);
         Survey surveyEntity = mapToSurvey(createSurveyDto);
 
         Survey dbSurvey = surveyRepository.saveAndFlush(surveyEntity);
@@ -68,6 +72,12 @@ public class SurveyServiceImpl implements SurveyService {
         return surveyRepository.findAll().stream()
                 .map(survey -> modelMapper.map(survey, ResponseSurveyShortDto.class))
                 .collect(Collectors.toList());
+    }
+
+    private void fillSectionOrderAndVisibilityDict(CreateSurveyDto createSurveyDto){
+        createSurveyDto.getSections().forEach(sectionDto ->
+                sectionOrderAndVisibilityDict.put(sectionDto.getOrder(), sectionDto.getVisibility())
+        );
     }
 
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto){
@@ -105,7 +115,7 @@ public class SurveyServiceImpl implements SurveyService {
             }
             question.setNumberRange(null);
             question.setOptions(questionDto.getOptions().stream()
-                    .map(optionDto -> mapToOption(optionDto, question))
+                    .map(optionDto -> mapToOption(optionDto, question, surveySection.getOrder()))
                     .collect(Collectors.toList()));
         }
 
@@ -126,7 +136,9 @@ public class SurveyServiceImpl implements SurveyService {
         return numberRange;
     }
 
-    private Option mapToOption(CreateOptionDto optionDto, Question question) {
+    private Option mapToOption(CreateOptionDto optionDto, Question question, int currentSectionOrder) {
+        showSectionWithOrderValidationService.validateSectionExistsAndIsAnswerTriggered(optionDto.getShowSection(), sectionOrderAndVisibilityDict, currentSectionOrder);
+
         Option option = modelMapper.map(optionDto, Option.class);
         option.setQuestion(question);
         return option;
