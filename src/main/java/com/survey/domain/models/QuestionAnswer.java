@@ -25,7 +25,7 @@ public class QuestionAnswer {
     private Question question;
 
     @Column(name = "numeric_answer")
-    private int numericAnswer;
+    private Integer numericAnswer;
 
     @Version
     @Column(name = "row_version", insertable = false)

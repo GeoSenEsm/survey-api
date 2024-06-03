@@ -1,5 +1,5 @@
 package com.survey.application.services;
 
 public interface ClaimsPrincipalService {
-    String getCurrentUsername(String tokenBearerPrefix);
+    String getCurrentUsernameIfExists(String tokenBearerPrefix);
 }

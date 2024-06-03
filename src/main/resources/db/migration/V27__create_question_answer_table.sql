@@ -2,7 +2,7 @@ CREATE TABLE question_answer (
     id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     participation_id UNIQUEIDENTIFIER NOT NULL,
     question_id UNIQUEIDENTIFIER NOT NULL,
-    numeric_answer INT,
+    numeric_answer INTEGER DEFAULT NULL,
     row_version TIMESTAMP NOT NULL,
 
     UNIQUE (participation_id, question_id),

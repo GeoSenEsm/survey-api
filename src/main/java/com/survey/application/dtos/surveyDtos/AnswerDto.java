@@ -11,5 +11,5 @@ import java.util.UUID;
 public class AnswerDto {
     private UUID questionId;
     private List<SelectedOptionDto> selectedOptions;
-    private int numericAnswer;
+    private Integer numericAnswer;
 }
