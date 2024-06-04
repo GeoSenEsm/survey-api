@@ -27,6 +27,8 @@ public class Option {
 
     private String label;
 
+    private Integer showSection;
+
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;
 

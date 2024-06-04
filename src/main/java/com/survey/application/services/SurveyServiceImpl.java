@@ -27,19 +27,23 @@ public class SurveyServiceImpl implements SurveyService {
     private final SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository;
     @PersistenceContext
     private final EntityManager entityManager;
+    private final SurveyValidationService surveyValidationService;
 
     @Autowired
-    public SurveyServiceImpl(SurveyRepository surveyRepository, ModelMapper modelMapper, RespondentGroupRepository respondentGroupRepository, EntityManager entityManager, SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository) {
+    public SurveyServiceImpl(SurveyRepository surveyRepository, ModelMapper modelMapper, RespondentGroupRepository respondentGroupRepository, EntityManager entityManager, SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository, SurveyValidationService surveyValidationService) {
         this.surveyRepository = surveyRepository;
         this.modelMapper = modelMapper;
         this.respondentGroupRepository = respondentGroupRepository;
         this.entityManager = entityManager;
         this.surveyParticipationTimeSlotRepository = surveyParticipationTimeSlotRepository;
+        this.surveyValidationService = surveyValidationService;
     }
 
     @Override
     public ResponseSurveyDto createSurvey(CreateSurveyDto createSurveyDto) {
         Survey surveyEntity = mapToSurvey(createSurveyDto);
+        surveyValidationService.validateShowSections(surveyEntity);
+
 
         Survey dbSurvey = surveyRepository.saveAndFlush(surveyEntity);
         entityManager.refresh(dbSurvey);

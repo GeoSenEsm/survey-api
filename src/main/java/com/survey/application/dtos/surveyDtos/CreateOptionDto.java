@@ -16,4 +16,8 @@ public class CreateOptionDto {
     @NotBlank
     @Size(min = 1, max = 50)
     private String label;
+
+    @Min(1)
+    @Max(9999)
+    private Integer showSection;
 }
