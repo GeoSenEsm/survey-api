@@ -1,7 +1,6 @@
 package com.survey.application.services;
 
 import com.survey.application.dtos.surveyDtos.AnswerDto;
-import com.survey.application.dtos.surveyDtos.SelectedOptionDto;
 import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
 import com.survey.application.dtos.surveyDtos.SurveyParticipationDto;
 import com.survey.domain.models.*;
@@ -65,9 +64,6 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         return questionRepository.findAllByIds(surveyId, questionIds);
     }
 
-    private List<Option> findOptionsByIds(List<UUID> optionIds, UUID questionId) {
-        return optionRepository.findAllByIds(questionId, optionIds);
-    }
 
     private SurveyParticipation saveSurveyParticipation(SendSurveyResponseDto sendSurveyResponseDto, IdentityUser identityUser, Survey survey) {
         SurveyParticipation surveyParticipation = new SurveyParticipation();
@@ -75,6 +71,11 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         surveyParticipation.setDate(new Date());
         surveyParticipation.setSurvey(survey);
         return surveyParticipationRepository.save(surveyParticipation);
+    }
+    private Map<UUID, Option> findOptionsBySurveyId(List<UUID> questionIds) {
+        return optionRepository.findByQuestionIds(questionIds)
+                .stream()
+                .collect(Collectors.toMap(Option::getId, option -> option));
     }
 
 private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyResponseDto, SurveyParticipation surveyParticipation, Survey survey) throws InvalidAttributeValueException {
@@ -86,11 +87,13 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
     Map<UUID, Question> questionMap = questions.stream()
             .collect(Collectors.toMap(Question::getId, question -> question));
 
+    Map<UUID, Option> optionsMap = findOptionsBySurveyId(questionIds);
+
     List<QuestionAnswer> questionAnswers = sendSurveyResponseDto.getAnswers().stream()
             .map(answerDto -> {
                 Question question = questionMap.get(answerDto.getQuestionId());
                 if (question == null) {
-                    throw new IllegalArgumentException("Invalid question ID - this question is not part of the survey: " + survey.getId());
+                    throw new IllegalArgumentException("Invalid question ID: " + answerDto.getQuestionId());
                 }
                 QuestionAnswer questionAnswer = new QuestionAnswer();
                 questionAnswer.setSurveyParticipation(surveyParticipation);
@@ -104,19 +107,11 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
                     }
                     questionAnswer.setNumericAnswer(numericAnswer);
                 } else {
-                    List<UUID> optionIds = answerDto.getSelectedOptions().stream()
-                            .map(SelectedOptionDto::getOptionId)
-                            .collect(Collectors.toList());
-
-                    List<Option> options = findOptionsByIds(optionIds, question.getId());
-                    Map<UUID, Option> optionMap = options.stream()
-                            .collect(Collectors.toMap(Option::getId, option -> option));
-
                     List<OptionSelection> optionSelections = answerDto.getSelectedOptions().stream()
                             .map(selectedOptionDto -> {
-                                Option option = optionMap.get(selectedOptionDto.getOptionId());
+                                Option option = optionsMap.get(selectedOptionDto.getOptionId());
                                 if (option == null) {
-                                    throw new IllegalArgumentException("Invalid option ID - this option is not part of the question: " + question.getId());
+                                    throw new IllegalArgumentException("Invalid option ID: " + selectedOptionDto.getOptionId());
                                 }
                                 OptionSelection optionSelection = new OptionSelection();
                                 optionSelection.setQuestionAnswer(questionAnswer);
