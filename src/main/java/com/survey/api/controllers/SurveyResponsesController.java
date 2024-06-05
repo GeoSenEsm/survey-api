@@ -21,7 +21,7 @@ public class SurveyResponsesController {
     public SurveyResponsesController(SurveyResponsesService surveyResponsesService){
         this.surveyResponsesService = surveyResponsesService;
     }
-
+    @CrossOrigin
     @PostMapping
     public ResponseEntity<SurveyParticipationDto> saveSurveyResponse(@Validated @RequestBody SendSurveyResponseDto sendSurveyResponseDto, @RequestHeader(value="Authorization", required = false) String token) throws InvalidAttributeValueException {
         SurveyParticipationDto surveyParticipationDto = surveyResponsesService.saveSurveyResponse(sendSurveyResponseDto, token);
