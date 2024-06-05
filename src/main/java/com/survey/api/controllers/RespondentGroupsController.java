@@ -20,6 +20,7 @@ public class RespondentGroupsController {
         this.respondentGroupService = respondentGroupService;
     }
     @GetMapping
+    @CrossOrigin
     public ResponseEntity<List<RespondentGroupDto>> getRespondentGroups(@Validated @RequestParam(name = "respondentId", required = false) UUID respondentId) {
         List<RespondentGroupDto> respondentGroupDtos = respondentGroupService.getRespondentGroups(respondentId);
         return ResponseEntity.ok(respondentGroupDtos);

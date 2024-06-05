@@ -29,6 +29,7 @@ public class SurveySendingPolicyController {
     }
 
     @PostMapping
+    @CrossOrigin
     public ResponseEntity<SurveySendingPolicyDto> createSurveySendingPolicy(
             @Validated @RequestBody CreateSurveySendingPolicyDto createSurveySendingPolicy) throws  InstanceAlreadyExistsException, NoSuchElementException,  IllegalArgumentException, BadRequestException, BadAttributeValueExpException, InstanceNotFoundException, InvalidAttributeValueException {
 
