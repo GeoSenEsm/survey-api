@@ -2,6 +2,7 @@ package com.survey.application.services;
 
 import com.survey.api.security.TokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -14,8 +15,8 @@ public class ClaimsPrincipalServiceImpl implements ClaimsPrincipalService{
         this.tokenProvider = tokenProvider;
     }
 
-    @Override
-    public String getCurrentUsername(String tokenBearerPrefix) {
+
+    private String getCurrentUsernameFromToken(String tokenBearerPrefix) {
         if (tokenBearerPrefix == null) {
             return null;
         }
@@ -25,5 +26,12 @@ public class ClaimsPrincipalServiceImpl implements ClaimsPrincipalService{
         } else {
             return null;
         }
+    }
+    public String getCurrentUsernameIfExists(String token){
+        String usernameFromJwt = getCurrentUsernameFromToken(token);
+        if (usernameFromJwt == null){
+            throw new BadCredentialsException("Invalid credentials");
+        }
+        return usernameFromJwt;
     }
 }
