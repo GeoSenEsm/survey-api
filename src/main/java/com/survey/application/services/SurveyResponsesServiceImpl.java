@@ -73,7 +73,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         return surveyParticipationRepository.save(surveyParticipation);
     }
     private Map<UUID, Option> findOptionsBySurveyId(List<UUID> questionIds) {
-        return optionRepository.findByQuestionIds(questionIds)
+        return optionRepository.findByQuestionIdIn(questionIds)
                 .stream()
                 .collect(Collectors.toMap(Option::getId, option -> option));
     }
