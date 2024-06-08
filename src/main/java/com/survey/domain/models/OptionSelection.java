@@ -18,7 +18,7 @@ public class OptionSelection {
     @JoinColumn(name = "question_answer_id")
     private QuestionAnswer questionAnswer;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "option_id")
     private Option option;
 
