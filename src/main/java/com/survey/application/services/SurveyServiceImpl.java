@@ -106,6 +106,7 @@ public class SurveyServiceImpl implements SurveyService {
 
     private SurveySection mapToSurveySection(CreateSurveySectionDto sectionDto, Survey surveyEntity){
         SurveySection surveySection = modelMapper.map(sectionDto, SurveySection.class);
+        surveySection.setId(null);
         surveySection.setSurvey(surveyEntity);
 
         SectionToUserGroup sectionToUserGroup = getSectionToUserGroup(sectionDto, surveySection);

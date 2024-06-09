@@ -17,6 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/surveys")
+@CrossOrigin
 public class SurveyController {
 
     private final SurveyService surveyService;
@@ -26,7 +27,7 @@ public class SurveyController {
         this.surveyService = surveyService;
     }
 
-    @CrossOrigin
+
     @PostMapping
     public ResponseEntity<ResponseSurveyDto> createSurvey(@Validated @RequestBody CreateSurveyDto createSurveyDto){
         ResponseSurveyDto responseDto = surveyService.createSurvey(createSurveyDto);
