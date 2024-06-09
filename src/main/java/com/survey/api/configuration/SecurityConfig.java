@@ -58,6 +58,7 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.GET, "/api/surveys/short").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/respondentgroups").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/surveyresponses").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/surveysendingpolicies").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/summaries/histogram").permitAll();
                 })
                 .httpBasic(Customizer.withDefaults());
