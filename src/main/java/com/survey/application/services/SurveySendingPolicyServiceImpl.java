@@ -2,6 +2,7 @@ package com.survey.application.services;
 
 import com.survey.application.dtos.CreateSurveySendingPolicyDto;
 import com.survey.application.dtos.SurveySendingPolicyDto;
+import com.survey.application.dtos.SurveySendingPolicyTimesDto;
 import com.survey.domain.models.*;
 import com.survey.domain.repository.SurveyRepository;
 import com.survey.domain.repository.SurveySendingPolicyRepository;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.management.InvalidAttributeValueException;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -59,9 +61,35 @@ public class SurveySendingPolicyServiceImpl implements SurveySendingPolicyServic
         );
         SurveySendingPolicy saveSurveySendingPolicy = surveySendingPolicyRepository.saveAndFlush(surveySendingPolicy);
         entityManager.refresh(saveSurveySendingPolicy);
+
         SurveySendingPolicyDto surveySendingPolicyDto = modelMapper.map(saveSurveySendingPolicy, SurveySendingPolicyDto.class);
         surveySendingPolicyDto.setSurveyId(currentSurveyId);
+        List<SurveySendingPolicyTimesDto> timeSlotDtoList = saveSurveySendingPolicy.getTimeSlots().stream()
+                .map(slot -> modelMapper.map(slot, SurveySendingPolicyTimesDto.class))
+                .collect(Collectors.toList());
+
+        surveySendingPolicyDto.setTimeSlots(timeSlotDtoList);
 
         return surveySendingPolicyDto;
+    }
+
+    @Override
+    @Transactional
+    public List<SurveySendingPolicyDto> getSurveysSendingPolicyById(UUID surveyId) {
+        List<SurveySendingPolicy> surveySendingPolicies = surveySendingPolicyRepository.findAllBySurveyId(surveyId);
+
+        if (surveySendingPolicies.isEmpty()) {
+            throw new IllegalArgumentException("No survey sending policy for this surveyId.");
+        }
+
+        return surveySendingPolicies.stream()
+                .map(policy -> convertToDto(policy, surveyId))
+                .collect(Collectors.toList());
+    }
+
+    private SurveySendingPolicyDto convertToDto(SurveySendingPolicy policy, UUID surveyId) {
+        SurveySendingPolicyDto dto = modelMapper.map(policy, SurveySendingPolicyDto.class);
+        dto.setSurveyId(surveyId);
+        return dto;
     }
 }
