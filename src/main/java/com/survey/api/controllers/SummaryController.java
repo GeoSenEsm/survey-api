@@ -1,33 +1,34 @@
 package com.survey.api.controllers;
 
 import com.survey.application.dtos.HistogramDataDto;
-import com.survey.application.services.ResultsService;
+import com.survey.application.services.SummaryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
 @RestController
 @CrossOrigin
-@RequestMapping("/api/results")
-public class ResultsController {
-    private final ResultsService resultsService;
+@RequestMapping("/api/summaries")
+public class SummaryController {
+    private final SummaryService summaryService;
 
     @Autowired
-    public ResultsController(ResultsService resultsService) {
-        this.resultsService = resultsService;
+    public SummaryController(SummaryService summaryService) {
+        this.summaryService = summaryService;
     }
+
 
     @GetMapping("/histogram")
     public ResponseEntity<List<HistogramDataDto>> getHistogramData(
             @RequestParam("surveyId") UUID surveyId,
-            @RequestParam("date") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate date){
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date date){
 
-        List<HistogramDataDto> histogramDataDtoList = resultsService.getHistogramData(surveyId, date);
+        List<HistogramDataDto> histogramDataDtoList = summaryService.getHistogramData(surveyId, date);
         return ResponseEntity.ok(histogramDataDtoList);
     }
 }
