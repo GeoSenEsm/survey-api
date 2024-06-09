@@ -3,6 +3,7 @@ package com.survey.api.controllers;
 import com.survey.application.dtos.surveyDtos.CreateSurveyDto;
 import com.survey.application.dtos.surveyDtos.ResponseSurveyDto;
 import com.survey.application.dtos.surveyDtos.ResponseSurveyShortDto;
+import com.survey.application.dtos.surveyDtos.ResponseSurveyShortSummariesDto;
 import com.survey.application.services.SurveyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -44,5 +45,13 @@ public class SurveyController {
         List<ResponseSurveyShortDto> shortSurveys = surveyService.getSurveysShort();
         return ResponseEntity.status(HttpStatus.OK).body(shortSurveys);
     }
+
+    @GetMapping("/shortsummaries")
+    public ResponseEntity<List<ResponseSurveyShortSummariesDto>> getShortSurveysSummaries(){
+        List<ResponseSurveyShortSummariesDto> shortSummariesSurveys = surveyService.getSurveysShortSummaries();
+        return ResponseEntity.status(HttpStatus.OK).body(shortSummariesSurveys);
+    }
+
+
 
 }

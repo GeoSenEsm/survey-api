@@ -1,5 +1,6 @@
 package com.survey.application.services;
 
+import com.survey.application.dtos.SurveySendingPolicyTimesDto;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.QuestionType;
@@ -71,6 +72,25 @@ public class SurveyServiceImpl implements SurveyService {
     public List<ResponseSurveyShortDto> getSurveysShort() {
         return surveyRepository.findAll().stream()
                 .map(survey -> modelMapper.map(survey, ResponseSurveyShortDto.class))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ResponseSurveyShortSummariesDto> getSurveysShortSummaries() {
+        OffsetDateTime endOfDay = OffsetDateTime.now().toLocalDate().atTime(23, 59, 59).atOffset(OffsetDateTime.now().getOffset());
+        return surveyRepository.findAll().stream()
+                .map(survey -> {
+                    List<SurveySendingPolicyTimesDto> timeSlotDtoList = survey.getPolicies().stream()
+                            .flatMap(policy -> policy.getTimeSlots().stream())
+                            .filter(slot -> slot.getFinish().isBefore(endOfDay))
+                            .map(slot -> modelMapper.map(slot, SurveySendingPolicyTimesDto.class))
+                            .collect(Collectors.toList());
+
+                    ResponseSurveyShortSummariesDto dto = modelMapper.map(survey, ResponseSurveyShortSummariesDto.class);
+                    dto.setDates(timeSlotDtoList);
+                    return dto;
+                })
+                .filter(dto -> !dto.getDates().isEmpty())
                 .collect(Collectors.toList());
     }
 
