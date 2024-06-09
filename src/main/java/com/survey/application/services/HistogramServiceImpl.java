@@ -14,7 +14,7 @@ import java.util.stream.IntStream;
 @Service
 public class HistogramServiceImpl implements HistogramService{
 
-    private ModelMapper modelMapper;
+    private final ModelMapper modelMapper;
     @Autowired
     public HistogramServiceImpl(ModelMapper modelMapper) {
         this.modelMapper = modelMapper;
