@@ -78,10 +78,6 @@ public class SurveySendingPolicyServiceImpl implements SurveySendingPolicyServic
     public List<SurveySendingPolicyDto> getSurveysSendingPolicyById(UUID surveyId) {
         List<SurveySendingPolicy> surveySendingPolicies = surveySendingPolicyRepository.findAllBySurveyId(surveyId);
 
-        if (surveySendingPolicies.isEmpty()) {
-            throw new IllegalArgumentException("No survey sending policy for this surveyId.");
-        }
-
         return surveySendingPolicies.stream()
                 .map(policy -> convertToDto(policy, surveyId))
                 .collect(Collectors.toList());
