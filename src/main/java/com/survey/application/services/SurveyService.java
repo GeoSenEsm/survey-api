@@ -7,6 +7,7 @@ import com.survey.application.dtos.surveyDtos.ResponseSurveyShortSummariesDto;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 public interface SurveyService {
 
@@ -14,4 +15,5 @@ public interface SurveyService {
     List<ResponseSurveyDto> getSurveysByCompletionDate(LocalDate completionDate);
     List<ResponseSurveyShortDto> getSurveysShort();
     List<ResponseSurveyShortSummariesDto> getSurveysShortSummaries();
+    ResponseSurveyDto getSurveyById(UUID surveyId);
 }

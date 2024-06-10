@@ -92,6 +92,12 @@ public class SurveyServiceImpl implements SurveyService {
                 })
                 .filter(dto -> !dto.getDates().isEmpty())
                 .collect(Collectors.toList());
+      
+    public ResponseSurveyDto getSurveyById(UUID surveyId) {
+        Survey survey = surveyRepository.findById(surveyId)
+                .orElseThrow(() -> new NoSuchElementException("Survey not found with id: " + surveyId));
+
+        return modelMapper.map(survey, ResponseSurveyDto.class);
     }
 
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto){

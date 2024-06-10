@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/surveys")
@@ -34,11 +35,17 @@ public class SurveyController {
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
     }
 
-    @GetMapping
+    @GetMapping(params = "completionDate")
     public ResponseEntity<List<ResponseSurveyDto>> getSurveysByCompletionDate(
             @RequestParam("completionDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate completionDate) {
         List<ResponseSurveyDto> surveys = surveyService.getSurveysByCompletionDate(completionDate);
         return ResponseEntity.ok(surveys);
+    }
+
+    @GetMapping(params = "surveyId")
+    public ResponseEntity<ResponseSurveyDto> getSurveyById(@RequestParam("surveyId") UUID surveyId){
+        ResponseSurveyDto responseSurveyDto = surveyService.getSurveyById(surveyId);
+        return ResponseEntity.ok(responseSurveyDto);
     }
 
     @GetMapping("/short")
