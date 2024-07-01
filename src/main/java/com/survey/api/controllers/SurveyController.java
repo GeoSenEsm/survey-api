@@ -55,6 +55,7 @@ public class SurveyController {
     }
 
     @GetMapping("/shortsummaries")
+    @CrossOrigin
     public ResponseEntity<List<ResponseSurveyShortSummariesDto>> getShortSurveysSummaries(){
         List<ResponseSurveyShortSummariesDto> shortSummariesSurveys = surveyService.getSurveysShortSummaries();
         return ResponseEntity.status(HttpStatus.OK).body(shortSummariesSurveys);

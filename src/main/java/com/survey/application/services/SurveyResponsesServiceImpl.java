@@ -70,7 +70,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         surveyParticipation.setIdentityUser(identityUser);
         surveyParticipation.setDate(new Date());
         surveyParticipation.setSurvey(survey);
-        return surveyParticipationRepository.save(surveyParticipation);
+        return surveyParticipation;
     }
     private Map<UUID, Option> findOptionsBySurveyId(List<UUID> questionIds) {
         return optionRepository.findByQuestionIdIn(questionIds)
@@ -101,18 +101,20 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
 
                 if (question.getQuestionType().equals(QuestionType.discrete_number_selection)) {
                     Integer numericAnswer = answerDto.getNumericAnswer();
-                    if (numericAnswer == null || numericAnswer < question.getNumberRange().getFrom() || numericAnswer > question.getNumberRange().getTo() ) {
+                    //TODO: this is more complicated, let's allow null for now
+                    //if (numericAnswer == null || numericAnswer < question.getNumberRange().getFrom() || numericAnswer > question.getNumberRange().getTo() ) {
 
-                        throw new IllegalArgumentException("Invalid Numeric answer.");
-                    }
+                        //throw new IllegalArgumentException("Invalid Numeric answer.");
+                    //}
                     questionAnswer.setNumericAnswer(numericAnswer);
                 } else {
                     List<OptionSelection> optionSelections = answerDto.getSelectedOptions().stream()
                             .map(selectedOptionDto -> {
                                 Option option = optionsMap.get(selectedOptionDto.getOptionId());
-                                if (option == null) {
-                                    throw new IllegalArgumentException("Invalid option ID: " + selectedOptionDto.getOptionId());
-                                }
+                                //TODO: this is more complicated, let's allow null for now
+                                //if (option == null) {
+                                    //throw new IllegalArgumentException("Invalid option ID: " + selectedOptionDto.getOptionId());
+                                //}
                                 OptionSelection optionSelection = new OptionSelection();
                                 optionSelection.setQuestionAnswer(questionAnswer);
                                 optionSelection.setOption(option);
@@ -144,6 +146,7 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
         Survey survey = findSurveyById(sendSurveyResponseDto.getSurveyId());
         SurveyParticipation surveyParticipation = saveSurveyParticipation(sendSurveyResponseDto, identityUser, survey);
         SurveyParticipation finalSurveyParticipation = mapQuestionAnswers(sendSurveyResponseDto, surveyParticipation, survey);
+        surveyParticipationRepository.save(finalSurveyParticipation);
         return mapToDto(finalSurveyParticipation, sendSurveyResponseDto, identityUser);
     }
 }

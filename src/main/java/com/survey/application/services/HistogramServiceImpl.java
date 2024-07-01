@@ -42,20 +42,59 @@ public class HistogramServiceImpl implements HistogramService{
         }
 
 
-        return histogramDataMap.values().stream()
+        var data = histogramDataMap.values().stream()
+                .sorted(Comparator.comparingInt(HistogramData::getOrder))
                 .map(histogramData -> modelMapper.map(histogramData, HistogramDataDto.class))
                 .collect(Collectors.toList());
+
+        return data;
     }
 
     private Map<UUID, HistogramData> initAllQuestionsInSurvey(Survey survey){
         Map<UUID, HistogramData> histogramDataMap = new HashMap<>();
 
-        for (SurveySection section : survey.getSections()){
-            for(Question question : section.getQuestions()){
+        List<SurveySection> sections = survey.getSections();
+        int histogramDataNumber = 0;
+        Collections.sort(sections, new Comparator<SurveySection>() {
+            @Override
+            public int compare(SurveySection o1, SurveySection o2) {
+                if (o1.getOrder() > o2.getOrder()){
+                    return 1;
+                }
+
+                if (o1.getOrder() == o2.getOrder()){
+                    return 0;
+                }
+
+                return -1;
+            }
+        });
+
+        for (SurveySection section : sections){
+            //TODO: remove this n + 1 issue
+            List<Question> questions = section.getQuestions();
+
+            Collections.sort(questions, new Comparator<Question>() {
+                @Override
+                public int compare(Question o1, Question o2) {
+                    //TODO: dry this, maybe some interface like Orderable to be implemented in Section and Question? They both have order
+                    if (o1.getOrder() > o2.getOrder()){
+                        return 1;
+                    }
+
+                    if (o1.getOrder() == o2.getOrder()){
+                        return 0;
+                    }
+
+                    return -1;
+                }
+            });
+            for(Question question : questions){
                 histogramDataMap.put(
                         question.getId(),
-                        new HistogramData(question.getContent(), getSeriesForQuestion(question))
+                        new HistogramData(question.getContent(), histogramDataNumber,  getSeriesForQuestion(question))
                 );
+                histogramDataNumber++;
             }
         }
         return histogramDataMap;

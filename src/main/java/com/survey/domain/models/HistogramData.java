@@ -11,6 +11,7 @@ import java.util.List;
 @AllArgsConstructor
 public class HistogramData {
     private String title;
+    private int order;
     private List<ChartDataPoint> series;
 
     public void increaseAnswerNumbers(String label){
