@@ -20,5 +20,4 @@ public class RespondentDataDto {
     private Integer stressLevelId;
     private Integer lifeSatisfactionId;
     private Integer qualityOfSleepId;
-
 }

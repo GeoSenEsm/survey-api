@@ -58,16 +58,16 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     }
     private void addGreeneryAreaCategories() {
         if (greeneryAreaCategoryRepository.count() == 0){
-            List<GreeneryAreaCategory> occupationCategories = Stream.of("low-density", "medium-density", "high-density")
+            List<GreeneryAreaCategory> greeneryAreaCategories = Stream.of("małe zagęszczenie", "średnie zagęszczenie", "wysokie zagęszczenie")
                     .map(GreeneryAreaCategory::new)
                     .collect(Collectors.toList());
-            greeneryAreaCategoryRepository.saveAll(occupationCategories);
+            greeneryAreaCategoryRepository.saveAll(greeneryAreaCategories);
         }
     }
 
     private void addOccupationCategories(){
         if (occupationCategoryRepository.count() == 0){
-            List<OccupationCategory> occupationCategories = Stream.of("employed", "unemployed")
+            List<OccupationCategory> occupationCategories = Stream.of("zatrudniony", "niezatrudniony")
                     .map(OccupationCategory::new)
                     .collect(Collectors.toList());
             occupationCategoryRepository.saveAll(occupationCategories);
@@ -75,7 +75,7 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     }
     private void addLifeSatisfaction(){
         if (lifeSatisfactionRepository.count() == 0){
-            List<LifeSatisfaction> lifeSatisfactions = Stream.of("low", "medium", "high")
+            List<LifeSatisfaction> lifeSatisfactions = Stream.of("niskie", "średnie", "wysokie")
                     .map(LifeSatisfaction::new)
                     .collect(Collectors.toList());
             lifeSatisfactionRepository.saveAll(lifeSatisfactions);
@@ -93,7 +93,7 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
 
     private void addStressLevels(){
         if (stressLevelRepository.count() == 0){
-            List<StressLevel> stressLevels = Stream.of("low", "medium", "high")
+            List<StressLevel> stressLevels = Stream.of("niski", "wysoki", "średni")
                     .map(StressLevel::new)
                     .collect(Collectors.toList());
             stressLevelRepository.saveAll(stressLevels);
@@ -112,7 +112,7 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
 
     private void addHealthConditions() {
         if (healthConditionRepository.count() == 0) {
-            List<HealthCondition> healthConditions = Stream.of("low", "medium", "high")
+            List<HealthCondition> healthConditions = Stream.of("niska", "średnia", "wysoka")
                     .map(HealthCondition::new)
                     .toList();
             healthConditionRepository.saveAll(healthConditions);
@@ -121,8 +121,8 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
 
     private void addEducationCategories() {
         if (educationCategoryRepository.count() == 0) {
-            List<EducationCategory> educationCategories = Stream.of("primary education", "secondary education",
-                            "undergraduate education", "graduate education")
+            List<EducationCategory> educationCategories = Stream.of("podstawowe", "średnie",
+                            "wyższe", "zawodowe")
                     .map(EducationCategory::new)
                     .toList();
             educationCategoryRepository.saveAll(educationCategories);
@@ -130,13 +130,13 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     }
     private void addQualityOfSleep() {
         if (qualityOfSleepRepository.count() == 0) {
-            List<QualityOfSleep> qualityOfSleep = Stream.of("low", "medium", "high").map(QualityOfSleep::new).toList();
+            List<QualityOfSleep> qualityOfSleep = Stream.of("niska", "średnia", "wysoka").map(QualityOfSleep::new).toList();
             qualityOfSleepRepository.saveAll(qualityOfSleep);
         }
     }
     private void addMedicationUse() {
         if (medicationUseRepository.count() == 0) {
-            List<MedicationUse> medicationUses = Stream.of("yes", "no").map(MedicationUse::new).toList();
+            List<MedicationUse> medicationUses = Stream.of("tak", "nie").map(MedicationUse::new).toList();
             medicationUseRepository.saveAll(medicationUses);
         }
     }
