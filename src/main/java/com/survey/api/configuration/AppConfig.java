@@ -27,7 +27,7 @@ import java.security.Timestamp;
 public class AppConfig {
 
     private String url;
-    private String user;
+    private String username;
     private String password;
     private String driverClassName;
 
@@ -35,7 +35,7 @@ public class AppConfig {
     public Flyway flyway(){
         DataSource ds = DataSourceBuilder.create()
                 .url(url)
-                .username(user)
+                .username(username)
                 .password(password)
                 .driverClassName(driverClassName)
                 .build();
