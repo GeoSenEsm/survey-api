@@ -12,4 +12,5 @@ public class AnswerDto {
     private UUID questionId;
     private List<SelectedOptionDto> selectedOptions;
     private Integer numericAnswer;
+    private Boolean yesNoAnswer;
 }

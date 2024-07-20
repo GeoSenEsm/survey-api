@@ -28,6 +28,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final IdentityUserRepository identityUserRepository;
     private final ModelMapper modelMapper;
     private final EntityManager entityManager;
+    private final SurveyResponsesValidationService surveyResponsesValidationService;
 
 
     @Autowired
@@ -39,7 +40,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl,
             IdentityUserRepository identityUserRepository,
             ModelMapper modelMapper,
-            EntityManager entityManager) {
+            EntityManager entityManager,
+            SurveyResponsesValidationService surveyResponsesValidationService) {
         this.surveyParticipationRepository = surveyParticipationRepository;
         this.surveyRepository = surveyRepository;
         this.optionRepository = optionRepository;
@@ -48,6 +50,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         this.identityUserRepository = identityUserRepository;
         this.modelMapper = modelMapper;
         this.entityManager = entityManager;
+        this.surveyResponsesValidationService = surveyResponsesValidationService;
     }
     private IdentityUser findIdentityUserFromToken(String token) {
         String usernameFromJwt = claimsPrincipalServiceImpl.getCurrentUsernameIfExists(token);
@@ -107,7 +110,8 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
                         //throw new IllegalArgumentException("Invalid Numeric answer.");
                     //}
                     questionAnswer.setNumericAnswer(numericAnswer);
-                } else {
+                }
+                if (question.getQuestionType().equals(QuestionType.single_text_selection)) {
                     List<OptionSelection> optionSelections = answerDto.getSelectedOptions().stream()
                             .map(selectedOptionDto -> {
                                 Option option = optionsMap.get(selectedOptionDto.getOptionId());
@@ -121,6 +125,11 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
                                 return optionSelection;
                             }).collect(Collectors.toList());
                     questionAnswer.setOptionSelections(optionSelections);
+                }
+
+                if (question.getQuestionType().equals(QuestionType.yes_no_selection)) {
+                    surveyResponsesValidationService.validateYesNoAnswerQuestions(question, answerDto);
+                    questionAnswer.setYesNoAnswer(answerDto.getYesNoAnswer());
                 }
 
                 return questionAnswer;

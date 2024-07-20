@@ -149,6 +149,11 @@ public class SurveyServiceImpl implements SurveyService {
             question.setOptions(null);
         }
 
+        if (question.getQuestionType().equals(QuestionType.yes_no_selection)) {
+            question.setNumberRange(null);
+            question.setOptions(null);
+        }
+
         return question;
     }
 
