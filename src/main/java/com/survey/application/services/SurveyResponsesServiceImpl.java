@@ -28,7 +28,6 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final IdentityUserRepository identityUserRepository;
     private final ModelMapper modelMapper;
     private final EntityManager entityManager;
-    private final SurveyResponsesValidationService surveyResponsesValidationService;
 
 
     @Autowired
@@ -40,8 +39,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl,
             IdentityUserRepository identityUserRepository,
             ModelMapper modelMapper,
-            EntityManager entityManager,
-            SurveyResponsesValidationService surveyResponsesValidationService) {
+            EntityManager entityManager) {
         this.surveyParticipationRepository = surveyParticipationRepository;
         this.surveyRepository = surveyRepository;
         this.optionRepository = optionRepository;
@@ -50,7 +48,6 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         this.identityUserRepository = identityUserRepository;
         this.modelMapper = modelMapper;
         this.entityManager = entityManager;
-        this.surveyResponsesValidationService = surveyResponsesValidationService;
     }
     private IdentityUser findIdentityUserFromToken(String token) {
         String usernameFromJwt = claimsPrincipalServiceImpl.getCurrentUsernameIfExists(token);
@@ -128,7 +125,6 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
                 }
 
                 if (question.getQuestionType().equals(QuestionType.yes_no_selection)) {
-                    surveyResponsesValidationService.validateYesNoAnswerQuestions(question, answerDto);
                     questionAnswer.setYesNoAnswer(answerDto.getYesNoAnswer());
                 }
 

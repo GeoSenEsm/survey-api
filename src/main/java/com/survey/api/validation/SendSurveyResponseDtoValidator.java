@@ -6,18 +6,16 @@ import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
 import com.survey.domain.models.Option;
 import com.survey.domain.models.Question;
 import com.survey.domain.models.Survey;
-import com.survey.domain.repository.QuestionAnswerRepository;
 import com.survey.domain.repository.SurveyRepository;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
-import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 
 public class SendSurveyResponseDtoValidator
-implements ConstraintValidator<SendSurveyResponseDtoValidation, SendSurveyResponseDto> {
+implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
 
     private final SurveyRepository surveyRepository;
 
@@ -28,8 +26,12 @@ implements ConstraintValidator<SendSurveyResponseDtoValidation, SendSurveyRespon
 
     @Override
     public boolean isValid(SendSurveyResponseDto sendSurveyResponseDto, ConstraintValidatorContext constraintValidatorContext) {
-        if (sendSurveyResponseDto == null) {
-            return true; // null values are handled by @NotNull if needed
+        if (
+                sendSurveyResponseDto == null ||
+                sendSurveyResponseDto.getSurveyId() == null ||
+                sendSurveyResponseDto.getAnswers() == null)
+        {
+            return false;
         }
 
         Optional<Survey> surveyOptional = surveyRepository.findById(sendSurveyResponseDto.getSurveyId());
