@@ -1,6 +1,7 @@
 package com.survey.domain.models;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -13,6 +14,7 @@ import java.util.UUID;
         @UniqueConstraint(columnNames = {"order", "question_id"}),
         @UniqueConstraint(columnNames = {"label", "question_id"})
 })
+@AllArgsConstructor
 public class Option {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
