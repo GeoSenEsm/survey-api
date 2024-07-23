@@ -33,4 +33,10 @@ public class RespondentDataController {
         RespondentDataDto createdRespondentData = respondentDataService.createRespondent(dto, token);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdRespondentData);
     }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<RespondentDataDto>> getAll(){
+        List<RespondentDataDto> respondents = respondentDataService.getAll();
+        return ResponseEntity.status(HttpStatus.OK).body(respondents);
+    }
 }
