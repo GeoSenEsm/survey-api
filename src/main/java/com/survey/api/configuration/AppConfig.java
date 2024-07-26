@@ -1,8 +1,10 @@
 package com.survey.api.configuration;
 
+import com.survey.application.dtos.RespondentDataDto;
 import com.survey.application.dtos.surveyDtos.CreateQuestionDto;
 import com.survey.application.dtos.surveyDtos.CreateSurveySectionDto;
 import com.survey.domain.models.Question;
+import com.survey.domain.models.RespondentData;
 import com.survey.domain.models.SurveySection;
 import com.survey.domain.models.enums.Gender;
 import lombok.Getter;
@@ -80,6 +82,14 @@ public class AppConfig {
             @Override
             protected String convert(Gender gender) {
                 return gender == null ? null : gender.name().toLowerCase();
+            }
+        });
+
+        modelMapper.addMappings(new PropertyMap<RespondentData, RespondentDataDto>() {
+            @Override
+            protected void configure() {
+                map().setIdentityUserId(source.getIdentityUserId());
+                map().setUsername(source.getUsername());
             }
         });
 

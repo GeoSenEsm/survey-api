@@ -34,11 +34,21 @@ public class RespondentData {
     private Integer qualityOfSleepId;
 
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "identityUserId", insertable = false, updatable = false)
+    private IdentityUser identityUser;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "respondent_to_group",
         joinColumns = @JoinColumn(name = "respondent_id"),
         inverseJoinColumns = @JoinColumn(name = "group_id"))
     private Set<RespondentGroup> respondentGroups = new HashSet<>();
 
+    //TODO: I really don't like this, as I feel a little bit like this is writing logic in an entity
+    //Anyways, this is a workaround, because the model mapper for some reason does not deal with getting the username by getting identity user first
+    //It throws IllegalArgumentException with message "object is not an instance of declaring class"
+    public String getUsername(){
+        return identityUser == null ? null : identityUser.getUsername();
+    }
 }
 

@@ -4,15 +4,20 @@ import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.application.dtos.RespondentDataDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.RespondentData;
+import com.survey.domain.repository.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Fetch;
+import jakarta.persistence.criteria.Root;
 import com.survey.domain.models.enums.Gender;
-import com.survey.domain.repository.IdentityUserRepository;
-import com.survey.domain.repository.RespondentDataRepository;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeMap;
 import org.modelmapper.convention.MatchingStrategies;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.annotation.RequestScope;
 
 import javax.management.InstanceAlreadyExistsException;
@@ -30,17 +35,21 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     private final ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl;
     private final ClaimsPrincipalService claimsPrincipalService;
     private final ModelMapper modelMapper;
+    @Autowired
+    GlobalExceptionHandler globalExceptionHandler;
+    private final EntityManager entityManager;
     private final IdentityUserRepository identityUserRepository;
 
 
     @Autowired
     public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl,
                                      ClaimsPrincipalService claimsPrincipalService, ModelMapper modelMapper,
-                                     IdentityUserRepository identityUserRepository) {
+                                     IdentityUserRepository identityUserRepository , EntityManager entityManager) {
         this.respondentDataRepository = respondentDataRepository;
         this.foreignKeyValidationServiceImpl = foreignKeyValidationServiceImpl;
         this.claimsPrincipalService = claimsPrincipalService;
         this.modelMapper = modelMapper;
+        this.entityManager = entityManager;
         this.identityUserRepository = identityUserRepository;
 
         modelMapper.getConfiguration().setMatchingStrategy(MatchingStrategies.STRICT);
@@ -90,8 +99,14 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
     @Override
     public List<RespondentDataDto> getAll(){
-        return respondentDataRepository
-                .findAll()
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<RespondentData> cq = cb.createQuery(RespondentData.class);
+        Root<RespondentData> respondentData = cq.from(RespondentData.class);
+        Fetch<RespondentData, IdentityUser> identityUserFetch = respondentData.fetch("identityUser");
+        cq.select(respondentData);
+
+        return entityManager.createQuery(cq)
+                .getResultList()
                 .stream()
                 .map(x -> modelMapper.map(x, RespondentDataDto.class))
                 .collect(Collectors.toList());
