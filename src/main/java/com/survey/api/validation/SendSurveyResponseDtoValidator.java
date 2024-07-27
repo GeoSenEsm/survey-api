@@ -1,15 +1,17 @@
 package com.survey.api.validation;
 
+import com.survey.application.dtos.SurveySendingPolicyDto;
 import com.survey.application.dtos.surveyDtos.AnswerDto;
 import com.survey.application.dtos.surveyDtos.SelectedOptionDto;
 import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
-import com.survey.domain.models.Option;
-import com.survey.domain.models.Question;
-import com.survey.domain.models.Survey;
+import com.survey.application.services.SurveySendingPolicyService;
+import com.survey.domain.models.*;
 import com.survey.domain.repository.SurveyRepository;
+import com.survey.domain.repository.SurveySendingPolicyRepository;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
+import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -18,10 +20,16 @@ public class SendSurveyResponseDtoValidator
 implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
 
     private final SurveyRepository surveyRepository;
+    private final SurveySendingPolicyRepository surveySendingPolicyRepository;
+    private final SurveySendingPolicyService surveySendingPolicyService;
 
-    public SendSurveyResponseDtoValidator(SurveyRepository surveyRepository){
+    public SendSurveyResponseDtoValidator(SurveyRepository surveyRepository,
+                                          SurveySendingPolicyRepository surveySendingPolicyRepository,
+                                          SurveySendingPolicyService surveySendingPolicyService){
 
         this.surveyRepository = surveyRepository;
+        this.surveySendingPolicyRepository = surveySendingPolicyRepository;
+        this.surveySendingPolicyService = surveySendingPolicyService;
     }
 
     @Override
@@ -46,6 +54,10 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
 
         Survey survey = surveyOptional.get();
         boolean isValid = true;
+
+        if (!validateIfTheSurveyIsActive(survey.getId(), constraintValidatorContext)) {
+            return false;
+        }
 
         Map<UUID, Question> questionIdMappings =
                 survey
@@ -212,4 +224,26 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         }
         return result;
     }
+
+    private boolean validateIfTheSurveyIsActive(UUID surveyId, ConstraintValidatorContext ctx){
+        OffsetDateTime now = OffsetDateTime.now();
+
+        List<SurveySendingPolicyDto> activeTimeSlots = surveySendingPolicyService.getSurveysSendingPolicyById(surveyId);
+
+        boolean isActive = activeTimeSlots.stream().anyMatch(policy ->
+                policy.getTimeSlots().stream().anyMatch(slot ->
+                        now.isAfter(slot.getStart()) && now.isBefore(slot.getFinish())
+                )
+        );
+
+        if (!isActive) {
+            ctx.buildConstraintViolationWithTemplate("The survey is not active")
+                    .addPropertyNode("surveyId")
+                    .addConstraintViolation();
+            return false;
+        }
+
+        return true;
+    }
+
 }
