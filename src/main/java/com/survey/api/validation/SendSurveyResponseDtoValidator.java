@@ -9,11 +9,13 @@ import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.RespondentGroupService;
 import com.survey.application.services.SurveySendingPolicyService;
 import com.survey.domain.models.*;
+import com.survey.domain.repository.OptionRepository;
 import com.survey.domain.repository.RespondentDataRepository;
 import com.survey.domain.repository.SurveyRepository;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.*;
@@ -29,6 +31,7 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
     private final HttpServletRequest httpServletRequest;
     private final ClaimsPrincipalService claimsPrincipalService;
     private final RespondentDataRepository respondentDataRepository;
+    private final OptionRepository optionRepository;
 
 
 
@@ -36,7 +39,7 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
     public SendSurveyResponseDtoValidator(SurveyRepository surveyRepository,
                                           SurveySendingPolicyService surveySendingPolicyService,
                                           RespondentGroupService respondentGroupService,
-                                          HttpServletRequest httpServletRequest, ClaimsPrincipalService claimsPrincipalService, RespondentDataRepository respondentDataRepository){
+                                          HttpServletRequest httpServletRequest, ClaimsPrincipalService claimsPrincipalService, RespondentDataRepository respondentDataRepository, OptionRepository optionRepository){
 
         this.surveyRepository = surveyRepository;
         this.surveySendingPolicyService = surveySendingPolicyService;
@@ -44,10 +47,12 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         this.httpServletRequest = httpServletRequest;
         this.claimsPrincipalService = claimsPrincipalService;
         this.respondentDataRepository = respondentDataRepository;
+        this.optionRepository = optionRepository;
     }
 
 
     @Override
+    @Transactional
     public boolean isValid(SendSurveyResponseDto sendSurveyResponseDto, ConstraintValidatorContext constraintValidatorContext) {
         if (
                 sendSurveyResponseDto == null ||
@@ -75,7 +80,6 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         }
 
         if (!validateAllRequiredQuestionsAnswered(survey, sendSurveyResponseDto.getAnswers(), constraintValidatorContext)) {
-            //isValid = false;
             return false;
         }
 
@@ -258,16 +262,11 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
     }
 
     private boolean isVisibleToParticipant(SurveySection section, Question question, List<AnswerDto> answers) {
-        switch (section.getVisibility()) {
-            case always:
-                return true;
-            case group_specific:
-                return checkGroupSpecificVisibility(section);
-            case answer_triggered:
-                return checkAnswerTriggeredVisibility(section, question, answers);
-            default:
-                return false;
-        }
+        return switch (section.getVisibility()) {
+            case always -> true;
+            case group_specific -> checkGroupSpecificVisibility(section);
+            case answer_triggered -> checkAnswerTriggeredVisibility(section, question, answers);
+        };
     }
 
     private boolean validateAllRequiredQuestionsAnswered(Survey survey, List<AnswerDto> answers, ConstraintValidatorContext ctx) {
@@ -309,8 +308,21 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
     }
 
     private boolean checkAnswerTriggeredVisibility(SurveySection section, Question question, List<AnswerDto> answers) {
-        return true;
+        List<UUID> selectedOptionIds = new ArrayList<>();
+        for (AnswerDto answer : answers) {
+            if (answer.getSelectedOptions() != null) {
+                for (SelectedOptionDto selectedOption : answer.getSelectedOptions()) {
+                    selectedOptionIds.add(selectedOption.getOptionId());
+                }
+            }
+        }
+        List<Option> options = optionRepository.findByIdIn(selectedOptionIds);
+        for (Option option : options) {
+            if (option.getShowSection() != null && option.getShowSection().equals(section.getOrder())) {
+                return true;
+            }
+        }
+        return false;
     }
-
-
 }
+

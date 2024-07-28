@@ -8,4 +8,5 @@ import java.util.UUID;
 
 public interface OptionRepository extends JpaRepository<Option, UUID> {
     List<Option> findByQuestionIdIn(List<UUID> questionIds);
+    List<Option> findByIdIn(List<UUID> ids);
 }
