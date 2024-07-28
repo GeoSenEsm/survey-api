@@ -1,15 +1,19 @@
 package com.survey.api.validation;
 
+import com.survey.application.dtos.RespondentGroupDto;
 import com.survey.application.dtos.SurveySendingPolicyDto;
 import com.survey.application.dtos.surveyDtos.AnswerDto;
 import com.survey.application.dtos.surveyDtos.SelectedOptionDto;
 import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
+import com.survey.application.services.ClaimsPrincipalService;
+import com.survey.application.services.RespondentGroupService;
 import com.survey.application.services.SurveySendingPolicyService;
 import com.survey.domain.models.*;
+import com.survey.domain.repository.RespondentDataRepository;
 import com.survey.domain.repository.SurveyRepository;
-import com.survey.domain.repository.SurveySendingPolicyRepository;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.OffsetDateTime;
 import java.util.*;
@@ -20,17 +24,28 @@ public class SendSurveyResponseDtoValidator
 implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
 
     private final SurveyRepository surveyRepository;
-    private final SurveySendingPolicyRepository surveySendingPolicyRepository;
     private final SurveySendingPolicyService surveySendingPolicyService;
+    private final RespondentGroupService respondentGroupService;
+    private final HttpServletRequest httpServletRequest;
+    private final ClaimsPrincipalService claimsPrincipalService;
+    private final RespondentDataRepository respondentDataRepository;
+
+
+
 
     public SendSurveyResponseDtoValidator(SurveyRepository surveyRepository,
-                                          SurveySendingPolicyRepository surveySendingPolicyRepository,
-                                          SurveySendingPolicyService surveySendingPolicyService){
+                                          SurveySendingPolicyService surveySendingPolicyService,
+                                          RespondentGroupService respondentGroupService,
+                                          HttpServletRequest httpServletRequest, ClaimsPrincipalService claimsPrincipalService, RespondentDataRepository respondentDataRepository){
 
         this.surveyRepository = surveyRepository;
-        this.surveySendingPolicyRepository = surveySendingPolicyRepository;
         this.surveySendingPolicyService = surveySendingPolicyService;
+        this.respondentGroupService = respondentGroupService;
+        this.httpServletRequest = httpServletRequest;
+        this.claimsPrincipalService = claimsPrincipalService;
+        this.respondentDataRepository = respondentDataRepository;
     }
+
 
     @Override
     public boolean isValid(SendSurveyResponseDto sendSurveyResponseDto, ConstraintValidatorContext constraintValidatorContext) {
@@ -56,6 +71,11 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         boolean isValid = true;
 
         if (!validateIfTheSurveyIsActive(survey.getId(), constraintValidatorContext)) {
+            return false;
+        }
+
+        if (!validateAllRequiredQuestionsAnswered(survey, sendSurveyResponseDto.getAnswers(), constraintValidatorContext)) {
+            //isValid = false;
             return false;
         }
 
@@ -88,15 +108,6 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
             if (!validateAnswerWithQuestionType(answerDto, matchingQuestion, constraintValidatorContext)){
                 isValid = false;
             }
-        }
-
-        if (answerFoundMappings.entrySet().stream()
-                .anyMatch(x -> !x.getValue() && questionIdMappings.get(x.getKey()).getRequired())){
-            constraintValidatorContext
-                    .buildConstraintViolationWithTemplate("Required questions must have an answer")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
-            isValid = false;
         }
         return isValid;
     }
@@ -245,5 +256,61 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
 
         return true;
     }
+
+    private boolean isVisibleToParticipant(SurveySection section, Question question, List<AnswerDto> answers) {
+        switch (section.getVisibility()) {
+            case always:
+                return true;
+            case group_specific:
+                return checkGroupSpecificVisibility(section);
+            case answer_triggered:
+                return checkAnswerTriggeredVisibility(section, question, answers);
+            default:
+                return false;
+        }
+    }
+
+    private boolean validateAllRequiredQuestionsAnswered(Survey survey, List<AnswerDto> answers, ConstraintValidatorContext ctx) {
+        Set<UUID> answeredQuestionIds = answers.stream()
+                .map(AnswerDto::getQuestionId)
+                .collect(Collectors.toSet());
+
+        boolean allRequiredQuestionsAnswered = true;
+
+        for (var section : survey.getSections()) {
+            for (var question : section.getQuestions()) {
+                if (question.getRequired() && isVisibleToParticipant(section, question, answers)) {
+                    if (!answeredQuestionIds.contains(question.getId())) {
+                        ctx.buildConstraintViolationWithTemplate("All required questions must be answered")
+                                .addPropertyNode("answers")
+                                .addConstraintViolation();
+                        allRequiredQuestionsAnswered = false;
+                    }
+                }
+            }
+        }
+
+        return allRequiredQuestionsAnswered;
+    }
+
+    private boolean checkGroupSpecificVisibility(SurveySection section) {
+        String token = httpServletRequest.getHeader("Authorization");
+        UUID identityUserId = claimsPrincipalService.findIdentityUserFromToken(token).getId();
+        UUID respondentId = respondentDataRepository.findByIdentityUserId(identityUserId).getId();
+        System.out.println(respondentId);
+        List<RespondentGroupDto> respondentGroups = respondentGroupService.getRespondentGroups(respondentId);
+
+        List<UUID> respondentGroupIds = respondentGroups.stream()
+                .map(RespondentGroupDto::getId)
+                .toList();
+
+        return section.getSectionToUserGroups().stream()
+                .anyMatch(group -> respondentGroupIds.contains(group.getGroup().getId()));
+    }
+
+    private boolean checkAnswerTriggeredVisibility(SurveySection section, Question question, List<AnswerDto> answers) {
+        return true;
+    }
+
 
 }

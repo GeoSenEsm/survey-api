@@ -1,18 +1,23 @@
 package com.survey.application.services;
 
 import com.survey.api.security.TokenProvider;
+import com.survey.domain.models.IdentityUser;
+import com.survey.domain.repository.IdentityUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
 @Service
-public class ClaimsPrincipalServiceImpl implements ClaimsPrincipalService{
+public class ClaimsPrincipalServiceImpl implements ClaimsPrincipalService {
 
     private final TokenProvider tokenProvider;
+    private final IdentityUserRepository identityUserRepository;
 
     @Autowired
-    public ClaimsPrincipalServiceImpl(TokenProvider tokenProvider) {
+    public ClaimsPrincipalServiceImpl(TokenProvider tokenProvider,
+                                      IdentityUserRepository identityUserRepository) {
         this.tokenProvider = tokenProvider;
+        this.identityUserRepository = identityUserRepository;
     }
 
 
@@ -33,5 +38,11 @@ public class ClaimsPrincipalServiceImpl implements ClaimsPrincipalService{
             throw new BadCredentialsException("Invalid credentials");
         }
         return usernameFromJwt;
+    }
+
+    public IdentityUser findIdentityUserFromToken(String token) {
+        String usernameFromJwt = getCurrentUsernameIfExists(token);
+        return identityUserRepository.findByUsername(usernameFromJwt)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid respondent ID - respondent doesn't exist"));
     }
 }

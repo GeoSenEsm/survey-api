@@ -25,7 +25,6 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final OptionRepository optionRepository;
     private final QuestionRepository questionRepository;
     private final ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl;
-    private final IdentityUserRepository identityUserRepository;
     private final ModelMapper modelMapper;
     private final EntityManager entityManager;
 
@@ -37,7 +36,6 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             OptionRepository optionRepository,
             QuestionRepository questionRepository,
             ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl,
-            IdentityUserRepository identityUserRepository,
             ModelMapper modelMapper,
             EntityManager entityManager) {
         this.surveyParticipationRepository = surveyParticipationRepository;
@@ -45,14 +43,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         this.optionRepository = optionRepository;
         this.questionRepository = questionRepository;
         this.claimsPrincipalServiceImpl = claimsPrincipalServiceImpl;
-        this.identityUserRepository = identityUserRepository;
         this.modelMapper = modelMapper;
         this.entityManager = entityManager;
-    }
-    private IdentityUser findIdentityUserFromToken(String token) {
-        String usernameFromJwt = claimsPrincipalServiceImpl.getCurrentUsernameIfExists(token);
-        return identityUserRepository.findByUsername(usernameFromJwt)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid respondent ID - respondent doesn't exist"));
     }
 
     private Survey findSurveyById(UUID surveyId) {
@@ -147,7 +139,7 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
     @Override
     @Transactional
     public SurveyParticipationDto saveSurveyResponse(SendSurveyResponseDto sendSurveyResponseDto, String token) throws InvalidAttributeValueException {
-        IdentityUser identityUser = findIdentityUserFromToken(token);
+        IdentityUser identityUser = claimsPrincipalServiceImpl.findIdentityUserFromToken(token);
         Survey survey = findSurveyById(sendSurveyResponseDto.getSurveyId());
         SurveyParticipation surveyParticipation = saveSurveyParticipation(sendSurveyResponseDto, identityUser, survey);
         SurveyParticipation finalSurveyParticipation = mapQuestionAnswers(sendSurveyResponseDto, surveyParticipation, survey);
