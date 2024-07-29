@@ -39,7 +39,10 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
     public SendSurveyResponseDtoValidator(SurveyRepository surveyRepository,
                                           SurveySendingPolicyService surveySendingPolicyService,
                                           RespondentGroupService respondentGroupService,
-                                          HttpServletRequest httpServletRequest, ClaimsPrincipalService claimsPrincipalService, RespondentDataRepository respondentDataRepository, OptionRepository optionRepository){
+                                          HttpServletRequest httpServletRequest,
+                                          ClaimsPrincipalService claimsPrincipalService,
+                                          RespondentDataRepository respondentDataRepository,
+                                          OptionRepository optionRepository){
 
         this.surveyRepository = surveyRepository;
         this.surveySendingPolicyService = surveySendingPolicyService;

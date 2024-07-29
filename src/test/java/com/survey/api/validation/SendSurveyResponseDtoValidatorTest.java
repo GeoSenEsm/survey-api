@@ -1,8 +1,11 @@
 package com.survey.api.validation;
 
+import com.survey.application.dtos.SurveySendingPolicyDto;
+import com.survey.application.dtos.SurveySendingPolicyTimesDto;
 import com.survey.application.dtos.surveyDtos.AnswerDto;
 import com.survey.application.dtos.surveyDtos.SelectedOptionDto;
 import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
+import com.survey.application.services.SurveySendingPolicyService;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.QuestionType;
 import com.survey.domain.models.enums.Visibility;
@@ -17,6 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -30,7 +34,8 @@ class SendSurveyResponseDtoValidatorTest {
 
     @Mock
     private SurveyRepository surveyRepository;
-
+    @Mock
+    private SurveySendingPolicyService surveySendingPolicyService;
     @Mock
     private ConstraintValidatorContext context;
     @Mock
@@ -83,14 +88,16 @@ class SendSurveyResponseDtoValidatorTest {
     }
 
     @ParameterizedTest
-    @MethodSource("getValidData")
+    @MethodSource("getValidDataWithSingleQuestionSurvey")
     void shouldPassWithAnswerMatchingQuestionType(Survey survey, SendSurveyResponseDto response) {
         when(surveyRepository.findById(survey.getId())).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
         boolean isValid = validator.isValid(response, context);
         assertTrue(isValid);
     }
 
-    public static Stream<Arguments> getValidData(){
+    public static Stream<Arguments> getValidDataWithSingleQuestionSurvey(){
         UUID questionId = UUID.randomUUID();
         UUID optionId = UUID.randomUUID();
         return Stream.of(
@@ -190,6 +197,8 @@ class SendSurveyResponseDtoValidatorTest {
     @MethodSource("getInvalidDataWithSingleQuestion")
     void shouldFailWhenSingleAnswerIsInvalidOrMissing(Survey survey, SendSurveyResponseDto response) {
         when(surveyRepository.findById(survey.getId())).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
         boolean isValid = validator.isValid(response, context);
         assertFalse(isValid);
     }
@@ -440,6 +449,60 @@ class SendSurveyResponseDtoValidatorTest {
         );
     }
 
+    @Test
+    void shouldFailWhenSurveyDoesNotHaveSendingPolicy() {
+        UUID surveyId = UUID.randomUUID();
+        SendSurveyResponseDto sendSurveyResponseDto = new SendSurveyResponseDto();
+        sendSurveyResponseDto.setSurveyId(surveyId);
+        sendSurveyResponseDto.setAnswers(List.of());
 
+        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(new Survey()));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(surveyId))
+                .thenReturn(List.of());
+
+        boolean isValid = validator.isValid(sendSurveyResponseDto, context);
+
+        assertFalse(isValid);
+        verify(context).buildConstraintViolationWithTemplate("The survey is not active");
+    }
+
+    @Test
+    void shouldFailWhenSurveyIsNotActive() {
+        UUID surveyId = UUID.randomUUID();
+        SendSurveyResponseDto sendSurveyResponseDto = new SendSurveyResponseDto();
+        sendSurveyResponseDto.setSurveyId(surveyId);
+        sendSurveyResponseDto.setAnswers(List.of());
+
+        SurveySendingPolicyTimesDto pastTimeSlot = new SurveySendingPolicyTimesDto();
+        pastTimeSlot.setStart(OffsetDateTime.now().minusDays(2));
+        pastTimeSlot.setFinish(OffsetDateTime.now().minusDays(1));
+
+        SurveySendingPolicyDto invalidPolicy = new SurveySendingPolicyDto();
+        invalidPolicy.setId(UUID.randomUUID());
+        invalidPolicy.setSurveyId(surveyId);
+        invalidPolicy.setTimeSlots(List.of(pastTimeSlot));
+
+        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(new Survey()));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(surveyId))
+                .thenReturn(List.of(invalidPolicy));
+
+        boolean isValid = validator.isValid(sendSurveyResponseDto, context);
+
+        assertFalse(isValid);
+        verify(context).buildConstraintViolationWithTemplate("The survey is not active");
+    }
+
+    private SurveySendingPolicyDto validSurveySendingPolicy(UUID surveyId) {
+        SurveySendingPolicyTimesDto pastTimeSlot = new SurveySendingPolicyTimesDto();
+        pastTimeSlot.setStart(OffsetDateTime.now().minusDays(2));
+        pastTimeSlot.setFinish(OffsetDateTime.now().plusDays(1));
+
+        SurveySendingPolicyDto surveySendingPolicyDto = new SurveySendingPolicyDto();
+        surveySendingPolicyDto.setId(UUID.randomUUID());
+        surveySendingPolicyDto.setSurveyId(surveyId);
+        surveySendingPolicyDto.setTimeSlots(List.of(pastTimeSlot));
+
+        return surveySendingPolicyDto;
+    }
 
 }
