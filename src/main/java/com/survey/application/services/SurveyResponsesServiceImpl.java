@@ -11,6 +11,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.annotation.RequestScope;
 
 import javax.management.InvalidAttributeValueException;
 import java.util.Date;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 @Service
+@RequestScope
 public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final SurveyParticipationRepository surveyParticipationRepository;
     private final SurveyRepository surveyRepository;

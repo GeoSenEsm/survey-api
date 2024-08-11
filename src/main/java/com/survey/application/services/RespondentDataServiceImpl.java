@@ -13,12 +13,14 @@ import org.modelmapper.convention.MatchingStrategies;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.annotation.RequestScope;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InvalidAttributeValueException;
 import java.util.*;
 
 @Service
+@RequestScope
 public class RespondentDataServiceImpl implements RespondentDataService{
     private final RespondentDataRepository respondentDataRepository;
     private final ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl;
