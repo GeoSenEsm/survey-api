@@ -20,6 +20,9 @@ import javax.management.InstanceAlreadyExistsException;
 import javax.management.InvalidAttributeValueException;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
+
 
 @Service
 @RequestScope
@@ -82,8 +85,16 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
         RespondentData savedRespondentData = respondentDataRepository.save(respondentData);
         RespondentDataDto respondentDataDto = modelMapper.map(savedRespondentData, RespondentDataDto.class);
-        respondentDataDto.setGender(dto.getGender());
 
         return respondentDataDto;
+    }
+
+    @Override
+    public List<RespondentDataDto> getAll(){
+        return respondentDataRepository
+                .findAll()
+                .stream()
+                .map(x -> modelMapper.map(x, RespondentDataDto.class))
+                .collect(Collectors.toList());
     }
 }
