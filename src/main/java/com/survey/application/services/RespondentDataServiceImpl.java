@@ -62,7 +62,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     public RespondentDataDto createRespondent(CreateRespondentDataDto dto, String tokenWithPrefix)
             throws BadCredentialsException, InvalidAttributeValueException, InstanceAlreadyExistsException {
 
-        String usernameFromJwt = claimsPrincipalServiceImpl.getCurrentUsernameIfExists(tokenWithPrefix);
+        String usernameFromJwt = claimsPrincipalServiceImpl.getCurrentUsernameIfExists();
 
         UUID currentUserUUID = getUserUUID(usernameFromJwt);
 

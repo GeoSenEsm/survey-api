@@ -139,7 +139,7 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
     @Override
     @Transactional
     public SurveyParticipationDto saveSurveyResponse(SendSurveyResponseDto sendSurveyResponseDto, String token) throws InvalidAttributeValueException {
-        IdentityUser identityUser = claimsPrincipalServiceImpl.findIdentityUserFromToken(token);
+        IdentityUser identityUser = claimsPrincipalServiceImpl.findIdentityUser();
         Survey survey = findSurveyById(sendSurveyResponseDto.getSurveyId());
         SurveyParticipation surveyParticipation = saveSurveyParticipation(sendSurveyResponseDto, identityUser, survey);
         SurveyParticipation finalSurveyParticipation = mapQuestionAnswers(sendSurveyResponseDto, surveyParticipation, survey);
