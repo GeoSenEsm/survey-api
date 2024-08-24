@@ -3,23 +3,29 @@ package com.survey.application.services;
 import com.survey.api.handlers.GlobalExceptionHandler;
 import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.application.dtos.RespondentDataDto;
-import com.survey.domain.models.enums.Gender;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.RespondentData;
-import com.survey.domain.repository.*;
+import com.survey.domain.models.enums.Gender;
+import com.survey.domain.repository.IdentityUserRepository;
+import com.survey.domain.repository.RespondentDataRepository;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeMap;
 import org.modelmapper.convention.MatchingStrategies;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.annotation.RequestScope;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InvalidAttributeValueException;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.*;
 import java.util.stream.Collectors;
 
+
 @Service
+@RequestScope
 public class RespondentDataServiceImpl implements RespondentDataService{
     private final RespondentDataRepository respondentDataRepository;
     private final ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl;
@@ -63,7 +69,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     public RespondentDataDto createRespondent(CreateRespondentDataDto dto, String tokenWithPrefix)
             throws BadCredentialsException, InvalidAttributeValueException, InstanceAlreadyExistsException {
 
-        String usernameFromJwt = claimsPrincipalServiceImpl.getCurrentUsernameIfExists(tokenWithPrefix);
+        String usernameFromJwt = claimsPrincipalServiceImpl.getCurrentUsernameIfExists();
 
         UUID currentUserUUID = getUserUUID(usernameFromJwt);
 

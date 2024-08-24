@@ -5,12 +5,16 @@ import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
 import com.survey.application.dtos.surveyDtos.SurveyParticipationDto;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.QuestionType;
-import com.survey.domain.repository.*;
+import com.survey.domain.repository.OptionRepository;
+import com.survey.domain.repository.QuestionRepository;
+import com.survey.domain.repository.SurveyParticipationRepository;
+import com.survey.domain.repository.SurveyRepository;
 import jakarta.persistence.EntityManager;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.annotation.RequestScope;
 
 import javax.management.InvalidAttributeValueException;
 import java.util.Date;
@@ -19,13 +23,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 @Service
+@RequestScope
 public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final SurveyParticipationRepository surveyParticipationRepository;
     private final SurveyRepository surveyRepository;
     private final OptionRepository optionRepository;
     private final QuestionRepository questionRepository;
     private final ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl;
-    private final IdentityUserRepository identityUserRepository;
     private final ModelMapper modelMapper;
     private final EntityManager entityManager;
 
@@ -37,7 +41,6 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             OptionRepository optionRepository,
             QuestionRepository questionRepository,
             ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl,
-            IdentityUserRepository identityUserRepository,
             ModelMapper modelMapper,
             EntityManager entityManager) {
         this.surveyParticipationRepository = surveyParticipationRepository;
@@ -45,14 +48,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         this.optionRepository = optionRepository;
         this.questionRepository = questionRepository;
         this.claimsPrincipalServiceImpl = claimsPrincipalServiceImpl;
-        this.identityUserRepository = identityUserRepository;
         this.modelMapper = modelMapper;
         this.entityManager = entityManager;
-    }
-    private IdentityUser findIdentityUserFromToken(String token) {
-        String usernameFromJwt = claimsPrincipalServiceImpl.getCurrentUsernameIfExists(token);
-        return identityUserRepository.findByUsername(usernameFromJwt)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid respondent ID - respondent doesn't exist"));
     }
 
     private Survey findSurveyById(UUID surveyId) {
@@ -107,7 +104,8 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
                         //throw new IllegalArgumentException("Invalid Numeric answer.");
                     //}
                     questionAnswer.setNumericAnswer(numericAnswer);
-                } else {
+                }
+                if (question.getQuestionType().equals(QuestionType.single_text_selection)) {
                     List<OptionSelection> optionSelections = answerDto.getSelectedOptions().stream()
                             .map(selectedOptionDto -> {
                                 Option option = optionsMap.get(selectedOptionDto.getOptionId());
@@ -121,6 +119,10 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
                                 return optionSelection;
                             }).collect(Collectors.toList());
                     questionAnswer.setOptionSelections(optionSelections);
+                }
+
+                if (question.getQuestionType().equals(QuestionType.yes_no_selection)) {
+                    questionAnswer.setYesNoAnswer(answerDto.getYesNoAnswer());
                 }
 
                 return questionAnswer;
@@ -142,7 +144,7 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
     @Override
     @Transactional
     public SurveyParticipationDto saveSurveyResponse(SendSurveyResponseDto sendSurveyResponseDto, String token) throws InvalidAttributeValueException {
-        IdentityUser identityUser = findIdentityUserFromToken(token);
+        IdentityUser identityUser = claimsPrincipalServiceImpl.findIdentityUser();
         Survey survey = findSurveyById(sendSurveyResponseDto.getSurveyId());
         SurveyParticipation surveyParticipation = saveSurveyParticipation(sendSurveyResponseDto, identityUser, survey);
         SurveyParticipation finalSurveyParticipation = mapQuestionAnswers(sendSurveyResponseDto, surveyParticipation, survey);

@@ -3,8 +3,10 @@ package com.survey.domain.models;
 import com.survey.domain.models.enums.QuestionType;
 import com.survey.domain.models.enums.QuestionTypeConverter;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 
 import java.util.*;
 
@@ -15,6 +17,8 @@ import java.util.*;
         @UniqueConstraint(columnNames = {"order", "section_id",}),
         @UniqueConstraint(columnNames = {"label", "section_id"})
 })
+@AllArgsConstructor
+@Accessors(chain = true)
 public class Question {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

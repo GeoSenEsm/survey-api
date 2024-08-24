@@ -33,4 +33,7 @@ public class QuestionAnswer {
 
     @ManyToMany(mappedBy = "questionAnswer", cascade = CascadeType.ALL)
     private List<OptionSelection> optionSelections = new ArrayList<>();
+
+    @Column(name = "yes_no_answer")
+    private Boolean yesNoAnswer;
 }

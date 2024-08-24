@@ -3,8 +3,10 @@ package com.survey.domain.models;
 import com.survey.domain.models.enums.Visibility;
 import com.survey.domain.models.enums.VisibilityConverter;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 
 import java.util.*;
 
@@ -14,6 +16,8 @@ import java.util.*;
 @Table(name = "survey_section", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"order", "survey_id"})
 })
+@AllArgsConstructor
+@Accessors(chain = true)
 public class SurveySection {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
