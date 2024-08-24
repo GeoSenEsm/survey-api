@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 
 import java.util.*;
 
@@ -16,6 +17,7 @@ import java.util.*;
         @UniqueConstraint(columnNames = {"order", "survey_id"})
 })
 @AllArgsConstructor
+@Accessors(chain = true)
 public class SurveySection {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

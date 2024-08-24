@@ -1,14 +1,19 @@
 package com.survey.api.validation;
 
+import com.survey.application.dtos.RespondentGroupDto;
 import com.survey.application.dtos.SurveySendingPolicyDto;
 import com.survey.application.dtos.SurveySendingPolicyTimesDto;
 import com.survey.application.dtos.surveyDtos.AnswerDto;
 import com.survey.application.dtos.surveyDtos.SelectedOptionDto;
 import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
+import com.survey.application.services.ClaimsPrincipalService;
+import com.survey.application.services.RespondentGroupService;
 import com.survey.application.services.SurveySendingPolicyService;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.QuestionType;
 import com.survey.domain.models.enums.Visibility;
+import com.survey.domain.repository.OptionRepository;
+import com.survey.domain.repository.RespondentDataRepository;
 import com.survey.domain.repository.SurveyRepository;
 import jakarta.validation.ConstraintValidatorContext;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +47,14 @@ class SendSurveyResponseDtoValidatorTest {
     private ConstraintValidatorContext.ConstraintViolationBuilder violationBuilder;
     @Mock
     private ConstraintValidatorContext.ConstraintViolationBuilder.NodeBuilderCustomizableContext nodeBuilderCustomizableContext;
+    @Mock
+    private ClaimsPrincipalService claimsPrincipalService;
+    @Mock
+    private RespondentDataRepository respondentDataRepository;
+    @Mock
+    private RespondentGroupService respondentGroupService;
+    @Mock
+    private OptionRepository optionRepository;
 
     @InjectMocks
     private SendSurveyResponseDtoValidator validator;
@@ -74,7 +87,8 @@ class SendSurveyResponseDtoValidatorTest {
         Survey survey = new Survey();
         survey.setSections(Collections.singletonList(new SurveySection()));
         when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(survey));
-
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
         AnswerDto answerDto = new AnswerDto();
         answerDto.setQuestionId(questionId);
 
@@ -505,4 +519,272 @@ class SendSurveyResponseDtoValidatorTest {
         return surveySendingPolicyDto;
     }
 
+    @Test
+    void shouldNotFailWhenTheRequiredQuestionWasForAnotherRespondentsGroup(){
+        UUID surveyID = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        IdentityUser identityUser = new IdentityUser(userId, "John", "pswd", "Respondent");
+        RespondentData respondent = new RespondentData();
+        respondent.setIdentityUserId(userId);
+        Survey survey = new Survey();
+        survey.setId(surveyID);
+        SurveySection section = new SurveySection();
+
+        List<RespondentGroupDto> respondentGroups = Stream.of(new RespondentGroupDto(UUID.randomUUID(), "group"))
+                .toList();
+
+        RespondentGroup targetGroup = new RespondentGroup();
+        SectionToUserGroup groupToSection = new SectionToUserGroup();
+        groupToSection.setGroup(targetGroup);
+
+        section.setVisibility(Visibility.group_specific);
+
+        Question requiredQuestion = new Question();
+        requiredQuestion.setRequired(true);
+        requiredQuestion.setQuestionType(QuestionType.yes_no_selection);
+        section.setQuestions(Stream.of(requiredQuestion).collect(Collectors.toList()));
+        section.setSectionToUserGroups(Stream.of(groupToSection).toList());
+        survey.setSections(Stream.of(section).collect(Collectors.toList()));
+        when(surveyRepository.findById(surveyID)).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
+        when(claimsPrincipalService.findIdentityUser())
+                .thenReturn(identityUser);
+        when(respondentDataRepository.findByIdentityUserId(userId)).thenReturn(respondent);
+        when(respondentGroupService.getRespondentGroups(respondent.getId()))
+                .thenReturn(respondentGroups);
+        SendSurveyResponseDto dto = new SendSurveyResponseDto();
+        dto.setSurveyId(surveyID);
+        dto.setAnswers(new ArrayList<>());
+        boolean isValid = validator.isValid(dto, context);
+        assertTrue(isValid);
+    }
+
+    @Test
+    void shouldFailWhenTheRequiredQuestionWasForRespondentsGroupOfTheRespondentAndAnswerIsNotGIven(){
+        UUID surveyID = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        IdentityUser identityUser = new IdentityUser(userId, "John", "pswd", "Respondent");
+        RespondentData respondent = new RespondentData();
+        respondent.setIdentityUserId(userId);
+        Survey survey = new Survey();
+        survey.setId(surveyID);
+        SurveySection section = new SurveySection();
+
+        UUID groupId = UUID.randomUUID();
+        List<RespondentGroupDto> respondentGroups = Stream.of(new RespondentGroupDto(groupId, "group"))
+                .toList();
+
+        RespondentGroup targetGroup = new RespondentGroup();
+        targetGroup.setId(groupId);
+        SectionToUserGroup groupToSection = new SectionToUserGroup();
+        groupToSection.setGroup(targetGroup);
+
+        section.setVisibility(Visibility.group_specific);
+
+        Question requiredQuestion = new Question();
+        requiredQuestion.setRequired(true);
+        requiredQuestion.setQuestionType(QuestionType.yes_no_selection);
+        section.setQuestions(Stream.of(requiredQuestion).collect(Collectors.toList()));
+        section.setSectionToUserGroups(Stream.of(groupToSection).toList());
+        survey.setSections(Stream.of(section).collect(Collectors.toList()));
+        when(surveyRepository.findById(surveyID)).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
+        when(claimsPrincipalService.findIdentityUser())
+                .thenReturn(identityUser);
+        when(respondentDataRepository.findByIdentityUserId(userId)).thenReturn(respondent);
+        when(respondentGroupService.getRespondentGroups(respondent.getId()))
+                .thenReturn(respondentGroups);
+        SendSurveyResponseDto dto = new SendSurveyResponseDto();
+        dto.setSurveyId(surveyID);
+        dto.setAnswers(new ArrayList<>());
+        boolean isValid = validator.isValid(dto, context);
+        assertFalse(isValid);
+    }
+
+    @Test
+    void shouldNotFailWhenTheQuestionIsRequiredButWasNotShownBecauseItWasNotTriggered() {
+        UUID surveyId = UUID.randomUUID();
+        UUID firstQuestionId = UUID.randomUUID();
+        UUID firstQuestionSelectedAnswerId = UUID.randomUUID();
+
+        Option optionToBeSelected =   new Option()
+                .setId(firstQuestionSelectedAnswerId);
+
+        Survey survey = new Survey()
+                .setId(surveyId)
+                .setSections(Stream.of(
+                        new SurveySection()
+                                .setQuestions(Stream.of(
+                                        new Question()
+                                                .setId(firstQuestionId)
+                                                .setOptions(
+                                                        Stream.of(
+                                                                new Option()
+                                                                        .setShowSection(2),
+                                                                optionToBeSelected
+                                                        ).toList()
+                                                )
+                                                .setRequired(true)
+                                                .setQuestionType(QuestionType.single_text_selection)
+                                ).toList())
+                                .setVisibility(Visibility.always)
+                                .setOrder(1),
+                        new SurveySection()
+                                .setQuestions(Stream.of(
+                                        new Question()
+                                                .setRequired(true)
+                                                .setQuestionType(QuestionType.yes_no_selection)
+                                ).toList())
+                                .setVisibility(Visibility.answer_triggered)
+                                .setOrder(2)
+                ).toList());
+
+        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
+
+        when(optionRepository.findByIdIn(Stream.of(firstQuestionSelectedAnswerId).toList()))
+                .thenReturn(Stream.of(optionToBeSelected).toList());
+
+        SendSurveyResponseDto response = new SendSurveyResponseDto()
+                .setSurveyId(surveyId)
+                .setAnswers(Stream.of(
+                        new AnswerDto()
+                                .setQuestionId(firstQuestionId)
+                                .setSelectedOptions(Stream.of(
+                                        new SelectedOptionDto()
+                                                .setOptionId(firstQuestionSelectedAnswerId)
+                                ).toList())
+                ).toList());
+
+        boolean isValid = validator.isValid(response, context);
+        assertTrue(isValid);
+    }
+
+    @Test
+    void shouldFailWhenTheQuestionIsRequiredAndWasShownBecauseItWasTriggered() {
+        UUID surveyId = UUID.randomUUID();
+        UUID firstQuestionId = UUID.randomUUID();
+        UUID firstQuestionSelectedAnswerId = UUID.randomUUID();
+
+        Option optionToBeSelected =   new Option()
+                .setId(firstQuestionSelectedAnswerId)
+                .setShowSection(2);
+
+        Survey survey = new Survey()
+                .setId(surveyId)
+                .setSections(Stream.of(
+                        new SurveySection()
+                                .setQuestions(Stream.of(
+                                        new Question()
+                                                .setId(firstQuestionId)
+                                                .setOptions(
+                                                        Stream.of(
+                                                                new Option(),
+                                                                optionToBeSelected
+                                                        ).toList()
+                                                )
+                                                .setRequired(true)
+                                                .setQuestionType(QuestionType.single_text_selection)
+                                ).toList())
+                                .setVisibility(Visibility.always)
+                                .setOrder(1),
+                        new SurveySection()
+                                .setQuestions(Stream.of(
+                                        new Question()
+                                                .setRequired(true)
+                                                .setQuestionType(QuestionType.yes_no_selection)
+                                ).toList())
+                                .setVisibility(Visibility.answer_triggered)
+                                .setOrder(2)
+                ).toList());
+
+        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
+
+        when(optionRepository.findByIdIn(Stream.of(firstQuestionSelectedAnswerId).toList()))
+                .thenReturn(Stream.of(optionToBeSelected).toList());
+
+        SendSurveyResponseDto response = new SendSurveyResponseDto()
+                .setSurveyId(surveyId)
+                .setAnswers(Stream.of(
+                        new AnswerDto()
+                                .setQuestionId(firstQuestionId)
+                                .setSelectedOptions(Stream.of(
+                                        new SelectedOptionDto()
+                                                .setOptionId(firstQuestionSelectedAnswerId)
+                                ).toList())
+                ).toList());
+
+        boolean isValid = validator.isValid(response, context);
+        assertFalse(isValid);
+    }
+
+    @Test
+    void shouldNotFailWhenTheQuestionIsRequiredAndWasNotShownBecauseItWasTriggeredAndTheAnswerWasGiven(){
+        UUID surveyId = UUID.randomUUID();
+        UUID firstQuestionId = UUID.randomUUID();
+        UUID secondQuestionId = UUID.randomUUID();
+        UUID firstQuestionSelectedAnswerId = UUID.randomUUID();
+
+        Option optionToBeSelected =   new Option()
+                .setId(firstQuestionSelectedAnswerId)
+                .setShowSection(2);
+
+        Survey survey = new Survey()
+                .setId(surveyId)
+                .setSections(Stream.of(
+                        new SurveySection()
+                                .setQuestions(Stream.of(
+                                        new Question()
+                                                .setId(firstQuestionId)
+                                                .setOptions(
+                                                        Stream.of(
+                                                                new Option(),
+                                                                optionToBeSelected
+                                                        ).toList()
+                                                )
+                                                .setRequired(true)
+                                                .setQuestionType(QuestionType.single_text_selection)
+                                ).toList())
+                                .setVisibility(Visibility.always)
+                                .setOrder(1),
+                        new SurveySection()
+                                .setQuestions(Stream.of(
+                                        new Question()
+                                                .setRequired(true)
+                                                .setQuestionType(QuestionType.yes_no_selection)
+                                                .setId(secondQuestionId)
+                                ).toList())
+                                .setVisibility(Visibility.answer_triggered)
+                                .setOrder(2)
+                ).toList());
+
+        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
+
+        when(optionRepository.findByIdIn(Stream.of(firstQuestionSelectedAnswerId).toList()))
+                .thenReturn(Stream.of(optionToBeSelected).toList());
+
+        SendSurveyResponseDto response = new SendSurveyResponseDto()
+                .setSurveyId(surveyId)
+                .setAnswers(Stream.of(
+                        new AnswerDto()
+                                .setQuestionId(firstQuestionId)
+                                .setSelectedOptions(Stream.of(
+                                        new SelectedOptionDto()
+                                                .setOptionId(firstQuestionSelectedAnswerId)
+                                ).toList()),
+                        new AnswerDto()
+                                .setQuestionId(secondQuestionId)
+                                .setYesNoAnswer(true)
+                ).toList());
+
+        boolean isValid = validator.isValid(response, context);
+        assertTrue(isValid);
+    }
 }

@@ -298,7 +298,6 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
     private boolean checkGroupSpecificVisibility(SurveySection section) {
         UUID identityUserId = claimsPrincipalService.findIdentityUser().getId();
         UUID respondentId = respondentDataRepository.findByIdentityUserId(identityUserId).getId();
-        System.out.println(respondentId);
         List<RespondentGroupDto> respondentGroups = respondentGroupService.getRespondentGroups(respondentId);
 
         List<UUID> respondentGroupIds = respondentGroups.stream()

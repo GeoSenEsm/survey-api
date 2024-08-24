@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 
 import java.util.*;
 
@@ -17,6 +18,7 @@ import java.util.*;
         @UniqueConstraint(columnNames = {"label", "section_id"})
 })
 @AllArgsConstructor
+@Accessors(chain = true)
 public class Question {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
