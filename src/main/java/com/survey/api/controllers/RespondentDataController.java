@@ -39,4 +39,10 @@ public class RespondentDataController {
         List<RespondentDataDto> respondents = respondentDataService.getAll();
         return ResponseEntity.status(HttpStatus.OK).body(respondents);
     }
+
+    @GetMapping
+    public ResponseEntity<RespondentDataDto> getFromUserContext(){
+        RespondentDataDto respondent = respondentDataService.getFromUserContext();
+        return ResponseEntity.status(HttpStatus.OK).body(respondent);
+    }
 }

@@ -1,6 +1,5 @@
 package com.survey.application.services;
 
-import com.survey.api.handlers.GlobalExceptionHandler;
 import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.application.dtos.RespondentDataDto;
 import com.survey.domain.models.IdentityUser;
@@ -29,20 +28,20 @@ import java.util.stream.Collectors;
 public class RespondentDataServiceImpl implements RespondentDataService{
     private final RespondentDataRepository respondentDataRepository;
     private final ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl;
-    private final ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl;
-    @Autowired
-    private IdentityUserRepository identityUserRepository;
-    @Autowired
+    private final ClaimsPrincipalService claimsPrincipalService;
     private final ModelMapper modelMapper;
-    @Autowired
-    GlobalExceptionHandler globalExceptionHandler;
+    private final IdentityUserRepository identityUserRepository;
+
 
     @Autowired
-    public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl, ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl, ModelMapper modelMapper) {
+    public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl,
+                                     ClaimsPrincipalService claimsPrincipalService, ModelMapper modelMapper,
+                                     IdentityUserRepository identityUserRepository) {
         this.respondentDataRepository = respondentDataRepository;
         this.foreignKeyValidationServiceImpl = foreignKeyValidationServiceImpl;
-        this.claimsPrincipalServiceImpl = claimsPrincipalServiceImpl;
+        this.claimsPrincipalService = claimsPrincipalService;
         this.modelMapper = modelMapper;
+        this.identityUserRepository = identityUserRepository;
 
         modelMapper.getConfiguration().setMatchingStrategy(MatchingStrategies.STRICT);
         TypeMap<CreateRespondentDataDto, RespondentData> typeMap =
@@ -69,7 +68,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     public RespondentDataDto createRespondent(CreateRespondentDataDto dto, String tokenWithPrefix)
             throws BadCredentialsException, InvalidAttributeValueException, InstanceAlreadyExistsException {
 
-        String usernameFromJwt = claimsPrincipalServiceImpl.getCurrentUsernameIfExists();
+        String usernameFromJwt = claimsPrincipalService.getCurrentUsernameIfExists();
 
         UUID currentUserUUID = getUserUUID(usernameFromJwt);
 
@@ -96,5 +95,12 @@ public class RespondentDataServiceImpl implements RespondentDataService{
                 .stream()
                 .map(x -> modelMapper.map(x, RespondentDataDto.class))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public RespondentDataDto getFromUserContext(){
+        UUID currentUserId = claimsPrincipalService.findIdentityUser().getId();
+        RespondentData respondentData = respondentDataRepository.findByIdentityUserId(currentUserId);
+        return modelMapper.map(respondentData, RespondentDataDto.class);
     }
 }

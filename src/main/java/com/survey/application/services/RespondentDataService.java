@@ -11,4 +11,6 @@ import java.util.List;
 public interface RespondentDataService {
     RespondentDataDto createRespondent(CreateRespondentDataDto dto, String tokenBearerPrefix) throws BadCredentialsException, InvalidAttributeValueException, InstanceAlreadyExistsException;
     List<RespondentDataDto> getAll();
+
+    RespondentDataDto getFromUserContext();
 }

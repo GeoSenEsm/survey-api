@@ -5,6 +5,7 @@ import com.survey.domain.models.enums.GenderConverter;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -13,6 +14,7 @@ import java.util.UUID;
 @Entity
 @Data
 @NoArgsConstructor
+@Accessors(chain = true)
 public class RespondentData {
     @Id
     @GeneratedValue(strategy =  GenerationType.UUID)
