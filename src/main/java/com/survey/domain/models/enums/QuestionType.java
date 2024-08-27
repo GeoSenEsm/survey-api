@@ -5,7 +5,8 @@ import java.util.Arrays;
 public enum QuestionType {
     single_text_selection(0),
     discrete_number_selection(1),
-    yes_no_selection(2);
+    yes_no_selection(2),
+    multiple_choice(3);
 
     private final int value;
 

@@ -787,4 +787,148 @@ class SendSurveyResponseDtoValidatorTest {
         boolean isValid = validator.isValid(response, context);
         assertTrue(isValid);
     }
+
+    @Test
+    void shouldPassWhenTheQuestionTypeIsMultipleChoiceAndTheAnswersAreGiven(){
+        UUID surveyId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+        UUID firstOptionId = UUID.randomUUID();
+        UUID secondOptionId = UUID.randomUUID();
+        UUID thirdOptionId = UUID.randomUUID();
+        List<Option> options = Stream.of(
+                new Option().setId(firstOptionId),
+                new Option().setId(secondOptionId),
+                new Option().setId(thirdOptionId)
+        ).toList();
+
+        Survey survey = new Survey()
+                .setId(UUID.randomUUID())
+                .setSections(Stream.of(
+                        new SurveySection()
+                                .setVisibility(Visibility.always)
+                                .setQuestions(Stream.of(
+                                        new Question()
+                                                .setQuestionType(QuestionType.multiple_choice)
+                                                .setId(questionId)
+                                                .setOptions(options)
+                                                .setRequired(true)
+                                ).toList())
+                ).toList());
+
+        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
+        when(optionRepository.findByIdIn(options.stream().map(Option::getId).toList()))
+                .thenReturn(options);
+
+        SendSurveyResponseDto response = new SendSurveyResponseDto()
+                .setSurveyId(surveyId)
+                .setAnswers(Stream.of(
+                        new AnswerDto()
+                                .setQuestionId(questionId)
+                                .setSelectedOptions(Stream.of(
+                                        new SelectedOptionDto()
+                                                .setOptionId(firstOptionId),
+                                        new SelectedOptionDto().setOptionId(secondOptionId)
+                                ).toList())
+                ).toList());
+
+        boolean isValid = validator.isValid(response, context);
+        assertTrue(isValid);
+    }
+
+    @Test
+    void shouldFailWhenTheQuestionTypeIsMultipleChoiceAndOneOfTheAnswersIsBad(){
+        UUID surveyId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+        UUID firstOptionId = UUID.randomUUID();
+        UUID secondOptionId = UUID.randomUUID();
+        UUID thirdOptionId = UUID.randomUUID();
+        List<Option> options = Stream.of(
+                new Option().setId(firstOptionId),
+                new Option().setId(secondOptionId),
+                new Option().setId(thirdOptionId)
+        ).toList();
+
+        Survey survey = new Survey()
+                .setId(UUID.randomUUID())
+                .setSections(Stream.of(
+                        new SurveySection()
+                                .setVisibility(Visibility.always)
+                                .setQuestions(Stream.of(
+                                        new Question()
+                                                .setQuestionType(QuestionType.multiple_choice)
+                                                .setId(questionId)
+                                                .setOptions(options)
+                                                .setRequired(true)
+                                ).toList())
+                ).toList());
+
+        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
+        when(optionRepository.findByIdIn(options.stream().map(Option::getId).toList()))
+                .thenReturn(options);
+
+        SendSurveyResponseDto response = new SendSurveyResponseDto()
+                .setSurveyId(surveyId)
+                .setAnswers(Stream.of(
+                        new AnswerDto()
+                                .setQuestionId(questionId)
+                                .setSelectedOptions(Stream.of(
+                                        new SelectedOptionDto()
+                                                .setOptionId(firstOptionId),
+                                        new SelectedOptionDto().setOptionId(secondOptionId),
+                                        new SelectedOptionDto().setOptionId(UUID.randomUUID())
+                                ).toList())
+                ).toList());
+
+        boolean isValid = validator.isValid(response, context);
+        assertFalse(isValid);
+    }
+
+    @Test
+    void shouldFailWhenNoMultipleChoiceAnswerIsGivenAndQuestionIsRequired(){
+        UUID surveyId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+        UUID firstOptionId = UUID.randomUUID();
+        UUID secondOptionId = UUID.randomUUID();
+        UUID thirdOptionId = UUID.randomUUID();
+        List<Option> options = Stream.of(
+                new Option().setId(firstOptionId),
+                new Option().setId(secondOptionId),
+                new Option().setId(thirdOptionId)
+        ).toList();
+
+        Survey survey = new Survey()
+                .setId(UUID.randomUUID())
+                .setSections(Stream.of(
+                        new SurveySection()
+                                .setVisibility(Visibility.always)
+                                .setQuestions(Stream.of(
+                                        new Question()
+                                                .setQuestionType(QuestionType.multiple_choice)
+                                                .setId(questionId)
+                                                .setOptions(options)
+                                                .setRequired(true)
+                                ).toList())
+                ).toList());
+
+        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
+        when(optionRepository.findByIdIn(options.stream().map(Option::getId).toList()))
+                .thenReturn(options);
+
+        SendSurveyResponseDto response = new SendSurveyResponseDto()
+                .setSurveyId(surveyId)
+                .setAnswers(Stream.of(
+                        new AnswerDto()
+                                .setQuestionId(questionId)
+                                .setSelectedOptions(new ArrayList<>())
+                ).toList());
+
+        boolean isValid = validator.isValid(response, context);
+        assertFalse(isValid);
+    }
 }

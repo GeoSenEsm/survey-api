@@ -128,7 +128,9 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
             case yes_no_selection:
                 return validateYesNo(answer, ctx);
             case single_text_selection:
-                return validateSingleChoice(question, answer, ctx);
+                return validateChoice(question, answer, ctx, false);
+            case multiple_choice:
+                return validateChoice(question, answer, ctx, true);
             case discrete_number_selection:
                 return validateNumberRange(question, answer, ctx);
             default:
@@ -201,12 +203,13 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         return result;
     }
 
-    private boolean validateSingleChoice(Question question, AnswerDto answerDto,
-                                         ConstraintValidatorContext ctx){
+    private boolean validateChoice(Question question, AnswerDto answerDto,
+                                   ConstraintValidatorContext ctx, boolean multiple){
+        String errorMessagePrefix = multiple ? "Multiple" : "Single";
         boolean result = true;
         if (answerDto.getNumericAnswer() != null){
             ctx
-                    .buildConstraintViolationWithTemplate("Single choice answer must not have a numeric value")
+                    .buildConstraintViolationWithTemplate(errorMessagePrefix + " choice answer must not have a numeric value")
                     .addPropertyNode("answers")
                     .addConstraintViolation();
             result = false;
@@ -214,16 +217,24 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
 
         if (answerDto.getYesNoAnswer() != null){
             ctx
-                    .buildConstraintViolationWithTemplate("Single choice answer must not have a yes/no answer specified")
+                    .buildConstraintViolationWithTemplate(errorMessagePrefix + " choice answer must not have a yes/no answer specified")
                     .addPropertyNode("answers")
                     .addConstraintViolation();
             result = false;
         }
 
         List<SelectedOptionDto> selectedOptions = answerDto.getSelectedOptions();
-        if (selectedOptions == null || selectedOptions.size() != 1){
+        if (!multiple && (selectedOptions == null || selectedOptions.size() != 1)){
             ctx
-                    .buildConstraintViolationWithTemplate("Single choice answer must not have exactly one selected option")
+                    .buildConstraintViolationWithTemplate(errorMessagePrefix + " choice answer must not have exactly one selected option")
+                    .addPropertyNode("answers")
+                    .addConstraintViolation();
+            result = false;
+        }
+
+        if (multiple && (selectedOptions == null || selectedOptions.isEmpty())){
+            ctx
+                    .buildConstraintViolationWithTemplate(errorMessagePrefix + " choice answer must not have at least one selected option")
                     .addPropertyNode("answers")
                     .addConstraintViolation();
             result = false;
@@ -237,7 +248,7 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
 
         if (selectedOptions.stream().anyMatch(x -> !optionsIds.contains(x.getOptionId()))){
             ctx
-                    .buildConstraintViolationWithTemplate("Single choice answer must have a selected option matching available option for the proper question")
+                    .buildConstraintViolationWithTemplate(errorMessagePrefix + " choice answer must have a selected option matching available option for the proper question")
                     .addPropertyNode("answers")
                     .addConstraintViolation();
 
