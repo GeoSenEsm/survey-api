@@ -1,18 +1,21 @@
 package com.survey.application.services;
 
+import com.survey.api.handlers.GlobalExceptionHandler;
 import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.application.dtos.RespondentDataDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.RespondentData;
+import com.survey.domain.repository.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.*;
 import com.survey.domain.models.enums.Gender;
-import com.survey.domain.repository.IdentityUserRepository;
-import com.survey.domain.repository.RespondentDataRepository;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeMap;
 import org.modelmapper.convention.MatchingStrategies;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.annotation.RequestScope;
 
 import javax.management.InstanceAlreadyExistsException;
@@ -30,27 +33,20 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     private final ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl;
     private final ClaimsPrincipalService claimsPrincipalService;
     private final ModelMapper modelMapper;
+    private final EntityManager entityManager;
     private final IdentityUserRepository identityUserRepository;
 
 
     @Autowired
     public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl,
                                      ClaimsPrincipalService claimsPrincipalService, ModelMapper modelMapper,
-                                     IdentityUserRepository identityUserRepository) {
+                                     IdentityUserRepository identityUserRepository , EntityManager entityManager) {
         this.respondentDataRepository = respondentDataRepository;
         this.foreignKeyValidationServiceImpl = foreignKeyValidationServiceImpl;
         this.claimsPrincipalService = claimsPrincipalService;
         this.modelMapper = modelMapper;
+        this.entityManager = entityManager;
         this.identityUserRepository = identityUserRepository;
-
-        modelMapper.getConfiguration().setMatchingStrategy(MatchingStrategies.STRICT);
-        TypeMap<CreateRespondentDataDto, RespondentData> typeMap =
-                modelMapper.createTypeMap(CreateRespondentDataDto.class, RespondentData.class);
-        typeMap.addMappings(mapper -> {
-            mapper.skip(RespondentData::setId);
-            mapper.skip(RespondentData::setIdentityUserId);
-            mapper.skip(RespondentData::setGender);
-        });
     }
 
 
@@ -65,6 +61,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
 
     @Override
+    @Transactional
     public RespondentDataDto createRespondent(CreateRespondentDataDto dto, String tokenWithPrefix)
             throws BadCredentialsException, InvalidAttributeValueException, InstanceAlreadyExistsException {
 
@@ -89,18 +86,40 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     }
 
     @Override
+    @Transactional
     public List<RespondentDataDto> getAll(){
-        return respondentDataRepository
-                .findAll()
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<RespondentData> cq = cb.createQuery(RespondentData.class);
+        Root<RespondentData> respondentData = cq.from(RespondentData.class);
+        Fetch<RespondentData, IdentityUser> identityUserFetch = respondentData.fetch("identityUser");
+        cq.select(respondentData);
+
+        return entityManager.createQuery(cq)
+                .getResultList()
                 .stream()
                 .map(x -> modelMapper.map(x, RespondentDataDto.class))
                 .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional
     public RespondentDataDto getFromUserContext(){
         UUID currentUserId = claimsPrincipalService.findIdentityUser().getId();
-        RespondentData respondentData = respondentDataRepository.findByIdentityUserId(currentUserId);
-        return modelMapper.map(respondentData, RespondentDataDto.class);
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<RespondentData> cq = cb.createQuery(RespondentData.class);
+        Root<RespondentData> respondentData = cq.from(RespondentData.class);
+        Fetch<RespondentData, IdentityUser> identityUserFetch = respondentData.fetch("identityUser");
+        Predicate condition = cb.equal(respondentData.get("identityUserId"), currentUserId);
+        cq.where(condition);
+        cq.select(respondentData);
+
+        RespondentData dbRespondentData = entityManager
+                .createQuery(cq)
+                .getResultStream()
+                .findFirst()
+                .orElseThrow(NoSuchElementException::new);
+
+        return modelMapper.map(dbRespondentData, RespondentDataDto.class);
     }
 }
