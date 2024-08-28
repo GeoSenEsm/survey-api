@@ -1,5 +1,6 @@
 package com.survey.api.configuration;
 
+import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.application.dtos.RespondentDataDto;
 import com.survey.application.dtos.surveyDtos.CreateQuestionDto;
 import com.survey.application.dtos.surveyDtos.CreateSurveySectionDto;
@@ -13,6 +14,8 @@ import org.flywaydb.core.Flyway;
 import org.modelmapper.AbstractConverter;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.PropertyMap;
+import org.modelmapper.TypeMap;
+import org.modelmapper.convention.MatchingStrategies;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
@@ -91,6 +94,15 @@ public class AppConfig {
                 map().setIdentityUserId(source.getIdentityUserId());
                 map().setUsername(source.getUsername());
             }
+        });
+
+        modelMapper.getConfiguration().setMatchingStrategy(MatchingStrategies.STRICT);
+        TypeMap<CreateRespondentDataDto, RespondentData> typeMap =
+                modelMapper.createTypeMap(CreateRespondentDataDto.class, RespondentData.class);
+        typeMap.addMappings(mapper -> {
+            mapper.skip(RespondentData::setId);
+            mapper.skip(RespondentData::setIdentityUserId);
+            mapper.skip(RespondentData::setGender);
         });
 
         return modelMapper;

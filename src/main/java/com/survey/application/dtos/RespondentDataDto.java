@@ -2,11 +2,13 @@ package com.survey.application.dtos;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.experimental.Accessors;
 
 import java.util.UUID;
 
 @Getter
 @Setter
+@Accessors(chain = true)
 public class RespondentDataDto {
     private UUID id;
     private UUID identityUserId;

@@ -1,15 +1,17 @@
 package com.survey.application.dtos;
 
 import com.survey.api.validation.ValidGender;
+import jakarta.validation.constraints.AssertFalse;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.Setter;
-
+import lombok.experimental.Accessors;
 
 
 @Getter
 @Setter
+@Accessors(chain = true)
 public class CreateRespondentDataDto {
     @NotNull
     @ValidGender
@@ -32,5 +34,4 @@ public class CreateRespondentDataDto {
     private Integer lifeSatisfactionId;
     @NotNull
     private Integer qualityOfSleepId;
-
 }
