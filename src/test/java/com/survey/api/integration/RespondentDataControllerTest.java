@@ -161,7 +161,7 @@ public class RespondentDataControllerTest {
     }
 
     @Test
-    void createRespondentDataForTheValidDataShouldReturnOkAndAddRespondentDataToTheDatabase(){
+    void createRespondentDataForTheValidDataShouldReturnCreatedAndAddRespondentDataToTheDatabase(){
         IdentityUser identityUser = new IdentityUser()
                 .setId(UUID.randomUUID())
                 .setRole("Respondent")

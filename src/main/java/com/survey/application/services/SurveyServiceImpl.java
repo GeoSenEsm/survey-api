@@ -12,6 +12,7 @@ import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.annotation.RequestScope;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@RequestScope
 public class SurveyServiceImpl implements SurveyService {
 
     private final SurveyRepository surveyRepository;
@@ -29,15 +31,25 @@ public class SurveyServiceImpl implements SurveyService {
     @PersistenceContext
     private final EntityManager entityManager;
     private final SurveyValidationService surveyValidationService;
+    private final ClaimsPrincipalService claimsPrincipalService;
+    private final RespondentDataRepository respondentDataRepository;
 
     @Autowired
-    public SurveyServiceImpl(SurveyRepository surveyRepository, ModelMapper modelMapper, RespondentGroupRepository respondentGroupRepository, EntityManager entityManager, SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository, SurveyValidationService surveyValidationService) {
+    public SurveyServiceImpl(SurveyRepository surveyRepository, ModelMapper modelMapper,
+                             RespondentGroupRepository respondentGroupRepository,
+                             EntityManager entityManager,
+                             SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository,
+                             SurveyValidationService surveyValidationService,
+                             ClaimsPrincipalService claimsPrincipalService,
+                             RespondentDataRepository respondentDataRepository) {
         this.surveyRepository = surveyRepository;
         this.modelMapper = modelMapper;
         this.respondentGroupRepository = respondentGroupRepository;
         this.entityManager = entityManager;
         this.surveyParticipationTimeSlotRepository = surveyParticipationTimeSlotRepository;
         this.surveyValidationService = surveyValidationService;
+        this.claimsPrincipalService = claimsPrincipalService;
+        this.respondentDataRepository = respondentDataRepository;
     }
 
     @Override
@@ -74,6 +86,7 @@ public class SurveyServiceImpl implements SurveyService {
                 .map(survey -> modelMapper.map(survey, ResponseSurveyShortDto.class))
                 .collect(Collectors.toList());
     }
+
 
     @Override
     public List<ResponseSurveyShortSummariesDto> getSurveysShortSummaries() {

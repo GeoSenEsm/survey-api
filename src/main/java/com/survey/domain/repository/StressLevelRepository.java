@@ -7,5 +7,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface StressLevelRepository extends JpaRepository<StressLevel, Integer> {
-    boolean existsByDisplay(String display);
+
 }

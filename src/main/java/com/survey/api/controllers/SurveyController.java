@@ -61,6 +61,4 @@ public class SurveyController {
         return ResponseEntity.status(HttpStatus.OK).body(shortSummariesSurveys);
     }
 
-
-
 }
