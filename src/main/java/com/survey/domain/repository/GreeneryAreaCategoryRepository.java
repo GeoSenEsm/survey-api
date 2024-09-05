@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface GreeneryAreaCategoryRepository extends JpaRepository<GreeneryAreaCategory, Integer> {
-    boolean existsByDisplay(String display);
+
 
 }

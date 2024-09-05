@@ -5,24 +5,30 @@ import com.survey.domain.repository.AgeCategoryRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
+import org.springframework.web.context.annotation.RequestScope;
 
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequestScope
 public class AgeCategoryServiceImpl implements AgeCategoryService{
-    @Autowired
-    private AgeCategoryRepository repository;
+    private final AgeCategoryRepository repository;
+    private final ModelMapper modelMapper;
+    private final SessionContext sessionContext;
 
-    @Autowired
-    private ModelMapper modelMapper;
+    public AgeCategoryServiceImpl(AgeCategoryRepository repository, ModelMapper modelMapper, SessionContext sessionContext) {
+        this.repository = repository;
+        this.modelMapper = modelMapper;
+        this.sessionContext = sessionContext;
+    }
 
     @Override
     public List<AgeCategoryDto> getAllAgeCategories() {
+        String lang = sessionContext.getClientLang();
         return repository.findAll().stream()
-                .map(category -> modelMapper.map(category, AgeCategoryDto.class))
+                .map(category -> modelMapper.map(category, AgeCategoryDto.class).setDisplay(lang != null && lang.equals("pl") ? category.getPolishDisplay() : category.getEnglishDisplay()))
                 .collect(Collectors.toList());
     }
 }
