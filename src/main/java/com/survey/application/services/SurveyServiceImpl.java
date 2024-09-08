@@ -8,6 +8,7 @@ import com.survey.domain.models.enums.Visibility;
 import com.survey.domain.repository.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,8 +17,11 @@ import org.springframework.web.context.annotation.RequestScope;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import javax.management.relation.Role;
 
 @Service
 @Transactional
@@ -88,9 +92,31 @@ public class SurveyServiceImpl implements SurveyService {
     }
 
 
+
     @Override
     public List<ResponseSurveyShortSummariesDto> getSurveysShortSummaries() {
-        OffsetDateTime endOfDay = OffsetDateTime.now().toLocalDate().atTime(23, 59, 59).atOffset(OffsetDateTime.now().getOffset());
+        OffsetDateTime endOfDay = OffsetDateTime.now(ZoneOffset.UTC).withHour(23).withMinute(59).withSecond(59);
+
+
+        if (!claimsPrincipalService.isAnonymous() && claimsPrincipalService.findIdentityUser().getRole().equals("Respondent")) {
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC).withNano(0);
+
+
+            String jpql = "SELECT s FROM Survey s " + "JOIN s.policies p " + "JOIN p.timeSlots ts " + "WHERE ts.start <= :now AND ts.finish >= :now " + "AND NOT EXISTS (" + "   SELECT sp FROM SurveyParticipation sp " + "   WHERE sp.survey = s AND sp.identityUser.id = :identityUserId" + ")";
+
+            TypedQuery<Survey> query = entityManager.createQuery(jpql, Survey.class);
+            query.setParameter("now", now);
+            query.setParameter("identityUserId", claimsPrincipalService.findIdentityUser().getId());
+
+            return query.getResultStream().map(survey -> {
+                List<SurveySendingPolicyTimesDto> timeSlotDtoList = survey.getPolicies().stream().flatMap(policy -> policy.getTimeSlots().stream()).filter(slot -> slot.getFinish().isBefore(endOfDay)).map(slot -> modelMapper.map(slot, SurveySendingPolicyTimesDto.class)).collect(Collectors.toList());
+
+                ResponseSurveyShortSummariesDto dto = modelMapper.map(survey, ResponseSurveyShortSummariesDto.class);
+                dto.setDates(timeSlotDtoList);
+                return dto;
+            }).collect(Collectors.toList());
+        }
+
         return surveyRepository.findAll().stream()
                 .map(survey -> {
                     List<SurveySendingPolicyTimesDto> timeSlotDtoList = survey.getPolicies().stream()

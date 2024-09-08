@@ -51,4 +51,8 @@ public class ClaimsPrincipalServiceImpl implements ClaimsPrincipalService {
         return identityUserRepository.findByUsername(usernameFromJwt)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid respondent ID - respondent doesn't exist"));
     }
+
+    public boolean isAnonymous() {
+        return getCurrentUsernameFromToken() == null;
+    }
 }
