@@ -191,11 +191,11 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
         return dto;
     }
 
-    private List<String> extractAnswers(QuestionAnswer questionAnswer) {
-        List<String> answers = new ArrayList<>();
+    private List<Object> extractAnswers(QuestionAnswer questionAnswer) {
+        List<Object> answers = new ArrayList<>();
 
         Optional.ofNullable(questionAnswer.getNumericAnswer())
-                .ifPresent(numericAnswer -> answers.add(String.valueOf(numericAnswer)));
+                .ifPresent(answers::add);
 
         if (questionAnswer.getOptionSelections() != null) {
             answers.addAll(questionAnswer.getOptionSelections().stream()
@@ -204,7 +204,7 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
         }
 
         Optional.ofNullable(questionAnswer.getYesNoAnswer())
-                .ifPresent(yesNoAnswer -> answers.add(yesNoAnswer ? "Yes" : "No"));
+                .ifPresent(answers::add);
 
         return answers;
     }

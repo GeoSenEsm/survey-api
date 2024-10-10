@@ -14,6 +14,6 @@ public class SurveyResultDto {
     private String surveyName;
     private String question;
     private LocalDate responseDate;
-    private List<String> answers;
+    private List<Object> answers;
     private UUID respondentId;
 }
