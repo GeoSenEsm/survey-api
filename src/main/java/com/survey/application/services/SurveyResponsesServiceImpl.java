@@ -1,5 +1,6 @@
 package com.survey.application.services;
 
+import com.survey.application.dtos.SurveyResultDto;
 import com.survey.application.dtos.surveyDtos.AnswerDto;
 import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
 import com.survey.application.dtos.surveyDtos.SurveyParticipationDto;
@@ -15,13 +16,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.annotation.RequestScope;
+import jakarta.persistence.TypedQuery;
 
 import javax.management.InvalidAttributeValueException;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 @Service
 @RequestScope
 public class SurveyResponsesServiceImpl implements SurveyResponsesService {
@@ -150,5 +153,59 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
         SurveyParticipation finalSurveyParticipation = mapQuestionAnswers(sendSurveyResponseDto, surveyParticipation, survey);
         surveyParticipationRepository.save(finalSurveyParticipation);
         return mapToDto(finalSurveyParticipation, sendSurveyResponseDto, identityUser);
+    }
+
+    @Override
+    @Transactional
+    public List<SurveyResultDto> getSurveyResults(UUID surveyId, LocalDateTime dateFrom, LocalDateTime dateTo) {
+        String jpql = "SELECT sp FROM SurveyParticipation sp " +
+                "JOIN sp.survey s " +
+                "JOIN sp.questionAnswers qa " +
+                "WHERE sp.survey.id = :surveyId " +
+                "AND sp.date BETWEEN :dateFrom AND :dateTo";
+
+        TypedQuery<SurveyParticipation> query = entityManager.createQuery(jpql, SurveyParticipation.class);
+        query.setParameter("surveyId", surveyId);
+        query.setParameter("dateFrom", dateFrom);
+        query.setParameter("dateTo", dateTo);
+
+        List<SurveyParticipation> participationList = query.getResultList();
+
+        return participationList.stream()
+                .flatMap(this::mapParticipationToDto)
+                .collect(Collectors.toList());
+    }
+
+    private Stream<SurveyResultDto> mapParticipationToDto(SurveyParticipation surveyParticipation) {
+        return surveyParticipation.getQuestionAnswers().stream()
+                .map(questionAnswer -> createSurveyResultDto(surveyParticipation, questionAnswer));
+    }
+
+    private SurveyResultDto createSurveyResultDto(SurveyParticipation surveyParticipation, QuestionAnswer questionAnswer) {
+        SurveyResultDto dto = new SurveyResultDto();
+        dto.setSurveyName(surveyParticipation.getSurvey().getName());
+        dto.setQuestion(questionAnswer.getQuestion().getContent());
+        dto.setResponseDate(surveyParticipation.getDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate());
+        dto.setRespondentId(surveyParticipation.getIdentityUser().getId());
+        dto.setAnswers(extractAnswers(questionAnswer));
+        return dto;
+    }
+
+    private List<String> extractAnswers(QuestionAnswer questionAnswer) {
+        List<String> answers = new ArrayList<>();
+
+        Optional.ofNullable(questionAnswer.getNumericAnswer())
+                .ifPresent(numericAnswer -> answers.add(String.valueOf(numericAnswer)));
+
+        if (questionAnswer.getOptionSelections() != null) {
+            answers.addAll(questionAnswer.getOptionSelections().stream()
+                    .map(optionSelection -> optionSelection.getOption().getLabel())
+                    .toList());
+        }
+
+        Optional.ofNullable(questionAnswer.getYesNoAnswer())
+                .ifPresent(yesNoAnswer -> answers.add(yesNoAnswer ? "Yes" : "No"));
+
+        return answers;
     }
 }

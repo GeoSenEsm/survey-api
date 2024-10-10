@@ -63,6 +63,7 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.GET, "/api/surveysendingpolicies").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/surveys/shortsummaries").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/summaries/histogram").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/surveyresponses/results").permitAll();
                 })
                 .httpBasic(Customizer.withDefaults());
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
