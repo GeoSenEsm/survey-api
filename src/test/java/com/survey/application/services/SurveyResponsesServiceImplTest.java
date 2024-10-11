@@ -12,13 +12,11 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Date;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
-import static java.time.OffsetDateTime.now;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -59,8 +57,8 @@ class SurveyResponsesServiceImplTest {
     @Test
     void shouldGetSurveyResults() {
         UUID surveyId = survey.getId();
-        LocalDateTime dateFrom = now().minusYears(1).toLocalDateTime();
-        LocalDateTime dateTo = now().plusYears(1).toLocalDateTime();
+        OffsetDateTime dateFrom = OffsetDateTime.now(ZoneOffset.UTC).minusYears(1);
+        OffsetDateTime dateTo = OffsetDateTime.now(ZoneOffset.UTC).plusYears(1);
 
         TypedQuery<SurveyParticipation> mockQuery = Mockito.mock(TypedQuery.class);
         when(entityManager.createQuery(anyString(), eq(SurveyParticipation.class)))
@@ -90,8 +88,8 @@ class SurveyResponsesServiceImplTest {
     @Test
     void shouldNotReturnSurveyResultsWhenDateIsOutOfRange() {
         UUID surveyId = survey.getId();
-        LocalDateTime dateFrom = now().minusYears(2).toLocalDateTime();
-        LocalDateTime dateTo = now().minusYears(1).toLocalDateTime();
+        OffsetDateTime dateFrom = OffsetDateTime.now(ZoneOffset.UTC).minusYears(2);
+        OffsetDateTime dateTo = OffsetDateTime.now(ZoneOffset.UTC).minusYears(1);
 
         TypedQuery<SurveyParticipation> mockQuery = Mockito.mock(TypedQuery.class);
         when(entityManager.createQuery(anyString(), eq(SurveyParticipation.class)))
@@ -111,7 +109,7 @@ class SurveyResponsesServiceImplTest {
     private SurveyParticipation createSurveyParticipation() {
         SurveyParticipation participation = new SurveyParticipation();
         participation.setSurvey(survey);
-        participation.setDate(Date.from(LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant()));
+        participation.setDate(OffsetDateTime.now(ZoneOffset.UTC));
         participation.setIdentityUser(user);
         participation.setQuestionAnswers(questionAnswerList);
         return participation;

@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.annotation.RequestScope;
 
 import javax.management.InvalidAttributeValueException;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -39,8 +39,8 @@ public class SurveyResponsesController {
     @CrossOrigin
     public ResponseEntity<List<SurveyResultDto>> getSurveyResults(
             @RequestParam("surveyId") UUID surveyId,
-            @RequestParam("dateFrom") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateFrom,
-            @RequestParam("dateTo") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateTo) {
+            @RequestParam("dateFrom") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime dateFrom,
+            @RequestParam("dateTo") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime dateTo) {
 
         List<SurveyResultDto> results = surveyResponsesService.getSurveyResults(surveyId, dateFrom, dateTo);
         return ResponseEntity.status(HttpStatus.OK).body(results);

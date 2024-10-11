@@ -3,8 +3,7 @@ package com.survey.application.dtos;
 import lombok.Getter;
 import lombok.Setter;
 
-
-import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,7 +12,7 @@ import java.util.UUID;
 public class SurveyResultDto {
     private String surveyName;
     private String question;
-    private LocalDate responseDate;
+    private OffsetDateTime responseDate;
     private List<Object> answers;
     private UUID respondentId;
 }

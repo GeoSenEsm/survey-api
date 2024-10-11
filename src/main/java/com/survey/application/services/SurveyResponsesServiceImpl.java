@@ -11,16 +11,16 @@ import com.survey.domain.repository.QuestionRepository;
 import com.survey.domain.repository.SurveyParticipationRepository;
 import com.survey.domain.repository.SurveyRepository;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.annotation.RequestScope;
-import jakarta.persistence.TypedQuery;
 
 import javax.management.InvalidAttributeValueException;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -68,7 +68,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private SurveyParticipation saveSurveyParticipation(SendSurveyResponseDto sendSurveyResponseDto, IdentityUser identityUser, Survey survey) {
         SurveyParticipation surveyParticipation = new SurveyParticipation();
         surveyParticipation.setIdentityUser(identityUser);
-        surveyParticipation.setDate(new Date());
+        surveyParticipation.setDate(OffsetDateTime.now(ZoneOffset.UTC));
         surveyParticipation.setSurvey(survey);
         return surveyParticipation;
     }
@@ -157,7 +157,7 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
 
     @Override
     @Transactional
-    public List<SurveyResultDto> getSurveyResults(UUID surveyId, LocalDateTime dateFrom, LocalDateTime dateTo) {
+    public List<SurveyResultDto> getSurveyResults(UUID surveyId, OffsetDateTime dateFrom, OffsetDateTime dateTo) {
         String jpql = "SELECT sp FROM SurveyParticipation sp " +
                 "JOIN sp.survey s " +
                 "JOIN sp.questionAnswers qa " +
@@ -185,7 +185,7 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
         SurveyResultDto dto = new SurveyResultDto();
         dto.setSurveyName(surveyParticipation.getSurvey().getName());
         dto.setQuestion(questionAnswer.getQuestion().getContent());
-        dto.setResponseDate(surveyParticipation.getDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate());
+        dto.setResponseDate(surveyParticipation.getDate());
         dto.setRespondentId(surveyParticipation.getIdentityUser().getId());
         dto.setAnswers(extractAnswers(questionAnswer));
         return dto;

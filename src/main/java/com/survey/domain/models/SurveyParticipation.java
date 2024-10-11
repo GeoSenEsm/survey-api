@@ -4,8 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,7 +22,7 @@ public class SurveyParticipation {
     private IdentityUser identityUser;
 
     @Column(name = "date")
-    private Date date;
+    private OffsetDateTime date;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "survey_id")
