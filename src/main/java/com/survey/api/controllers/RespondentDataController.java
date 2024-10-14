@@ -3,7 +3,7 @@ package com.survey.api.controllers;
 import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.application.dtos.RespondentDataDto;
 import com.survey.application.services.RespondentDataService;
-import jakarta.servlet.http.HttpServletRequest;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -27,6 +27,7 @@ public class RespondentDataController {
     }
 
     @PostMapping
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<RespondentDataDto> createRespondent(@Validated @RequestBody CreateRespondentDataDto dto,
                                               @RequestHeader(value="Authorization", required = false) String token
     ) throws BadRequestException, InvalidAttributeValueException, InstanceAlreadyExistsException {
