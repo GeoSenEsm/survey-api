@@ -4,6 +4,7 @@ import com.survey.application.dtos.SurveyResultDto;
 import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
 import com.survey.application.dtos.surveyDtos.SurveyParticipationDto;
 import com.survey.application.services.SurveyResponsesService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -30,6 +31,7 @@ public class SurveyResponsesController {
     }
     @CrossOrigin
     @PostMapping
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<SurveyParticipationDto> saveSurveyResponse(@Validated @RequestBody SendSurveyResponseDto sendSurveyResponseDto, @RequestHeader(value="Authorization", required = false) String token) throws InvalidAttributeValueException {
         SurveyParticipationDto surveyParticipationDto = surveyResponsesService.saveSurveyResponse(sendSurveyResponseDto, token);
         return ResponseEntity.status(HttpStatus.CREATED).body(surveyParticipationDto);
