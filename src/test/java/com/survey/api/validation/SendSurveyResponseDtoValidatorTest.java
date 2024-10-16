@@ -931,4 +931,41 @@ class SendSurveyResponseDtoValidatorTest {
         boolean isValid = validator.isValid(response, context);
         assertFalse(isValid);
     }
+
+    @Test
+    void shouldReturnFalseWhenSendSurveyResponseDtoIsNull() {
+        SendSurveyResponseDto sendSurveyResponseDto = null;
+
+        boolean result = validator.isValid(sendSurveyResponseDto, context);
+
+        assertFalse(result);
+        verify(context).buildConstraintViolationWithTemplate("Survey response data is invalid");
+        verify(violationBuilder).addPropertyNode("surveyId");
+    }
+
+    @Test
+    void shouldReturnFalseWhenSurveyIdIsNull() {
+        SendSurveyResponseDto sendSurveyResponseDto = new SendSurveyResponseDto();
+        sendSurveyResponseDto.setSurveyId(null);
+        sendSurveyResponseDto.setAnswers(Collections.emptyList());
+
+        boolean result = validator.isValid(sendSurveyResponseDto, context);
+
+        assertFalse(result);
+        verify(context).buildConstraintViolationWithTemplate("Survey response data is invalid");
+        verify(violationBuilder).addPropertyNode("surveyId");
+    }
+
+    @Test
+    void shouldReturnFalseWhenAnswersAreNull() {
+        SendSurveyResponseDto sendSurveyResponseDto = new SendSurveyResponseDto();
+        sendSurveyResponseDto.setSurveyId(UUID.randomUUID());
+        sendSurveyResponseDto.setAnswers(null);
+
+        boolean result = validator.isValid(sendSurveyResponseDto, context);
+
+        assertFalse(result);
+        verify(context).buildConstraintViolationWithTemplate("Survey response data is invalid");
+        verify(violationBuilder).addPropertyNode("surveyId");
+    }
 }
