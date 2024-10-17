@@ -209,38 +209,6 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
                 result = false;
             }
         }
-
-//        if (answerDto.getNumericAnswer() == null){
-//            ctx
-//                    .buildConstraintViolationWithTemplate("Linear scale answer must have a numeric value")
-//                    .addPropertyNode("answers")
-//                    .addConstraintViolation();
-//            result = false;
-//        } else if(answerDto.getNumericAnswer() > question.getNumberRange().getTo() ||
-//         answerDto.getNumericAnswer() < question.getNumberRange().getFrom()) {
-//            ctx
-//                    .buildConstraintViolationWithTemplate("Answer violates a number range constraint")
-//                    .addPropertyNode("answers")
-//                    .addConstraintViolation();
-//            result = false;
-//        }
-//
-//        if (answerDto.getSelectedOptions() != null && !answerDto.getSelectedOptions().isEmpty()){
-//            ctx
-//                    .buildConstraintViolationWithTemplate("Linear scale answer must not have a selected options")
-//                    .addPropertyNode("answers")
-//                    .addConstraintViolation();
-//            result = false;
-//        }
-//
-//        if (answerDto.getYesNoAnswer() != null){
-//            ctx
-//                    .buildConstraintViolationWithTemplate("Linear scale answer must not have a yes/no answer specified")
-//                    .addPropertyNode("answers")
-//                    .addConstraintViolation();
-//            result = false;
-//        }
-
         return result;
     }
 
