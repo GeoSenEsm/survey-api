@@ -122,7 +122,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.yes_no_selection,
+                                QuestionType.yes_no_choice,
                                 true,
                                 null,
                                 null,
@@ -136,7 +136,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.discrete_number_selection,
+                                QuestionType.linear_scale,
                                 true,
                                 null,
                                 null,
@@ -156,7 +156,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.single_text_selection,
+                                QuestionType.single_choice,
                                 true,
                                 null,
                                 Stream.of(
@@ -179,7 +179,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.number_selection,
+                                QuestionType.number_input,
                                 true,
                                 null,
                                 null,
@@ -247,7 +247,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.yes_no_selection,
+                                QuestionType.yes_no_choice,
                                 true,
                                 null,
                                 null,
@@ -261,7 +261,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.yes_no_selection,
+                                QuestionType.yes_no_choice,
                                 true,
                                 null,
                                 null,
@@ -275,7 +275,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.yes_no_selection,
+                                QuestionType.yes_no_choice,
                                 true,
                                 null,
                                 null,
@@ -289,7 +289,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.discrete_number_selection,
+                                QuestionType.linear_scale,
                                 true,
                                 null,
                                 null,
@@ -309,7 +309,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.discrete_number_selection,
+                                QuestionType.linear_scale,
                                 true,
                                 null,
                                 null,
@@ -329,7 +329,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.discrete_number_selection,
+                                QuestionType.linear_scale,
                                 true,
                                 null,
                                 null,
@@ -349,7 +349,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.discrete_number_selection,
+                                QuestionType.linear_scale,
                                 true,
                                 null,
                                 null,
@@ -369,7 +369,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.discrete_number_selection,
+                                QuestionType.linear_scale,
                                 true,
                                 null,
                                 null,
@@ -389,7 +389,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.single_text_selection,
+                                QuestionType.single_choice,
                                 true,
                                 null,
                                 Stream.of(
@@ -412,7 +412,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.single_text_selection,
+                                QuestionType.single_choice,
                                 true,
                                 null,
                                 Stream.of(
@@ -435,7 +435,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.single_text_selection,
+                                QuestionType.single_choice,
                                 true,
                                 null,
                                 Stream.of(
@@ -458,7 +458,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.single_text_selection,
+                                QuestionType.single_choice,
                                 true,
                                 null,
                                 Stream.of(
@@ -481,7 +481,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.number_selection,
+                                QuestionType.number_input,
                                 true,
                                 null,
                                 null,
@@ -495,7 +495,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.number_selection,
+                                QuestionType.number_input,
                                 true,
                                 null,
                                 null,
@@ -509,7 +509,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 null,
                                 null,
                                 null,
-                                QuestionType.number_selection,
+                                QuestionType.number_input,
                                 true,
                                 null,
                                 null,
@@ -580,7 +580,7 @@ class SendSurveyResponseDtoValidatorTest {
     void shouldNotFailWhenTheRequiredQuestionWasForAnotherRespondentsGroup(){
         UUID surveyID = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        IdentityUser identityUser = new IdentityUser(userId, "John", "pswd", "Respondent");
+        IdentityUser identityUser = new IdentityUser(userId, "John", "password", "Respondent");
         RespondentData respondent = new RespondentData();
         respondent.setIdentityUserId(userId);
         Survey survey = new Survey();
@@ -598,7 +598,7 @@ class SendSurveyResponseDtoValidatorTest {
 
         Question requiredQuestion = new Question();
         requiredQuestion.setRequired(true);
-        requiredQuestion.setQuestionType(QuestionType.yes_no_selection);
+        requiredQuestion.setQuestionType(QuestionType.yes_no_choice);
         section.setQuestions(Stream.of(requiredQuestion).collect(Collectors.toList()));
         section.setSectionToUserGroups(Stream.of(groupToSection).toList());
         survey.setSections(Stream.of(section).collect(Collectors.toList()));
@@ -621,7 +621,7 @@ class SendSurveyResponseDtoValidatorTest {
     void shouldFailWhenTheRequiredQuestionWasForRespondentsGroupOfTheRespondentAndAnswerIsNotGIven(){
         UUID surveyID = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        IdentityUser identityUser = new IdentityUser(userId, "John", "pswd", "Respondent");
+        IdentityUser identityUser = new IdentityUser(userId, "John", "password", "Respondent");
         RespondentData respondent = new RespondentData();
         respondent.setIdentityUserId(userId);
         Survey survey = new Survey();
@@ -641,7 +641,7 @@ class SendSurveyResponseDtoValidatorTest {
 
         Question requiredQuestion = new Question();
         requiredQuestion.setRequired(true);
-        requiredQuestion.setQuestionType(QuestionType.yes_no_selection);
+        requiredQuestion.setQuestionType(QuestionType.yes_no_choice);
         section.setQuestions(Stream.of(requiredQuestion).collect(Collectors.toList()));
         section.setSectionToUserGroups(Stream.of(groupToSection).toList());
         survey.setSections(Stream.of(section).collect(Collectors.toList()));
@@ -684,7 +684,7 @@ class SendSurveyResponseDtoValidatorTest {
                                                         ).toList()
                                                 )
                                                 .setRequired(true)
-                                                .setQuestionType(QuestionType.single_text_selection)
+                                                .setQuestionType(QuestionType.single_choice)
                                 ).toList())
                                 .setVisibility(Visibility.always)
                                 .setOrder(1),
@@ -692,7 +692,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 .setQuestions(Stream.of(
                                         new Question()
                                                 .setRequired(true)
-                                                .setQuestionType(QuestionType.yes_no_selection)
+                                                .setQuestionType(QuestionType.yes_no_choice)
                                 ).toList())
                                 .setVisibility(Visibility.answer_triggered)
                                 .setOrder(2)
@@ -744,7 +744,7 @@ class SendSurveyResponseDtoValidatorTest {
                                                         ).toList()
                                                 )
                                                 .setRequired(true)
-                                                .setQuestionType(QuestionType.single_text_selection)
+                                                .setQuestionType(QuestionType.single_choice)
                                 ).toList())
                                 .setVisibility(Visibility.always)
                                 .setOrder(1),
@@ -752,7 +752,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 .setQuestions(Stream.of(
                                         new Question()
                                                 .setRequired(true)
-                                                .setQuestionType(QuestionType.yes_no_selection)
+                                                .setQuestionType(QuestionType.yes_no_choice)
                                 ).toList())
                                 .setVisibility(Visibility.answer_triggered)
                                 .setOrder(2)
@@ -805,7 +805,7 @@ class SendSurveyResponseDtoValidatorTest {
                                                         ).toList()
                                                 )
                                                 .setRequired(true)
-                                                .setQuestionType(QuestionType.single_text_selection)
+                                                .setQuestionType(QuestionType.single_choice)
                                 ).toList())
                                 .setVisibility(Visibility.always)
                                 .setOrder(1),
@@ -813,7 +813,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 .setQuestions(Stream.of(
                                         new Question()
                                                 .setRequired(true)
-                                                .setQuestionType(QuestionType.yes_no_selection)
+                                                .setQuestionType(QuestionType.yes_no_choice)
                                                 .setId(secondQuestionId)
                                 ).toList())
                                 .setVisibility(Visibility.answer_triggered)

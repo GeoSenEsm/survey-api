@@ -6,11 +6,11 @@ import java.util.Arrays;
 
 @Getter
 public enum QuestionType {
-    single_text_selection(0),
-    discrete_number_selection(1),
-    yes_no_selection(2),
+    single_choice(0),
+    linear_scale(1),
+    yes_no_choice(2),
     multiple_choice(3),
-    number_selection(4);
+    number_input(4);
     private final int value;
 
     QuestionType(int value) {
