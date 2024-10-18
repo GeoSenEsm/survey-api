@@ -21,8 +21,6 @@ import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import javax.management.relation.Role;
-
 @Service
 @Transactional
 @RequestScope
@@ -36,7 +34,6 @@ public class SurveyServiceImpl implements SurveyService {
     private final EntityManager entityManager;
     private final SurveyValidationService surveyValidationService;
     private final ClaimsPrincipalService claimsPrincipalService;
-    private final RespondentDataRepository respondentDataRepository;
 
     @Autowired
     public SurveyServiceImpl(SurveyRepository surveyRepository, ModelMapper modelMapper,
@@ -44,8 +41,7 @@ public class SurveyServiceImpl implements SurveyService {
                              EntityManager entityManager,
                              SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository,
                              SurveyValidationService surveyValidationService,
-                             ClaimsPrincipalService claimsPrincipalService,
-                             RespondentDataRepository respondentDataRepository) {
+                             ClaimsPrincipalService claimsPrincipalService) {
         this.surveyRepository = surveyRepository;
         this.modelMapper = modelMapper;
         this.respondentGroupRepository = respondentGroupRepository;
@@ -53,7 +49,6 @@ public class SurveyServiceImpl implements SurveyService {
         this.surveyParticipationTimeSlotRepository = surveyParticipationTimeSlotRepository;
         this.surveyValidationService = surveyValidationService;
         this.claimsPrincipalService = claimsPrincipalService;
-        this.respondentDataRepository = respondentDataRepository;
     }
 
     @Override
@@ -170,9 +165,9 @@ public class SurveyServiceImpl implements SurveyService {
         Question question = modelMapper.map(questionDto, Question.class);
         question.setSection(surveySection);
 
-        if (question.getQuestionType().equals(QuestionType.single_text_selection)){
+        if (question.getQuestionType().equals(QuestionType.single_choice) || question.getQuestionType().equals(QuestionType.multiple_choice)){
             if (questionDto.getOptions() == null){
-                throw new IllegalArgumentException("Question type set as single_text_selection - must include a list of options in dto.");
+                throw new IllegalArgumentException("Question type set as " + question.getQuestionType().name() + " - must include a list of options in dto.");
             }
             question.setNumberRange(null);
             question.setOptions(questionDto.getOptions().stream()
@@ -180,15 +175,15 @@ public class SurveyServiceImpl implements SurveyService {
                     .collect(Collectors.toList()));
         }
 
-        if (question.getQuestionType().equals(QuestionType.discrete_number_selection)){
+        if (question.getQuestionType().equals(QuestionType.linear_scale)){
             if (questionDto.getNumberRange() == null){
-                throw new IllegalArgumentException("Question type set as discrete_number_selection - must include number range in dto.");
+                throw new IllegalArgumentException("Question type set as linear_scale - must include number range in dto.");
             }
             question.setNumberRange(mapToNumberRange(questionDto.getNumberRange(), question));
             question.setOptions(null);
         }
 
-        if (question.getQuestionType().equals(QuestionType.yes_no_selection)) {
+        if (question.getQuestionType().equals(QuestionType.yes_no_choice) || question.getQuestionType().equals(QuestionType.number_input)) {
             question.setNumberRange(null);
             question.setOptions(null);
         }

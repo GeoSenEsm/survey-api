@@ -29,12 +29,12 @@ public class HistogramServiceImpl implements HistogramService{
             for (QuestionAnswer answer : participation.getQuestionAnswers()){
 
                 UUID questionId = answer.getQuestion().getId();
-                if (answer.getQuestion().getQuestionType() == QuestionType.discrete_number_selection){
+                if (answer.getQuestion().getQuestionType() == QuestionType.linear_scale){
                     String selectedNumber = String.valueOf(answer.getNumericAnswer());
                     histogramDataMap.get(questionId).increaseAnswerNumbers(selectedNumber);
                 }
 
-                if (answer.getQuestion().getQuestionType() == QuestionType.single_text_selection){
+                if (answer.getQuestion().getQuestionType() == QuestionType.single_choice){
                     String selectedLabel = answer.getOptionSelections().get(0).getOption().getLabel();
                     histogramDataMap.get(questionId).increaseAnswerNumbers(selectedLabel);
                 }
@@ -101,14 +101,14 @@ public class HistogramServiceImpl implements HistogramService{
     }
 
     List<ChartDataPoint> getSeriesForQuestion(Question question){
-        if (question.getQuestionType() == QuestionType.discrete_number_selection){
+        if (question.getQuestionType() == QuestionType.linear_scale){
             NumberRange numberRange = question.getNumberRange();
             return IntStream.rangeClosed(numberRange.getFrom(), numberRange.getTo())
                     .mapToObj(i -> new ChartDataPoint(0, String.valueOf(i)))
                     .collect(Collectors.toList());
         }
 
-        if (question.getQuestionType() == QuestionType.single_text_selection){
+        if (question.getQuestionType() == QuestionType.single_choice){
             return question.getOptions().stream()
                     .map(option -> new ChartDataPoint(0, option.getLabel()))
                     .collect(Collectors.toList());

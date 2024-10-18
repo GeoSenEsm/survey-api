@@ -26,7 +26,7 @@ public class SurveyValidationServiceImpl implements SurveyValidationService{
         sections.forEach(section -> sectionOrderToVisibility.put(section.getOrder(), section.getVisibility()));
 
         sections.forEach(section -> {
-            List<Question> singleTextSelectionQuestions = getQuestionsByType(section, QuestionType.single_text_selection);
+            List<Question> singleTextSelectionQuestions = getQuestionsByType(section, QuestionType.single_choice);
             singleTextSelectionQuestions.forEach(question ->
                     question.getOptions().forEach(option ->
                             validateOptionShowSection(option, sectionOrderToVisibility, section.getOrder())

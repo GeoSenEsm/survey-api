@@ -122,23 +122,45 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         return isValid;
     }
 
-    private boolean validateAnswerWithQuestionType(AnswerDto answer,
-                                                Question question, ConstraintValidatorContext ctx){
-        switch (question.getQuestionType()){
-            case yes_no_selection:
-                return validateYesNo(answer, ctx);
-            case single_text_selection:
-                return validateChoice(question, answer, ctx, false);
-            case multiple_choice:
-                return validateChoice(question, answer, ctx, true);
-            case discrete_number_selection:
-                return validateNumberRange(question, answer, ctx);
-            default:
-                throw new IllegalArgumentException();
-        }
+    private boolean validateAnswerWithQuestionType(AnswerDto answer, Question question, ConstraintValidatorContext ctx){
+        return switch (question.getQuestionType()) {
+            case yes_no_choice -> validateYesNoAnswer(answer, ctx);
+            case single_choice -> validateChoice(question, answer, ctx, false);
+            case multiple_choice -> validateChoice(question, answer, ctx, true);
+            case linear_scale -> validateLinearScaleAnswer(question, answer, ctx);
+            case number_input -> validateNumericAnswer(answer, ctx, "Numeric answer");
+        };
     }
 
-    private boolean validateYesNo(AnswerDto answerDto, ConstraintValidatorContext ctx){
+
+    private boolean validateNumericAnswer(AnswerDto answerDto, ConstraintValidatorContext ctx, String answerTypeName) {
+        boolean result = true;
+        if (answerDto.getNumericAnswer() == null){
+            ctx
+                    .buildConstraintViolationWithTemplate(answerTypeName + " must have a numeric value")
+                    .addPropertyNode("answers")
+                    .addConstraintViolation();
+            result = false;
+        }
+        if (answerDto.getSelectedOptions() != null && !answerDto.getSelectedOptions().isEmpty()){
+            ctx
+                    .buildConstraintViolationWithTemplate(answerTypeName + " must not have a selected options")
+                    .addPropertyNode("answers")
+                    .addConstraintViolation();
+            result = false;
+        }
+
+        if (answerDto.getYesNoAnswer() != null){
+            ctx
+                    .buildConstraintViolationWithTemplate(answerTypeName + " answer must not have a yes/no answer specified")
+                    .addPropertyNode("answers")
+                    .addConstraintViolation();
+            result = false;
+        }
+        return result;
+    }
+
+    private boolean validateYesNoAnswer(AnswerDto answerDto, ConstraintValidatorContext ctx){
         boolean result = true;
         if (answerDto.getNumericAnswer() != null){
             ctx
@@ -167,39 +189,18 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         return result;
     }
 
-    private boolean validateNumberRange(Question question, AnswerDto answerDto, ConstraintValidatorContext ctx){
-        boolean result = true;
-        if (answerDto.getNumericAnswer() == null){
-            ctx
-                    .buildConstraintViolationWithTemplate("Linear scale answer must have a numeric value")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
-            result = false;
-        } else if(answerDto.getNumericAnswer() > question.getNumberRange().getTo() ||
-         answerDto.getNumericAnswer() < question.getNumberRange().getFrom()) {
-            ctx
-                    .buildConstraintViolationWithTemplate("Answer violates a number range constraint")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
-            result = false;
-        }
+    private boolean validateLinearScaleAnswer(Question question, AnswerDto answerDto, ConstraintValidatorContext ctx){
+        boolean result = validateNumericAnswer(answerDto, ctx, "Linear scale answer");
 
-        if (answerDto.getSelectedOptions() != null && !answerDto.getSelectedOptions().isEmpty()){
-            ctx
-                    .buildConstraintViolationWithTemplate("Linear scale answer must not have a selected options")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
-            result = false;
+        if (result) {
+            if (answerDto.getNumericAnswer() > question.getNumberRange().getTo() ||
+                    answerDto.getNumericAnswer() < question.getNumberRange().getFrom()) {
+                ctx.buildConstraintViolationWithTemplate("Answer violates a number range constraint")
+                        .addPropertyNode("answers")
+                        .addConstraintViolation();
+                result = false;
+            }
         }
-
-        if (answerDto.getYesNoAnswer() != null){
-            ctx
-                    .buildConstraintViolationWithTemplate("Linear scale answer must not have a yes/no answer specified")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
-            result = false;
-        }
-
         return result;
     }
 
@@ -226,7 +227,7 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         List<SelectedOptionDto> selectedOptions = answerDto.getSelectedOptions();
         if (!multiple && (selectedOptions == null || selectedOptions.size() != 1)){
             ctx
-                    .buildConstraintViolationWithTemplate(errorMessagePrefix + " choice answer must not have exactly one selected option")
+                    .buildConstraintViolationWithTemplate(errorMessagePrefix + " choice answer must have exactly one selected option")
                     .addPropertyNode("answers")
                     .addConstraintViolation();
             result = false;
@@ -234,7 +235,7 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
 
         if (multiple && (selectedOptions == null || selectedOptions.isEmpty())){
             ctx
-                    .buildConstraintViolationWithTemplate(errorMessagePrefix + " choice answer must not have at least one selected option")
+                    .buildConstraintViolationWithTemplate(errorMessagePrefix + " choice answer must have at least one selected option")
                     .addPropertyNode("answers")
                     .addConstraintViolation();
             result = false;
@@ -246,7 +247,7 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
                 .map(Option::getId)
                 .collect(Collectors.toCollection(HashSet::new));
 
-        if (selectedOptions.stream().anyMatch(x -> !optionsIds.contains(x.getOptionId()))){
+        if (selectedOptions != null && selectedOptions.stream().anyMatch(x -> !optionsIds.contains(x.getOptionId()))){
             ctx
                     .buildConstraintViolationWithTemplate(errorMessagePrefix + " choice answer must have a selected option matching available option for the proper question")
                     .addPropertyNode("answers")
@@ -278,7 +279,7 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         return true;
     }
 
-    private boolean isVisibleToParticipant(SurveySection section, Question question, List<AnswerDto> answers) {
+    private boolean isVisibleToParticipant(SurveySection section, List<AnswerDto> answers) {
         return switch (section.getVisibility()) {
             case always -> true;
             case group_specific -> checkGroupSpecificVisibility(section);
@@ -293,7 +294,7 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
 
         boolean allRequiredQuestionsAnswered = survey.getSections().stream()
                 .flatMap(section -> section.getQuestions().stream()
-                        .filter(question -> question.getRequired() && isVisibleToParticipant(section, question, answers))
+                        .filter(question -> question.getRequired() && isVisibleToParticipant(section, answers))
                         .filter(question -> !answeredQuestionIds.contains(question.getId()))
                 ).findAny().isEmpty();
 

@@ -65,7 +65,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     }
 
 
-    private SurveyParticipation saveSurveyParticipation(SendSurveyResponseDto sendSurveyResponseDto, IdentityUser identityUser, Survey survey) {
+    private SurveyParticipation saveSurveyParticipation(IdentityUser identityUser, Survey survey) {
         SurveyParticipation surveyParticipation = new SurveyParticipation();
         surveyParticipation.setIdentityUser(identityUser);
         surveyParticipation.setDate(OffsetDateTime.now(ZoneOffset.UTC));
@@ -78,62 +78,53 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                 .collect(Collectors.toMap(Option::getId, option -> option));
     }
 
-private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyResponseDto, SurveyParticipation surveyParticipation, Survey survey) throws InvalidAttributeValueException {
-    List<UUID> questionIds = sendSurveyResponseDto.getAnswers().stream()
-            .map(AnswerDto::getQuestionId)
-            .collect(Collectors.toList());
+    private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyResponseDto, SurveyParticipation surveyParticipation, Survey survey) {
+        List<UUID> questionIds = sendSurveyResponseDto.getAnswers().stream()
+                .map(AnswerDto::getQuestionId)
+                .collect(Collectors.toList());
 
-    List<Question> questions = findQuestionsByIds(questionIds, survey.getId());
-    Map<UUID, Question> questionMap = questions.stream()
-            .collect(Collectors.toMap(Question::getId, question -> question));
+        List<Question> questions = findQuestionsByIds(questionIds, survey.getId());
+        Map<UUID, Question> questionMap = questions.stream()
+                .collect(Collectors.toMap(Question::getId, question -> question));
 
-    Map<UUID, Option> optionsMap = findOptionsBySurveyId(questionIds);
+        Map<UUID, Option> optionsMap = findOptionsBySurveyId(questionIds);
 
-    List<QuestionAnswer> questionAnswers = sendSurveyResponseDto.getAnswers().stream()
-            .map(answerDto -> {
-                Question question = questionMap.get(answerDto.getQuestionId());
-                if (question == null) {
-                    throw new IllegalArgumentException("Invalid question ID: " + answerDto.getQuestionId());
-                }
-                QuestionAnswer questionAnswer = new QuestionAnswer();
-                questionAnswer.setSurveyParticipation(surveyParticipation);
-                questionAnswer.setQuestion(question);
+        List<QuestionAnswer> questionAnswers = sendSurveyResponseDto.getAnswers().stream()
+                .map(answerDto -> {
+                    Question question = questionMap.get(answerDto.getQuestionId());
+                    if (question == null) {
+                        throw new IllegalArgumentException("Invalid question ID: " + answerDto.getQuestionId());
+                    }
+                    QuestionAnswer questionAnswer = new QuestionAnswer();
+                    questionAnswer.setSurveyParticipation(surveyParticipation);
+                    questionAnswer.setQuestion(question);
 
-                if (question.getQuestionType().equals(QuestionType.discrete_number_selection)) {
-                    Integer numericAnswer = answerDto.getNumericAnswer();
-                    //TODO: this is more complicated, let's allow null for now
-                    //if (numericAnswer == null || numericAnswer < question.getNumberRange().getFrom() || numericAnswer > question.getNumberRange().getTo() ) {
+                    if (question.getQuestionType().equals(QuestionType.single_choice) || question.getQuestionType().equals(QuestionType.multiple_choice)) {
+                        List<OptionSelection> optionSelections = answerDto.getSelectedOptions().stream()
+                                .map(selectedOptionDto -> {
+                                    Option option = optionsMap.get(selectedOptionDto.getOptionId());
+                                    OptionSelection optionSelection = new OptionSelection();
+                                    optionSelection.setQuestionAnswer(questionAnswer);
+                                    optionSelection.setOption(option);
+                                    return optionSelection;
+                                }).collect(Collectors.toList());
+                        questionAnswer.setOptionSelections(optionSelections);
+                    }
 
-                        //throw new IllegalArgumentException("Invalid Numeric answer.");
-                    //}
-                    questionAnswer.setNumericAnswer(numericAnswer);
-                }
-                if (question.getQuestionType().equals(QuestionType.single_text_selection)) {
-                    List<OptionSelection> optionSelections = answerDto.getSelectedOptions().stream()
-                            .map(selectedOptionDto -> {
-                                Option option = optionsMap.get(selectedOptionDto.getOptionId());
-                                //TODO: this is more complicated, let's allow null for now
-                                //if (option == null) {
-                                    //throw new IllegalArgumentException("Invalid option ID: " + selectedOptionDto.getOptionId());
-                                //}
-                                OptionSelection optionSelection = new OptionSelection();
-                                optionSelection.setQuestionAnswer(questionAnswer);
-                                optionSelection.setOption(option);
-                                return optionSelection;
-                            }).collect(Collectors.toList());
-                    questionAnswer.setOptionSelections(optionSelections);
-                }
+                    if (question.getQuestionType().equals(QuestionType.yes_no_choice)) {
+                        questionAnswer.setYesNoAnswer(answerDto.getYesNoAnswer());
+                    }
 
-                if (question.getQuestionType().equals(QuestionType.yes_no_selection)) {
-                    questionAnswer.setYesNoAnswer(answerDto.getYesNoAnswer());
-                }
+                    if (question.getQuestionType().equals(QuestionType.number_input) || question.getQuestionType().equals(QuestionType.linear_scale)) {
+                        questionAnswer.setNumericAnswer(answerDto.getNumericAnswer());
+                    }
 
-                return questionAnswer;
-            }).collect(Collectors.toList());
+                    return questionAnswer;
+                }).collect(Collectors.toList());
 
-    surveyParticipation.setQuestionAnswers(questionAnswers);
-    return surveyParticipation;
-}
+        surveyParticipation.setQuestionAnswers(questionAnswers);
+        return surveyParticipation;
+    }
 
     private SurveyParticipationDto mapToDto(SurveyParticipation surveyParticipation, SendSurveyResponseDto sendSurveyResponseDto, IdentityUser identityUser) {
         SurveyParticipation finalSurveyParticipation = surveyParticipationRepository.saveAndFlush(surveyParticipation);
@@ -149,7 +140,7 @@ private SurveyParticipation mapQuestionAnswers(SendSurveyResponseDto sendSurveyR
     public SurveyParticipationDto saveSurveyResponse(SendSurveyResponseDto sendSurveyResponseDto, String token) throws InvalidAttributeValueException {
         IdentityUser identityUser = claimsPrincipalServiceImpl.findIdentityUser();
         Survey survey = findSurveyById(sendSurveyResponseDto.getSurveyId());
-        SurveyParticipation surveyParticipation = saveSurveyParticipation(sendSurveyResponseDto, identityUser, survey);
+        SurveyParticipation surveyParticipation = saveSurveyParticipation(identityUser, survey);
         SurveyParticipation finalSurveyParticipation = mapQuestionAnswers(sendSurveyResponseDto, surveyParticipation, survey);
         surveyParticipationRepository.save(finalSurveyParticipation);
         return mapToDto(finalSurveyParticipation, sendSurveyResponseDto, identityUser);

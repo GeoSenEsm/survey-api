@@ -143,16 +143,16 @@ class SurveyResponsesServiceImplTest {
 
         Question question1 = new Question();
         question1.setContent(QUESTION_1);
-        question1.setQuestionType(QuestionType.single_text_selection);
+        question1.setQuestionType(QuestionType.single_choice);
         question1.setOptions(List.of(option1, option2));
 
         Question question2 = new Question();
         question2.setContent(QUESTION_2);
-        question2.setQuestionType(QuestionType.yes_no_selection);
+        question2.setQuestionType(QuestionType.yes_no_choice);
 
         Question question3 = new Question();
         question3.setContent(QUESTION_3);
-        question3.setQuestionType(QuestionType.discrete_number_selection);
+        question3.setQuestionType(QuestionType.linear_scale);
         question3.setNumberRange(numberRange);
 
         OptionSelection optionSelection = new OptionSelection();
