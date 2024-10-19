@@ -43,15 +43,6 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.POST,"/api/authentication/login").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/authentication/respondents").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/surveys").permitAll();
-                    r.requestMatchers(HttpMethod.GET, "/api/greeneryareacategories").permitAll();
-                    r.requestMatchers(HttpMethod.GET, "/api/occupationcategories").permitAll();
-                    r.requestMatchers(HttpMethod.GET, "/api/lifesatisfaction").permitAll();
-                    r.requestMatchers(HttpMethod.GET, "/api/agecategories").permitAll();
-                    r.requestMatchers(HttpMethod.GET, "/api/stresslevels").permitAll();
-                    r.requestMatchers(HttpMethod.GET, "/api/healthconditions").permitAll();
-                    r.requestMatchers(HttpMethod.GET, "/api/educationcategories").permitAll();
-                    r.requestMatchers(HttpMethod.GET, "/api/qualityofsleep").permitAll();
-                    r.requestMatchers(HttpMethod.GET, "/api/medicationuse").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/respondents").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/respondents").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/respondents/all").permitAll();

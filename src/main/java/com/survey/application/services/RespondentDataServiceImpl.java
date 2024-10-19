@@ -1,17 +1,15 @@
 package com.survey.application.services;
 
-import com.survey.api.handlers.GlobalExceptionHandler;
 import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.application.dtos.RespondentDataDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.RespondentData;
-import com.survey.domain.repository.*;
+import com.survey.domain.models.enums.Gender;
+import com.survey.domain.repository.IdentityUserRepository;
+import com.survey.domain.repository.RespondentDataRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.*;
-import com.survey.domain.models.enums.Gender;
 import org.modelmapper.ModelMapper;
-import org.modelmapper.TypeMap;
-import org.modelmapper.convention.MatchingStrategies;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
@@ -20,9 +18,10 @@ import org.springframework.web.context.annotation.RequestScope;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InvalidAttributeValueException;
+import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -30,7 +29,6 @@ import java.util.stream.Collectors;
 @RequestScope
 public class RespondentDataServiceImpl implements RespondentDataService{
     private final RespondentDataRepository respondentDataRepository;
-    private final ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl;
     private final ClaimsPrincipalService claimsPrincipalService;
     private final ModelMapper modelMapper;
     private final EntityManager entityManager;
@@ -38,11 +36,10 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
 
     @Autowired
-    public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository, ForeignKeyValidationServiceImpl foreignKeyValidationServiceImpl,
+    public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository,
                                      ClaimsPrincipalService claimsPrincipalService, ModelMapper modelMapper,
                                      IdentityUserRepository identityUserRepository , EntityManager entityManager) {
         this.respondentDataRepository = respondentDataRepository;
-        this.foreignKeyValidationServiceImpl = foreignKeyValidationServiceImpl;
         this.claimsPrincipalService = claimsPrincipalService;
         this.modelMapper = modelMapper;
         this.entityManager = entityManager;
@@ -72,8 +69,6 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         if (doesRespondentDataExist(currentUserUUID)) {
             throw new InstanceAlreadyExistsException("Respondent data already exists for this user.");
         }
-
-        foreignKeyValidationServiceImpl.validateForeignKeys(dto);
 
         RespondentData respondentData = modelMapper.map(dto, RespondentData.class);
         respondentData.setIdentityUserId(currentUserUUID);
