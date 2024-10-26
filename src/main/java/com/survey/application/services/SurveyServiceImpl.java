@@ -34,9 +34,7 @@ public class SurveyServiceImpl implements SurveyService {
     private final EntityManager entityManager;
     private final SurveyValidationService surveyValidationService;
     private final ClaimsPrincipalService claimsPrincipalService;
-    private final UpcomingTimeSlotsService upcomingTimeSlotsService;
     private final SurveySendingPolicyRepository surveySendingPolicyRepository;
-    private final SurveyWithTimeSlotsService surveyWithTimeSlotsService;
 
     @Autowired
     public SurveyServiceImpl(SurveyRepository surveyRepository, ModelMapper modelMapper,
@@ -44,7 +42,8 @@ public class SurveyServiceImpl implements SurveyService {
                              EntityManager entityManager,
                              SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository,
                              SurveyValidationService surveyValidationService,
-                             ClaimsPrincipalService claimsPrincipalService, UpcomingTimeSlotsService upcomingTimeSlotsService, SurveySendingPolicyRepository surveySendingPolicyRepository, SurveyWithTimeSlotsService surveyWithTimeSlotsService) {
+                             ClaimsPrincipalService claimsPrincipalService,
+                             SurveySendingPolicyRepository surveySendingPolicyRepository) {
         this.surveyRepository = surveyRepository;
         this.modelMapper = modelMapper;
         this.respondentGroupRepository = respondentGroupRepository;
@@ -52,9 +51,7 @@ public class SurveyServiceImpl implements SurveyService {
         this.surveyParticipationTimeSlotRepository = surveyParticipationTimeSlotRepository;
         this.surveyValidationService = surveyValidationService;
         this.claimsPrincipalService = claimsPrincipalService;
-        this.upcomingTimeSlotsService = upcomingTimeSlotsService;
         this.surveySendingPolicyRepository = surveySendingPolicyRepository;
-        this.surveyWithTimeSlotsService = surveyWithTimeSlotsService;
     }
 
     @Override
@@ -144,8 +141,31 @@ public class SurveyServiceImpl implements SurveyService {
 
     @Override
     public List<ResponseSurveyWithTimeSlotsDto> getallSurveysWithTimeSlots(){
-        List<Survey> surveyList = surveyRepository.findAll();
-        return surveyWithTimeSlotsService.getSurveysWithTimeSlots(surveyList);
+        List<Survey> surveys = entityManager.createQuery(
+                "SELECT DISTINCT s FROM Survey s LEFT JOIN FETCH s.policies p WHERE EXISTS " +
+                        "(SELECT ts FROM SurveyParticipationTimeSlot ts WHERE ts.surveySendingPolicy = p AND ts.finish > CURRENT_TIMESTAMP)",
+                Survey.class).getResultList();
+
+        List<SurveyParticipationTimeSlot> timeSlots = entityManager.createQuery(
+                "SELECT ts FROM SurveyParticipationTimeSlot ts WHERE ts.finish > CURRENT_TIMESTAMP",
+                SurveyParticipationTimeSlot.class).getResultList();
+
+        return surveys.stream()
+                .map(survey -> {
+                    ResponseSurveyDto surveyDto = modelMapper.map(survey, ResponseSurveyDto.class);
+
+                    List<SurveySendingPolicyTimesDto> timeSlotDtos = timeSlots.stream()
+                            .filter(slot -> survey.getPolicies().contains(slot.getSurveySendingPolicy()))
+                            .map(slot -> modelMapper.map(slot, SurveySendingPolicyTimesDto.class))
+                            .collect(Collectors.toList());
+
+                    ResponseSurveyWithTimeSlotsDto responseDto = new ResponseSurveyWithTimeSlotsDto();
+                    responseDto.setSurvey(surveyDto);
+                    responseDto.setSurveySendingPolicyTimes(timeSlotDtos);
+
+                    return responseDto;
+                })
+                .collect(Collectors.toList());
     }
 
 
