@@ -1,4 +1,4 @@
-package com.survey.application.dtos;
+package com.survey.application.dtos.initialSurvey;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
@@ -7,13 +7,13 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.List;
-import java.util.UUID;
-
 @Getter
 @Setter
-public class CreateRespondentDataDto {
+public class CreateInitialSurveyQuestionDto {
     @NotNull
-    private UUID surveyId;
+    private Integer order;
+    @NotNull
+    private String content;
     @NotEmpty
-    private List<@Valid RespondentDataAnswerDto> answers;
+    private List<@Valid CreateInitialSurveyOptionDto> options;
 }

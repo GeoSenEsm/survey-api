@@ -20,9 +20,7 @@ public class RespondentGroup {
     private UUID id;
 
     @Column(nullable = false, unique = true)
-    private String polishName;
-    @Column(nullable = false, unique = true)
-    private String englishName;
+    private String name;
 
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;

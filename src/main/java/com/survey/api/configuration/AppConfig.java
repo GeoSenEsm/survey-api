@@ -23,7 +23,6 @@ import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
 import java.nio.ByteBuffer;
-import java.security.Timestamp;
 
 @Configuration
 @ConfigurationProperties(prefix = "spring.datasource")
@@ -102,7 +101,6 @@ public class AppConfig {
         typeMap.addMappings(mapper -> {
             mapper.skip(RespondentData::setId);
             mapper.skip(RespondentData::setIdentityUserId);
-            mapper.skip(RespondentData::setGender);
         });
 
         return modelMapper;
