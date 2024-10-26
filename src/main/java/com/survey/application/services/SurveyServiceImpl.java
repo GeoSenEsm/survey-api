@@ -34,6 +34,7 @@ public class SurveyServiceImpl implements SurveyService {
     private final EntityManager entityManager;
     private final SurveyValidationService surveyValidationService;
     private final ClaimsPrincipalService claimsPrincipalService;
+    private final SurveySendingPolicyRepository surveySendingPolicyRepository;
 
     @Autowired
     public SurveyServiceImpl(SurveyRepository surveyRepository, ModelMapper modelMapper,
@@ -41,7 +42,8 @@ public class SurveyServiceImpl implements SurveyService {
                              EntityManager entityManager,
                              SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository,
                              SurveyValidationService surveyValidationService,
-                             ClaimsPrincipalService claimsPrincipalService) {
+                             ClaimsPrincipalService claimsPrincipalService,
+                             SurveySendingPolicyRepository surveySendingPolicyRepository) {
         this.surveyRepository = surveyRepository;
         this.modelMapper = modelMapper;
         this.respondentGroupRepository = respondentGroupRepository;
@@ -49,6 +51,7 @@ public class SurveyServiceImpl implements SurveyService {
         this.surveyParticipationTimeSlotRepository = surveyParticipationTimeSlotRepository;
         this.surveyValidationService = surveyValidationService;
         this.claimsPrincipalService = claimsPrincipalService;
+        this.surveySendingPolicyRepository = surveySendingPolicyRepository;
     }
 
     @Override
@@ -128,12 +131,43 @@ public class SurveyServiceImpl implements SurveyService {
                 .collect(Collectors.toList());
     }
 
+    @Override
     public ResponseSurveyDto getSurveyById(UUID surveyId) {
         Survey survey = surveyRepository.findById(surveyId)
                 .orElseThrow(() -> new NoSuchElementException("Survey not found with id: " + surveyId));
 
         return modelMapper.map(survey, ResponseSurveyDto.class);
     }
+
+    @Override
+    public List<ResponseSurveyWithTimeSlotsDto> getallSurveysWithTimeSlots(){
+        List<Survey> surveys = entityManager.createQuery(
+                "SELECT DISTINCT s FROM Survey s LEFT JOIN FETCH s.policies p WHERE EXISTS " +
+                        "(SELECT ts FROM SurveyParticipationTimeSlot ts WHERE ts.surveySendingPolicy = p AND ts.finish > CURRENT_TIMESTAMP)",
+                Survey.class).getResultList();
+
+        List<SurveyParticipationTimeSlot> timeSlots = entityManager.createQuery(
+                "SELECT ts FROM SurveyParticipationTimeSlot ts WHERE ts.finish > CURRENT_TIMESTAMP",
+                SurveyParticipationTimeSlot.class).getResultList();
+
+        return surveys.stream()
+                .map(survey -> {
+                    ResponseSurveyDto surveyDto = modelMapper.map(survey, ResponseSurveyDto.class);
+
+                    List<SurveySendingPolicyTimesDto> timeSlotDtos = timeSlots.stream()
+                            .filter(slot -> survey.getPolicies().contains(slot.getSurveySendingPolicy()))
+                            .map(slot -> modelMapper.map(slot, SurveySendingPolicyTimesDto.class))
+                            .collect(Collectors.toList());
+
+                    ResponseSurveyWithTimeSlotsDto responseDto = new ResponseSurveyWithTimeSlotsDto();
+                    responseDto.setSurvey(surveyDto);
+                    responseDto.setSurveySendingPolicyTimes(timeSlotDtos);
+
+                    return responseDto;
+                })
+                .collect(Collectors.toList());
+    }
+
 
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto){
         Survey survey = new Survey();
