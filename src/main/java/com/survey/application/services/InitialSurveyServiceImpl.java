@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,24 +40,15 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
         return modelMapper.map(dbInitialSurvey, InitialSurveyResponseDto.class);
     }
 
-    @Override
-    @Transactional
-    public List<InitialSurveyResponseDto> getInitialSurveys() {
-        List<InitialSurvey> initialSurveyList = initialSurveyRepository.findAll();
-        if(initialSurveyList.isEmpty()) {
-            throw new NoSuchElementException("No initial survey created");
-        }
-
-        return initialSurveyList.stream()
-                .map(this::mapToInitialSurveyResponseDto)
-                .collect(Collectors.toList());
-    }
 
     @Override
     @Transactional
-    public InitialSurveyResponseDto getInitialSurveyById(UUID surveyId) {
-        InitialSurvey initialSurvey = initialSurveyRepository.findById(surveyId)
-                .orElseThrow(() -> new NoSuchElementException("Initial survey not found with id: " + surveyId));
+    public InitialSurveyResponseDto getInitialSurvey() {
+        String queryStr = "SELECT i FROM InitialSurvey i";
+        InitialSurvey initialSurvey = entityManager.createQuery(queryStr, InitialSurvey.class)
+                .getResultStream()
+                .findFirst()
+                .orElseThrow(() -> new NoSuchElementException("No initial survey created"));
 
         return mapToInitialSurveyResponseDto(initialSurvey);
     }

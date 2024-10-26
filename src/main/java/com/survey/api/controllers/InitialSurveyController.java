@@ -27,14 +27,9 @@ public class InitialSurveyController {
         InitialSurveyResponseDto initialSurveyResponseDto = initialSurveyService.createInitialSurvey(createInitialSurveyDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(initialSurveyResponseDto);
     }
-    @GetMapping(params = "surveyId")
-    public ResponseEntity<InitialSurveyResponseDto> getInitialSurveyById(@RequestParam("surveyId") UUID surveyId) {
-        InitialSurveyResponseDto initialSurveyResponseDto = initialSurveyService.getInitialSurveyById(surveyId);
-        return ResponseEntity.status(HttpStatus.OK).body(initialSurveyResponseDto);
-    }
-    @GetMapping("/all")
-    public ResponseEntity<List<InitialSurveyResponseDto>> getInitialSurveys() {
-        List<InitialSurveyResponseDto> initialSurveyResponseDto = initialSurveyService.getInitialSurveys();
+    @GetMapping()
+    public ResponseEntity<InitialSurveyResponseDto> getInitialSurveyById() {
+        InitialSurveyResponseDto initialSurveyResponseDto = initialSurveyService.getInitialSurvey();
         return ResponseEntity.status(HttpStatus.OK).body(initialSurveyResponseDto);
     }
 }
