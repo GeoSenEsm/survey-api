@@ -57,7 +57,6 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.GET, "/api/surveyresponses/results").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/initialsurvey").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/initialsurvey").permitAll();
-                    r.requestMatchers(HttpMethod.GET, "/api/initialsurvey/all").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll();
                 })
                 .httpBasic(Customizer.withDefaults());
