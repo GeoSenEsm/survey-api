@@ -33,34 +33,29 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
 
     @Override
     @Transactional
-    public InitialSurveyResponseDto createInitialSurvey(CreateInitialSurveyDto createInitialSurveyDto) {
-        InitialSurvey initialSurvey = mapToInitialSurvey(createInitialSurveyDto);
+    public List<InitialSurveyQuestionResponseDto> createInitialSurvey(List<CreateInitialSurveyQuestionDto> createInitialSurveyQuestionDtoList) {
+        InitialSurvey initialSurvey = mapToInitialSurvey(createInitialSurveyQuestionDtoList);
         InitialSurvey dbInitialSurvey = initialSurveyRepository.saveAndFlush(initialSurvey);
         entityManager.refresh(dbInitialSurvey);
-        return modelMapper.map(dbInitialSurvey, InitialSurveyResponseDto.class);
+        return mapToInitialSurveyResponseDto(dbInitialSurvey);
     }
 
 
     @Override
     @Transactional
-    public InitialSurveyResponseDto getInitialSurvey() {
+    public List<InitialSurveyQuestionResponseDto> getInitialSurvey() {
         String queryStr = "SELECT i FROM InitialSurvey i";
         InitialSurvey initialSurvey = entityManager.createQuery(queryStr, InitialSurvey.class)
                 .getResultStream()
                 .findFirst()
                 .orElseThrow(() -> new NoSuchElementException("No initial survey created"));
-
         return mapToInitialSurveyResponseDto(initialSurvey);
     }
 
-    private InitialSurveyResponseDto mapToInitialSurveyResponseDto(InitialSurvey survey) {
-        InitialSurveyResponseDto initialSurveyResponseDto = modelMapper.map(survey, InitialSurveyResponseDto.class);
-        initialSurveyResponseDto.setQuestions(
-                survey.getQuestions().stream()
-                        .map(this::mapToInitialSurveyQuestionResponseDto)
-                        .collect(Collectors.toList())
-        );
-        return initialSurveyResponseDto;
+    private List<InitialSurveyQuestionResponseDto> mapToInitialSurveyResponseDto(InitialSurvey initialSurvey) {
+        return initialSurvey.getQuestions().stream()
+                .map(this::mapToInitialSurveyQuestionResponseDto)
+                .collect(Collectors.toList());
     }
 
     private InitialSurveyQuestionResponseDto mapToInitialSurveyQuestionResponseDto(InitialSurveyQuestion question) {
@@ -68,8 +63,7 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
         questionDto.setOptions(
                 question.getOptions().stream()
                         .map(this::mapToInitialSurveyOptionResponseDto)
-                        .collect(Collectors.toList())
-        );
+                        .collect(Collectors.toList()));
         return questionDto;
     }
 
@@ -77,25 +71,23 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
         return modelMapper.map(option, InitialSurveyOptionResponseDto.class);
     }
 
-
-    private InitialSurvey mapToInitialSurvey(CreateInitialSurveyDto createInitialSurveyDto) {
+    private InitialSurvey mapToInitialSurvey(List<CreateInitialSurveyQuestionDto> createInitialSurveyQuestionDtoList) {
         InitialSurvey initialSurvey = new InitialSurvey();
-        List<InitialSurveyQuestion> questions = createInitialSurveyDto.getQuestions().stream()
-                .map(dto -> mapToSurveyQuestion(dto, initialSurvey))
+        List<InitialSurveyQuestion> questions = createInitialSurveyQuestionDtoList.stream()
+                .map(this::mapToSurveyQuestion)
+                .peek(question -> question.setInitialSurvey(initialSurvey))
                 .collect(Collectors.toList());
         initialSurvey.setQuestions(questions);
         return initialSurvey;
     }
 
-    private InitialSurveyQuestion mapToSurveyQuestion(CreateInitialSurveyQuestionDto questionDto, InitialSurvey initialSurvey) {
+    private InitialSurveyQuestion mapToSurveyQuestion(CreateInitialSurveyQuestionDto questionDto) {
         InitialSurveyQuestion question = new InitialSurveyQuestion();
         question.setOrder(questionDto.getOrder());
         question.setContent(questionDto.getContent());
-        question.setInitialSurvey(initialSurvey);
 
         List<InitialSurveyOption> options = mapToSurveyOptions(questionDto.getOptions(), question);
         question.setOptions(options);
-
         return question;
     }
 

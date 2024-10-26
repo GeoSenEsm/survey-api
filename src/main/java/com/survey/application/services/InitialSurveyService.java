@@ -1,10 +1,12 @@
 package com.survey.application.services;
 
-import com.survey.application.dtos.initialSurvey.CreateInitialSurveyDto;
-import com.survey.application.dtos.initialSurvey.InitialSurveyResponseDto;
+import com.survey.application.dtos.initialSurvey.CreateInitialSurveyQuestionDto;
+import com.survey.application.dtos.initialSurvey.InitialSurveyQuestionResponseDto;
+
+import java.util.List;
 
 public interface InitialSurveyService {
-    InitialSurveyResponseDto createInitialSurvey(CreateInitialSurveyDto createInitialSurveyDto);
+    List<InitialSurveyQuestionResponseDto> createInitialSurvey(List<CreateInitialSurveyQuestionDto> createInitialSurveyQuestionDtoList);
 
-    InitialSurveyResponseDto getInitialSurvey();
+    List<InitialSurveyQuestionResponseDto> getInitialSurvey();
 }
