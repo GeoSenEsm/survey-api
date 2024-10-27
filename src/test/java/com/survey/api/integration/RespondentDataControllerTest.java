@@ -3,7 +3,6 @@ package com.survey.api.integration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.api.security.TokenProvider;
 import com.survey.application.dtos.CreateRespondentDataDto;
-import com.survey.application.dtos.RespondentDataDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.RespondentData;
 import com.survey.domain.models.enums.Gender;

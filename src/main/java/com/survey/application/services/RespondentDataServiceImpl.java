@@ -1,14 +1,15 @@
 package com.survey.application.services;
 
 import com.survey.application.dtos.CreateRespondentDataDto;
-import com.survey.application.dtos.RespondentDataAnswerDto;
-import com.survey.application.dtos.RespondentDataDto;
 import com.survey.domain.models.*;
 import com.survey.domain.repository.*;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.criteria.*;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.apache.coyote.BadRequestException;
-import org.modelmapper.ModelMapper;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,6 @@ import java.util.stream.Collectors;
 public class RespondentDataServiceImpl implements RespondentDataService{
     private final RespondentDataRepository respondentDataRepository;
     private final ClaimsPrincipalService claimsPrincipalService;
-    private final ModelMapper modelMapper;
     private final EntityManager entityManager;
     private final IdentityUserRepository identityUserRepository;
     private final InitialSurveyRepository initialSurveyRepository;
@@ -37,11 +37,9 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
     @Autowired
     public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository,
-                                     ClaimsPrincipalService claimsPrincipalService, ModelMapper modelMapper,
-                                     IdentityUserRepository identityUserRepository , EntityManager entityManager, InitialSurveyRepository initialSurveyRepository, InitialSurveyQuestionRepository initialSurveyQuestionRepository, InitialSurveyOptionRepository initialSurveyOptionRepository) {
+                                     ClaimsPrincipalService claimsPrincipalService, IdentityUserRepository identityUserRepository, EntityManager entityManager, InitialSurveyRepository initialSurveyRepository, InitialSurveyQuestionRepository initialSurveyQuestionRepository, InitialSurveyOptionRepository initialSurveyOptionRepository) {
         this.respondentDataRepository = respondentDataRepository;
         this.claimsPrincipalService = claimsPrincipalService;
-        this.modelMapper = modelMapper;
         this.entityManager = entityManager;
         this.identityUserRepository = identityUserRepository;
         this.initialSurveyRepository = initialSurveyRepository;
@@ -186,31 +184,19 @@ public class RespondentDataServiceImpl implements RespondentDataService{
                 .orElse(null);
     }
 
-    private RespondentDataDto mapRespondentDataToDto(RespondentData respondent) {
-        RespondentDataDto dto = modelMapper.map(respondent, RespondentDataDto.class);
-        if (respondent.getRespondentDataQuestions() != null) {
-            List<RespondentDataAnswerDto> answerDtoList = respondent.getRespondentDataQuestions().stream()
-                    .flatMap(question -> question.getOptions().stream()
-                            .map(option -> {
-                                RespondentDataAnswerDto answerDto = new RespondentDataAnswerDto();
-                                answerDto.setQuestionId(question.getId());
-                                answerDto.setOptionId(option.getId());
-                                answerDto.setQuestionContent(question.getQuestion().getContent());
-                                return answerDto;
-                            }))
-                    .collect(Collectors.toList());
-            dto.setAnswers(answerDtoList);
-        }
-        return dto;
-    }
     private Map<String, Object> mapRespondentDataToResponse(RespondentData respondentData) {
-        RespondentDataDto dto = mapRespondentDataToDto(respondentData);
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("id", dto.getId());
-        response.put("username", dto.getUsername());
+        response.put("id", respondentData.getId());
+        response.put("username", respondentData.getUsername());
 
-        dto.getAnswers().forEach(answer ->
-                response.put(answer.getQuestionContent(), answer.getOptionId()));
+        respondentData.getRespondentDataQuestions().forEach(respondentDataQuestion -> {
+            String questionContent = respondentDataQuestion.getQuestion().getContent();
+            respondentDataQuestion.getOptions().forEach(respondentDataOption -> {
+                UUID optionId = respondentDataOption.getOption().getId();
+                response.put(questionContent, optionId);
+            });
+        });
+
         return response;
     }
 }
