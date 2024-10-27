@@ -23,7 +23,7 @@ public class InitialSurveyQuestion {
     @Column(name = "content", nullable = false)
     private String content;
 
-    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<InitialSurveyOption> options = new ArrayList<>();
 
     @ManyToOne
