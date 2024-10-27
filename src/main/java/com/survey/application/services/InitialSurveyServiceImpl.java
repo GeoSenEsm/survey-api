@@ -40,16 +40,15 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
         return mapToInitialSurveyResponseDto(dbInitialSurvey);
     }
 
-
     @Override
     @Transactional
     public List<InitialSurveyQuestionResponseDto> getInitialSurvey() {
-        String queryStr = "SELECT i FROM InitialSurvey i";
-        InitialSurvey initialSurvey = entityManager.createQuery(queryStr, InitialSurvey.class)
-                .getResultStream()
-                .findFirst()
+        return mapToInitialSurveyResponseDto(findInitialSurvey());
+    }
+
+    private InitialSurvey findInitialSurvey() {
+        return initialSurveyRepository.findTopByOrderByIdAsc()
                 .orElseThrow(() -> new NoSuchElementException("No initial survey created"));
-        return mapToInitialSurveyResponseDto(initialSurvey);
     }
 
     private List<InitialSurveyQuestionResponseDto> mapToInitialSurveyResponseDto(InitialSurvey initialSurvey) {

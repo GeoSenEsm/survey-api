@@ -11,5 +11,7 @@ public class RespondentDataAnswerDto {
     @NotNull
     private UUID questionId;
     @NotNull
+    private String questionContent;
+    @NotNull
     private UUID optionId;
 }

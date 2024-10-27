@@ -51,28 +51,22 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
     @Override
     @Transactional
-    public RespondentDataDto createRespondent(CreateRespondentDataDto dto, String tokenWithPrefix)
+    public Map<String, Object> createRespondent(List<CreateRespondentDataDto> dto, String tokenWithPrefix)
             throws BadCredentialsException, InvalidAttributeValueException, InstanceAlreadyExistsException, BadRequestException {
         UUID currentUserUUID = getCurrentUserUUID();
 
         checkIfRespondentDataExists(currentUserUUID);
 
-        RespondentData respondentData = mapDtoToRespondentData(dto, currentUserUUID);
-        InitialSurvey survey = findInitialSurveyById(dto.getSurveyId());
-        respondentData.setSurveyId(survey);
-        respondentData.setIdentityUser(claimsPrincipalService.findIdentityUser());
-        respondentDataRepository.save(respondentData);
-
-        List<RespondentDataQuestion> respondentDataQuestions = createRespondentDataQuestions(dto, respondentData);
-        respondentData.setRespondentDataQuestions(respondentDataQuestions);
-
+        RespondentData respondentData = initializeRespondentData(currentUserUUID);
+        respondentData.setRespondentDataQuestions(createRespondentDataQuestions(dto, respondentData));
         RespondentData savedRespondentData = respondentDataRepository.save(respondentData);
-        return mapRespondentDataToDto(savedRespondentData);
+
+        return mapRespondentDataToResponse(savedRespondentData);
     }
 
     @Override
     @Transactional
-    public List<RespondentDataDto> getAll(){
+    public List<Map<String, Object>> getAll(){
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<RespondentData> cq = cb.createQuery(RespondentData.class);
         Root<RespondentData> respondentData = cq.from(RespondentData.class);
@@ -81,13 +75,13 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         return entityManager.createQuery(cq)
                 .getResultList()
                 .stream()
-                .map(this::mapRespondentDataToDto)
+                .map(this::mapRespondentDataToResponse)
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional
-    public RespondentDataDto getFromUserContext(){
+    public Map<String, Object> getFromUserContext(){
         UUID currentUserId = claimsPrincipalService.findIdentityUser().getId();
 
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
@@ -104,7 +98,23 @@ public class RespondentDataServiceImpl implements RespondentDataService{
                 .findFirst()
                 .orElseThrow(NoSuchElementException::new);
 
-        return mapRespondentDataToDto(dbRespondentData);
+        return mapRespondentDataToResponse(dbRespondentData);
+    }
+
+    private RespondentData initializeRespondentData(UUID userId) {
+        RespondentData respondentData = new RespondentData();
+        respondentData.setIdentityUserId(userId);
+        respondentData.setIdentityUser(claimsPrincipalService.findIdentityUser());
+        respondentData.setInitialSurvey(getOrCreateInitialSurvey());
+        return respondentData;
+    }
+
+    public InitialSurvey getOrCreateInitialSurvey() {
+        return initialSurveyRepository.findTopByOrderByIdAsc()
+                .orElseGet(() -> {
+                    InitialSurvey newSurvey = new InitialSurvey();
+                    return initialSurveyRepository.save(newSurvey);
+                });
     }
 
     private UUID getCurrentUserUUID() {
@@ -122,55 +132,32 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         }
     }
 
-    private RespondentData mapDtoToRespondentData(CreateRespondentDataDto dto, UUID currentUserUUID) {
-        RespondentData respondentData = modelMapper.map(dto, RespondentData.class);
-        respondentData.setIdentityUserId(currentUserUUID);
-        return respondentData;
+    private List<RespondentDataQuestion> createRespondentDataQuestions(List<CreateRespondentDataDto> dto, RespondentData respondentData) {
+        Map<UUID, InitialSurveyQuestion> questionMap = findQuestionsByIds(dto.stream()
+                .map(CreateRespondentDataDto::getQuestionId)
+                .collect(Collectors.toList()));
+
+        Map<UUID, InitialSurveyOption> optionMap = findOptionsByIds(dto.stream()
+                .map(CreateRespondentDataDto::getOptionId)
+                .collect(Collectors.toList()));
+
+        return dto.stream()
+                .map(data -> buildRespondentDataQuestion(data, respondentData, questionMap, optionMap))
+                .collect(Collectors.toList());
     }
 
-    private List<RespondentDataQuestion> createRespondentDataQuestions(CreateRespondentDataDto dto, RespondentData respondentData) {
-        Map<UUID, InitialSurveyOption> optionsMap = findOptionsBySurveyId(getQuestionIds(dto));
-        Map<UUID, InitialSurveyQuestion> questionMap = getQuestionsMap(dto.getAnswers(), respondentData.getSurveyId().getId());
+    private RespondentDataQuestion buildRespondentDataQuestion(CreateRespondentDataDto dto, RespondentData respondentData,
+                                                               Map<UUID, InitialSurveyQuestion> questionMap, Map<UUID, InitialSurveyOption> optionMap) {
+        InitialSurveyQuestion question = questionMap.get(dto.getQuestionId());
+        InitialSurveyOption option = optionMap.get(dto.getOptionId());
 
-        List<RespondentDataQuestion> respondentDataQuestions = new ArrayList<>();
-        for (RespondentDataAnswerDto answerDto : dto.getAnswers()) {
-            RespondentDataQuestion respondentDataQuestion = createRespondentDataQuestion(answerDto, respondentData, questionMap, optionsMap);
-            respondentDataQuestions.add(respondentDataQuestion);
+        if (question == null || option == null) {
+            throw new IllegalArgumentException("Invalid question or option ID in provided data.");
         }
-        return respondentDataQuestions;
-    }
-
-    private List<UUID> getQuestionIds(CreateRespondentDataDto dto) {
-        return dto.getAnswers().stream()
-                .map(RespondentDataAnswerDto::getQuestionId)
-                .collect(Collectors.toList());
-    }
-
-    private Map<UUID, InitialSurveyQuestion> getQuestionsMap(List<RespondentDataAnswerDto> answers, UUID surveyId) {
-        List<UUID> questionIds = answers.stream()
-                .map(RespondentDataAnswerDto::getQuestionId)
-                .collect(Collectors.toList());
-        List<InitialSurveyQuestion> questions = findQuestionsByIds(questionIds, surveyId);
-        return questions.stream()
-                .collect(Collectors.toMap(InitialSurveyQuestion::getId, question -> question));
-    }
-
-    private RespondentDataQuestion createRespondentDataQuestion(RespondentDataAnswerDto answerDto, RespondentData respondentData,
-                                                                Map<UUID, InitialSurveyQuestion> questionMap, Map<UUID, InitialSurveyOption> optionsMap) {
-
-        UUID questionId = answerDto.getQuestionId();
-        InitialSurveyQuestion question = questionMap.get(questionId);
 
         RespondentDataQuestion respondentDataQuestion = new RespondentDataQuestion();
         respondentDataQuestion.setRespondentData(respondentData);
         respondentDataQuestion.setQuestion(question);
-
-        UUID optionId = answerDto.getOptionId();
-        InitialSurveyOption option = optionsMap.get(optionId);
-
-        if (option == null) {
-            throw new IllegalArgumentException("Invalid option ID: " + optionId);
-        }
 
         RespondentDataOption optionSelection = new RespondentDataOption();
         optionSelection.setRespondentDataQuestions(respondentDataQuestion);
@@ -180,19 +167,14 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         return respondentDataQuestion;
     }
 
-    private Map<UUID, InitialSurveyOption> findOptionsBySurveyId(List<UUID> questionIds) {
-        return initialSurveyOptionRepository.findByQuestionIdIn(questionIds)
-                .stream()
-                .collect(Collectors.toMap(InitialSurveyOption::getId, option -> option));
+    private Map<UUID, InitialSurveyQuestion> findQuestionsByIds(List<UUID> questionIds) {
+        List<InitialSurveyQuestion> questions = initialSurveyQuestionRepository.findAllById(questionIds);
+        return questions.stream().collect(Collectors.toMap(InitialSurveyQuestion::getId, question -> question));
     }
 
-    private InitialSurvey findInitialSurveyById(UUID surveyId) {
-        return initialSurveyRepository.findById(surveyId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid survey ID - survey doesn't exist"));
-    }
-
-    private List<InitialSurveyQuestion> findQuestionsByIds(List<UUID> questionIds, UUID surveyId) {
-        return initialSurveyQuestionRepository.findAllByIds(surveyId, questionIds);
+    private Map<UUID, InitialSurveyOption> findOptionsByIds(List<UUID> optionIds) {
+        List<InitialSurveyOption> options = initialSurveyOptionRepository.findAllById(optionIds);
+        return options.stream().collect(Collectors.toMap(InitialSurveyOption::getId, option -> option));
     }
 
     private boolean doesRespondentDataExist(UUID userId) {
@@ -208,17 +190,28 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     private RespondentDataDto mapRespondentDataToDto(RespondentData respondent) {
         RespondentDataDto dto = modelMapper.map(respondent, RespondentDataDto.class);
         if (respondent.getRespondentDataQuestions() != null) {
-            List<RespondentDataAnswerDto> answerDtos = respondent.getRespondentDataQuestions().stream()
+            List<RespondentDataAnswerDto> answerDtoList = respondent.getRespondentDataQuestions().stream()
                     .flatMap(question -> question.getOptions().stream()
                             .map(option -> {
                                 RespondentDataAnswerDto answerDto = new RespondentDataAnswerDto();
                                 answerDto.setQuestionId(question.getId());
                                 answerDto.setOptionId(option.getId());
+                                answerDto.setQuestionContent(question.getQuestion().getContent());
                                 return answerDto;
                             }))
                     .collect(Collectors.toList());
-            dto.setAnswers(answerDtos);
+            dto.setAnswers(answerDtoList);
         }
         return dto;
+    }
+    private Map<String, Object> mapRespondentDataToResponse(RespondentData respondentData) {
+        RespondentDataDto dto = mapRespondentDataToDto(respondentData);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("id", dto.getId());
+        response.put("username", dto.getUsername());
+
+        dto.getAnswers().forEach(answer ->
+                response.put(answer.getQuestionContent(), answer.getOptionId()));
+        return response;
     }
 }

@@ -7,6 +7,5 @@ import java.util.List;
 
 public interface InitialSurveyService {
     List<InitialSurveyQuestionResponseDto> createInitialSurvey(List<CreateInitialSurveyQuestionDto> createInitialSurveyQuestionDtoList);
-
     List<InitialSurveyQuestionResponseDto> getInitialSurvey();
 }

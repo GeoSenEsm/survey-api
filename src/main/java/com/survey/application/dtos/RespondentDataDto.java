@@ -9,9 +9,8 @@ import java.util.UUID;
 @Getter
 @Setter
 public class RespondentDataDto {
-    private UUID respondentId;
+    private UUID id;
     private UUID identityUserId;
     private String username;
-    private UUID surveyId;
     private List<RespondentDataAnswerDto> answers;
 }
