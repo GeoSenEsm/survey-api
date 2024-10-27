@@ -146,9 +146,19 @@ public class SurveyServiceImpl implements SurveyService {
                         "(SELECT ts FROM SurveyParticipationTimeSlot ts WHERE ts.surveySendingPolicy = p AND ts.finish > CURRENT_TIMESTAMP)",
                 Survey.class).getResultList();
 
-        List<SurveyParticipationTimeSlot> timeSlots = entityManager.createQuery(
-                "SELECT ts FROM SurveyParticipationTimeSlot ts WHERE ts.finish > CURRENT_TIMESTAMP",
-                SurveyParticipationTimeSlot.class).getResultList();
+        TypedQuery<SurveyParticipationTimeSlot> timeSlotsQuery = entityManager.createQuery(
+                "SELECT ts FROM SurveyParticipationTimeSlot ts " +
+                        "WHERE ts.finish > CURRENT_TIMESTAMP " +
+                        "AND NOT EXISTS (" +
+                        "SELECT 1 FROM SurveyParticipation p " +
+                        "WHERE p.date >= ts.start " +
+                        "AND p.date <= ts.finish " +
+                        "AND p.identityUser.id = :identityUserId" +
+                        ")",
+                SurveyParticipationTimeSlot.class
+        );
+        timeSlotsQuery.setParameter("identityUserId", claimsPrincipalService.findIdentityUser().getId());
+        List<SurveyParticipationTimeSlot> timeSlots = timeSlotsQuery.getResultList();
 
         return surveys.stream()
                 .map(survey -> {
