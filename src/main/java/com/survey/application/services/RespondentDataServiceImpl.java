@@ -87,7 +87,6 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<RespondentData> cq = cb.createQuery(RespondentData.class);
         Root<RespondentData> respondentData = cq.from(RespondentData.class);
-        Fetch<RespondentData, IdentityUser> identityUserFetch = respondentData.fetch("identityUser");
         Predicate condition = cb.equal(respondentData.get("identityUserId"), currentUserId);
         cq.where(condition);
         cq.select(respondentData);

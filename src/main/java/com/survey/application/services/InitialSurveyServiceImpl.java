@@ -90,8 +90,8 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
         return question;
     }
 
-    private List<InitialSurveyOption> mapToSurveyOptions(List<CreateInitialSurveyOptionDto> optionDtos, InitialSurveyQuestion question) {
-        return optionDtos.stream()
+    private List<InitialSurveyOption> mapToSurveyOptions(List<CreateInitialSurveyOptionDto> optionDtoList, InitialSurveyQuestion question) {
+        return optionDtoList.stream()
                 .map(optionDto -> mapToSurveyOption(optionDto, question))
                 .collect(Collectors.toList());
     }
