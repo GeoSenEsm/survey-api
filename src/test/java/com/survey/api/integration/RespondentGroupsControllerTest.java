@@ -15,6 +15,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -35,62 +36,7 @@ public class RespondentGroupsControllerTest {
     }
 
     @Test
-    void getForPlLangGivenInHeaderShouldReturnAllWithPolishDisplay(){
-        var categories = webTestClient.get().uri("/api/respondentgroups")
-                .header("Accept-Lang", "pl")
-                .exchange()
-                .expectStatus()
-                .isOk()
-                .expectBody(new ParameterizedTypeReference<List<RespondentGroupDto>>() {})
-                .returnResult()
-                .getResponseBody();
-
-        var dbCategories = repository.findAll().stream().collect(Collectors.toMap(RespondentGroup::getId, x -> x));
-
-        assert categories != null;
-        assertEquals(categories.size(), dbCategories.size());
-
-        for (var category : categories){
-            assertTrue(dbCategories.containsKey(category.getId()));
-            var dbCategory = dbCategories.get(category.getId());
-            assert dbCategory.getPolishName().equals(category.getName());
-        }
-    }
-
-    @ParameterizedTest
-    @MethodSource("getEnAndUnknownLangs")
-    void getForUnknownOrNotGivenOrEnLangShouldReturnEnglishDisplays(String lang){
-        var categories = webTestClient.get().uri("/api/respondentgroups")
-                .header("Accept-Lang", lang)
-                .exchange()
-                .expectStatus()
-                .isOk()
-                .expectBody(new ParameterizedTypeReference<List<RespondentGroupDto>>() {})
-                .returnResult()
-                .getResponseBody();
-
-        var dbCategories = repository.findAll().stream().collect(Collectors.toMap(RespondentGroup::getId, x -> x));
-
-        assert categories != null;
-        assertEquals(categories.size(), dbCategories.size());
-
-        for (var category : categories){
-            assertTrue(dbCategories.containsKey(category.getId()));
-            var dbCategory = dbCategories.get(category.getId());
-            assert dbCategory.getEnglishName().equals(category.getName());
-        }
-    }
-
-    public static Stream<Arguments> getEnAndUnknownLangs(){
-        return Stream.of(
-                Arguments.of("en"),
-                Arguments.of("de"),
-                Arguments.of("ch")
-        );
-    }
-
-    @Test
-    void getForNoLangGivenInHeaderShouldReturnAllWithEnglishDisplay(){
+    void getRespondentGroups_ShouldReturnAllGroups_WhenNoRespondentIdIsProvide(){
         var categories = webTestClient.get().uri("/api/respondentgroups")
                 .exchange()
                 .expectStatus()
@@ -107,7 +53,7 @@ public class RespondentGroupsControllerTest {
         for (var category : categories){
             assertTrue(dbCategories.containsKey(category.getId()));
             var dbCategory = dbCategories.get(category.getId());
-            assert dbCategory.getEnglishName().equals(category.getName());
+            assert dbCategory.getName().equals(category.getName());
         }
     }
 }
