@@ -1,38 +1,29 @@
 package com.survey.domain.models;
 
-import com.survey.domain.models.enums.Gender;
-import com.survey.domain.models.enums.GenderConverter;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Entity
 @Data
 @NoArgsConstructor
 @Accessors(chain = true)
+@Table(name = "respondent_data")
 public class RespondentData {
     @Id
     @GeneratedValue(strategy =  GenerationType.UUID)
     private UUID id;
     private UUID identityUserId;
 
-    @Convert(converter = GenderConverter.class)
-    private Gender gender;
-    private Integer ageCategoryId;
-    private Integer occupationCategoryId;
-    private Integer educationCategoryId;
-    private Integer greeneryAreaCategoryId;
-    private Integer medicationUseId;
-    private Integer healthConditionId;
-    private Integer stressLevelId;
-    private Integer lifeSatisfactionId;
-    private Integer qualityOfSleepId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "survey_id")
+    private InitialSurvey initialSurvey;
 
+    @OneToMany(mappedBy = "respondentData", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RespondentDataQuestion> respondentDataQuestions = new ArrayList<>();
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "identityUserId", insertable = false, updatable = false)

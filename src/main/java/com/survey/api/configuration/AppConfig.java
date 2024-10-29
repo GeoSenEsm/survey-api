@@ -1,7 +1,6 @@
 package com.survey.api.configuration;
 
 import com.survey.application.dtos.CreateRespondentDataDto;
-import com.survey.application.dtos.RespondentDataDto;
 import com.survey.application.dtos.surveyDtos.CreateQuestionDto;
 import com.survey.application.dtos.surveyDtos.CreateSurveySectionDto;
 import com.survey.domain.models.Question;
@@ -23,7 +22,6 @@ import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
 import java.nio.ByteBuffer;
-import java.security.Timestamp;
 
 @Configuration
 @ConfigurationProperties(prefix = "spring.datasource")
@@ -88,21 +86,12 @@ public class AppConfig {
             }
         });
 
-        modelMapper.addMappings(new PropertyMap<RespondentData, RespondentDataDto>() {
-            @Override
-            protected void configure() {
-                map().setIdentityUserId(source.getIdentityUserId());
-                map().setUsername(source.getUsername());
-            }
-        });
-
         modelMapper.getConfiguration().setMatchingStrategy(MatchingStrategies.STRICT);
         TypeMap<CreateRespondentDataDto, RespondentData> typeMap =
                 modelMapper.createTypeMap(CreateRespondentDataDto.class, RespondentData.class);
         typeMap.addMappings(mapper -> {
             mapper.skip(RespondentData::setId);
             mapper.skip(RespondentData::setIdentityUserId);
-            mapper.skip(RespondentData::setGender);
         });
 
         return modelMapper;
