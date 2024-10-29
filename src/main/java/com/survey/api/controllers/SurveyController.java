@@ -2,6 +2,7 @@ package com.survey.api.controllers;
 
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.application.services.SurveyService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -60,6 +61,7 @@ public class SurveyController {
 
     @CrossOrigin
     @GetMapping("/allwithtimeslots")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<List<ResponseSurveyWithTimeSlotsDto>> getAllSurveysWithTimeSlots(){
         List<ResponseSurveyWithTimeSlotsDto> responseSurveyWithTimeSlotsDtoList = surveyService.getallSurveysWithTimeSlots();
         return ResponseEntity.status(HttpStatus.OK).body(responseSurveyWithTimeSlotsDtoList);
