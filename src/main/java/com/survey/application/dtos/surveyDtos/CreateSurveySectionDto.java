@@ -26,6 +26,9 @@ public class CreateSurveySectionDto {
 
     private String groupId; // it also can be null
 
+    @NotNull
+    private boolean displayOnOneScreen;
+
     @NotEmpty
     private List<@Valid CreateQuestionDto> questions;
 

@@ -36,6 +36,9 @@ public class SurveySection {
     @Convert(converter = VisibilityConverter.class)
     private Visibility visibility;
 
+    @Column(name = "display_on_one_screen", nullable = false)
+    private Boolean displayOnOneScreen;
+
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;
 
@@ -44,7 +47,6 @@ public class SurveySection {
 
     @OneToMany(mappedBy = "section", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SectionToUserGroup> sectionToUserGroups = new ArrayList<>();
-
 
 /*    This method is ok for now, because each survey section can have only one groupId
     when section visibility is "group_specific"*/
