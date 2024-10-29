@@ -204,6 +204,7 @@ class SendSurveyResponseDtoValidatorTest {
                                         null,
                                         null,
                                         Visibility.always,
+                                        true,
                                         null,
                                         Stream.of(
                                                 question

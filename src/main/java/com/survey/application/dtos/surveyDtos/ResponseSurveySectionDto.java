@@ -16,7 +16,6 @@ public class ResponseSurveySectionDto {
     private Visibility visibility;
     private UUID groupId;
     private Long rowVersion;
-
+    private Boolean displayOnOneScreen;
     private List<ResponseQuestionDto> questions;
-
 }
