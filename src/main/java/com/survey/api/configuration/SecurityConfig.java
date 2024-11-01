@@ -62,6 +62,8 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.GET, "/api/temperaturedata").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/temperaturedata").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/localization").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/localization").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/localization/forrespondent").permitAll();
                 })
                 .httpBasic(Customizer.withDefaults());
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);

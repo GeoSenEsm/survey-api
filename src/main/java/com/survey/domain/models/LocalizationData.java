@@ -1,5 +1,6 @@
 package com.survey.domain.models;
 
+import com.survey.api.configuration.PointConverter;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.locationtech.jts.geom.Point;
@@ -19,14 +20,15 @@ public class LocalizationData {
     @JoinColumn(name = "respondent_id", nullable = false)
     private IdentityUser identityUser;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "participation_id")
     private SurveyParticipation surveyParticipation;
 
     @Column(nullable = false)
     private OffsetDateTime dateTime;
 
-    @Column(nullable = false, columnDefinition = "GEOMETRY")
+    @Convert(converter = PointConverter.class)
+    @Column(nullable = false, columnDefinition = "GEOGRAPHY")
     private Point localization;
 
     @Column(name = "row_version", insertable = false)

@@ -14,7 +14,7 @@ import java.util.UUID;
 @Setter
 public class LocalizationDataDto {
 
-    private UUID surveyParticipation;
+    private UUID surveyParticipationId;
 
     @NotNull
     private OffsetDateTime dateTime;

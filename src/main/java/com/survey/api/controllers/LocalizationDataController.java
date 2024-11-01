@@ -6,12 +6,15 @@ import com.survey.application.services.LocalizationDataService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/localization")
@@ -31,8 +34,28 @@ public class LocalizationDataController {
     public ResponseEntity<List<ResponseLocalizationDto>> saveLocalizationData(
             @Valid @RequestBody List<LocalizationDataDto> localizationDataDtos){
 
-        List<ResponseLocalizationDto> response = localizationDataService.saveLocalizationData(localizationDataDtos);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        List<ResponseLocalizationDto> saveLocalizationData = localizationDataService.saveLocalizationData(localizationDataDtos);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saveLocalizationData);
     }
+
+    @GetMapping
+    @CrossOrigin
+    public ResponseEntity<List<ResponseLocalizationDto>> getLocalizationData(
+            @RequestParam("from") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime from,
+            @RequestParam("to") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to){
+
+        List<ResponseLocalizationDto> dtos = localizationDataService.getLocalizationData(from, to);
+        return ResponseEntity.status(HttpStatus.OK).body(dtos);
+    }
+
+    @GetMapping("/forrespondent")
+    @CrossOrigin
+    public ResponseEntity<List<ResponseLocalizationDto>> getLocalizationData(
+            @RequestParam("respondentId") UUID respondentId){
+        List<ResponseLocalizationDto> dtos = localizationDataService.getLocalizationDataForRespondent(respondentId);
+
+        return ResponseEntity.status(HttpStatus.OK).body(dtos);
+    }
+
 
 }
