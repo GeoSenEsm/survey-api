@@ -43,18 +43,10 @@ public class LocalizationDataController {
     @CrossOrigin
     public ResponseEntity<List<ResponseLocalizationDto>> getLocalizationData(
             @RequestParam("from") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime from,
-            @RequestParam("to") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to){
+            @RequestParam("to") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to,
+            @RequestParam(value = "respondentId", required = false) UUID respondentId){
 
-        List<ResponseLocalizationDto> dtos = localizationDataService.getLocalizationData(from, to);
-        return ResponseEntity.status(HttpStatus.OK).body(dtos);
-    }
-
-    @GetMapping("/respondents")
-    @CrossOrigin
-    public ResponseEntity<List<ResponseLocalizationDto>> getLocalizationDataForRespondent(
-            @RequestParam("respondentId") UUID respondentId){
-        List<ResponseLocalizationDto> dtos = localizationDataService.getLocalizationDataForRespondent(respondentId);
-
+        List<ResponseLocalizationDto> dtos = localizationDataService.getLocalizationData(from, to, respondentId);
         return ResponseEntity.status(HttpStatus.OK).body(dtos);
     }
 

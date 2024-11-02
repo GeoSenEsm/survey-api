@@ -7,6 +7,7 @@ import com.survey.domain.models.SurveyParticipation;
 import com.survey.domain.repository.LocalizationDataRepository;
 import com.survey.domain.repository.SurveyParticipationRepository;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,8 +39,6 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
     @Transactional
     public List<ResponseLocalizationDto> saveLocalizationData(List<LocalizationDataDto> localizationDataDtos, String token) {
 
-        validateSurveyParticipationIdss(localizationDataDtos);
-
         List<LocalizationData> entities = localizationDataDtos.stream()
                 .map(this::mapToEntity)
                 .toList();
@@ -54,45 +53,30 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
     }
 
     @Override
-    public List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime from, OffsetDateTime to) {
+    public List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime from, OffsetDateTime to, UUID respondentId) {
         if (from.isAfter(to)){
             throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
         }
 
-        List<LocalizationData> dbEntityList = localizationDataRepository.findAllBetween(from, to);
+        String jpql = "SELECT ld FROM LocalizationData ld " +
+                "WHERE ld.dateTime BETWEEN :fromDate AND :toDate " +
+                (respondentId != null ? "AND ld.identityUser.id = :respondentId " : "") +
+                "ORDER BY ld.dateTime";
+
+        TypedQuery<LocalizationData> query = entityManager.createQuery(jpql, LocalizationData.class);
+        query.setParameter("fromDate", from);
+        query.setParameter("toDate", to);
+        if (respondentId != null) {
+            query.setParameter("respondentId", respondentId);
+        }
+
+        List<LocalizationData> dbEntityList = query.getResultList();
 
         return dbEntityList.stream()
                 .map(this::mapToDto)
                 .toList();
     }
 
-    @Override
-    public List<ResponseLocalizationDto> getLocalizationDataForRespondent(UUID respondentId) {
-        List<LocalizationData> localizationDataList = localizationDataRepository.findByRespondentId(respondentId);
-
-        if (localizationDataList.isEmpty()){
-            return List.of();
-        }
-
-        return localizationDataList.stream()
-                .map(this::mapToDto)
-                .toList();
-    }
-
-    private void validateSurveyParticipationIdss(List<LocalizationDataDto> dtos){
-        UUID respondentId = claimsPrincipalService.findIdentityUser().getId();
-
-        for (LocalizationDataDto dto : dtos){
-            UUID surveyParticipationId = dto.getSurveyParticipationId();
-            if (surveyParticipationId != null && !validateSurveyParticipationId(surveyParticipationId, respondentId)){
-                throw new IllegalArgumentException("Invalid surveyParticipationId or mismatched respondentId for surveyParticipationId: " + surveyParticipationId);
-            }
-        }
-    }
-
-    private boolean validateSurveyParticipationId(UUID surveyParticipationId, UUID respondentId){
-        return surveyParticipationRepository.findByIdAndRespondentId(surveyParticipationId, respondentId).isPresent();
-    }
 
     private LocalizationData mapToEntity(LocalizationDataDto dto){
         LocalizationData entity = modelMapper.map(dto, LocalizationData.class);

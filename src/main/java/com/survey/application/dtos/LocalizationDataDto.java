@@ -1,5 +1,6 @@
 package com.survey.application.dtos;
 
+import com.survey.api.validation.ValidSurveyParticipationId;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -15,6 +16,7 @@ import java.util.UUID;
 @Setter
 public class LocalizationDataDto {
 
+    @ValidSurveyParticipationId
     private UUID surveyParticipationId;
 
     @NotNull

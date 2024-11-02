@@ -8,5 +8,6 @@ CREATE TABLE localization_data (
     row_version TIMESTAMP NOT NULL,
 
     FOREIGN KEY (participation_id) REFERENCES survey_participation(id) ON DELETE SET NULL,
-    FOREIGN KEY (respondent_id) REFERENCES identity_user(id) ON DELETE CASCADE
+    FOREIGN KEY (respondent_id) REFERENCES identity_user(id) ON DELETE CASCADE,
+    UNIQUE(respondent_id, date_time)
 );

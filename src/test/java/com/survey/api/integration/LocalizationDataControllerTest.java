@@ -187,38 +187,87 @@ public class LocalizationDataControllerTest {
     }
 
     @Test
-    void getLocalizationData_ValidRange_ShouldReturnOkStatus() {
-        IdentityUser user = createUserWithRole("Respondent");
-        String token = authenticateAndGenerateToken(user);
+    void getLocalizationData_WithRespondentId_ShouldReturnFilteredData() {
+        IdentityUser user1 = createUserWithRole("Respondent");
+        IdentityUser user2 = createUserWithRole("Respondent");
+
+        LocalizationDataDto localizationDataDto1 = new LocalizationDataDto();
+        localizationDataDto1.setLatitude(VALID_LATITUDE);
+        localizationDataDto1.setLongitude(VALID_LONGITUDE);
+        localizationDataDto1.setDateTime(OffsetDateTime.now(UTC));
+        saveLocalizationData(user1, localizationDataDto1);
+
+        LocalizationDataDto localizationDataDto2 = new LocalizationDataDto();
+        localizationDataDto2.setLatitude(VALID_LATITUDE.add(BigDecimal.ONE));
+        localizationDataDto2.setLongitude(VALID_LONGITUDE.add(BigDecimal.ONE));
+        localizationDataDto2.setDateTime(OffsetDateTime.now(UTC));
+        saveLocalizationData(user2, localizationDataDto2);
 
         OffsetDateTime from = OffsetDateTime.now(UTC).minusDays(1);
         OffsetDateTime to = OffsetDateTime.now(UTC).plusDays(1);
-
-        LocalizationDataDto localizationDataDto = new LocalizationDataDto();
-        localizationDataDto.setLatitude(VALID_LATITUDE);
-        localizationDataDto.setLongitude(VALID_LONGITUDE);
-        localizationDataDto.setDateTime(OffsetDateTime.now(UTC));
-
-        saveLocalizationData(user, localizationDataDto);
 
         var response = webTestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/api/localization")
                         .queryParam("from", from.toString())
                         .queryParam("to", to.toString())
+                        .queryParam("respondentId", user1.getId().toString())
                         .build())
-                .header("Authorization", "Bearer " + token)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBodyList(ResponseLocalizationDto.class)
                 .returnResult().getResponseBody();
 
         assertThat(response).isNotNull();
-        assertThat(response).isNotEmpty();
-        assertThat(response.get(0).getLatitude()).isEqualByComparingTo(localizationDataDto.getLatitude());
-        assertThat(response.get(0).getLongitude()).isEqualByComparingTo(localizationDataDto.getLongitude());
-        assertThat(response.get(0).getRespondentId()).isEqualTo(user.getId());
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).getLatitude()).isEqualByComparingTo(localizationDataDto1.getLatitude());
+        assertThat(response.get(0).getLongitude()).isEqualByComparingTo(localizationDataDto1.getLongitude());
+        assertThat(response.get(0).getRespondentId()).isEqualTo(user1.getId());
+        assertThat(response.get(0).getDateTime()).isEqualToIgnoringSeconds(localizationDataDto1.getDateTime());
     }
 
+    @Test
+    void getLocalizationData_WithoutRespondentId_ShouldReturnAllData() {
+        IdentityUser user1 = createUserWithRole("Respondent");
+        IdentityUser user2 = createUserWithRole("Respondent");
+
+        LocalizationDataDto localizationDataDto1 = new LocalizationDataDto();
+        localizationDataDto1.setLatitude(VALID_LATITUDE);
+        localizationDataDto1.setLongitude(VALID_LONGITUDE);
+        localizationDataDto1.setDateTime(OffsetDateTime.now(UTC));
+        saveLocalizationData(user1, localizationDataDto1);
+
+        LocalizationDataDto localizationDataDto2 = new LocalizationDataDto();
+        localizationDataDto2.setLatitude(VALID_LATITUDE.add(BigDecimal.ONE));
+        localizationDataDto2.setLongitude(VALID_LONGITUDE.add(BigDecimal.ONE));
+        localizationDataDto2.setDateTime(OffsetDateTime.now(UTC).plusHours(1));
+        saveLocalizationData(user2, localizationDataDto2);
+
+        OffsetDateTime from = OffsetDateTime.now(UTC).minusDays(1);
+        OffsetDateTime to = OffsetDateTime.now(UTC).plusDays(1);
+
+        var response = webTestClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/api/localization")
+                        .queryParam("from", from.toString())
+                        .queryParam("to", to.toString())
+                        .build())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(ResponseLocalizationDto.class)
+                .returnResult().getResponseBody();
+
+        assertThat(response).isNotNull();
+        assertThat(response).hasSize(2);
+
+        assertThat(response.get(0).getLatitude()).isEqualByComparingTo(localizationDataDto1.getLatitude());
+        assertThat(response.get(0).getLongitude()).isEqualByComparingTo(localizationDataDto1.getLongitude());
+        assertThat(response.get(0).getRespondentId()).isEqualTo(user1.getId());
+        assertThat(response.get(0).getDateTime()).isEqualToIgnoringSeconds(localizationDataDto1.getDateTime());
+
+        assertThat(response.get(1).getLatitude()).isEqualByComparingTo(localizationDataDto2.getLatitude());
+        assertThat(response.get(1).getLongitude()).isEqualByComparingTo(localizationDataDto2.getLongitude());
+        assertThat(response.get(1).getRespondentId()).isEqualTo(user2.getId());
+        assertThat(response.get(1).getDateTime()).isEqualToIgnoringSeconds(localizationDataDto2.getDateTime());
+    }
 
     private IdentityUser createUserWithRole(String role) {
         IdentityUser user = new IdentityUser()
