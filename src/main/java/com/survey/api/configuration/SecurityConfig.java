@@ -59,8 +59,10 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.GET, "/api/initialsurvey").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/surveys/allwithtimeslots").permitAll();
-                    r.requestMatchers(HttpMethod.GET, "/api/temperaturedata").permitAll();
-                    r.requestMatchers(HttpMethod.POST, "/api/temperaturedata").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/sensordata").permitAll();
+                    r.requestMatchers(HttpMethod.POST, "/api/sensordata").permitAll();
+                    r.requestMatchers(HttpMethod.POST, "/api/localization").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/localization").permitAll();
                 })
                 .httpBasic(Customizer.withDefaults());
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);

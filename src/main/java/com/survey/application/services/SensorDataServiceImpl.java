@@ -1,10 +1,10 @@
 package com.survey.application.services;
 
-import com.survey.application.dtos.ResponseTemperatureDataEntryDto;
-import com.survey.application.dtos.TemperatureDataEntryDto;
+import com.survey.application.dtos.ResponseSensorDataDto;
+import com.survey.application.dtos.SensorDataDto;
 import com.survey.domain.models.IdentityUser;
-import com.survey.domain.models.TemperatureData;
-import com.survey.domain.repository.TemperatureDataRepository;
+import com.survey.domain.models.SensorData;
+import com.survey.domain.repository.SensorDataRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,52 +15,52 @@ import java.util.List;
 
 @Service
 @Transactional
-public class TemperatureDataServiceImpl implements TemperatureDataService{
+public class SensorDataServiceImpl implements SensorDataService {
     private final ClaimsPrincipalService claimsPrincipalService;
     private final ModelMapper modelMapper;
-    private final TemperatureDataRepository temperatureDataRepository;
+    private final SensorDataRepository sensorDataRepository;
 
     @Autowired
-    public TemperatureDataServiceImpl(ClaimsPrincipalService claimsPrincipalService, ModelMapper modelMapper, TemperatureDataRepository temperatureDataRepository) {
+    public SensorDataServiceImpl(ClaimsPrincipalService claimsPrincipalService, ModelMapper modelMapper, SensorDataRepository sensorDataRepository) {
         this.claimsPrincipalService = claimsPrincipalService;
         this.modelMapper = modelMapper;
-        this.temperatureDataRepository = temperatureDataRepository;
+        this.sensorDataRepository = sensorDataRepository;
     }
 
     @Override
-    public List<ResponseTemperatureDataEntryDto> saveTemperatureData(String token, List<TemperatureDataEntryDto> temperatureDataDtoList) {
+    public List<ResponseSensorDataDto> saveSensorData(String token, List<SensorDataDto> temperatureDataDtoList) {
         if (temperatureDataDtoList == null || temperatureDataDtoList.isEmpty()){
             throw new IllegalArgumentException("Temperature data list cannot be empty.");
         }
 
         IdentityUser identityUser = claimsPrincipalService.findIdentityUser();
 
-        List<TemperatureData> entityList = temperatureDataDtoList.stream()
+        List<SensorData> entityList = temperatureDataDtoList.stream()
                         .map(dto -> {
-                            TemperatureData entity = modelMapper.map(dto, TemperatureData.class);
+                            SensorData entity = modelMapper.map(dto, SensorData.class);
                             entity.setRespondent(identityUser);
                             return entity;
                         })
                         .toList();
-        List<TemperatureData> dbEntityList = temperatureDataRepository.saveAll(entityList);
+        List<SensorData> dbEntityList = sensorDataRepository.saveAll(entityList);
 
         return mapToResponseDtoList(dbEntityList);
     }
 
     @Override
-    public List<ResponseTemperatureDataEntryDto> getTemperatureData(OffsetDateTime from, OffsetDateTime to) {
+    public List<ResponseSensorDataDto> getSensorData(OffsetDateTime from, OffsetDateTime to) {
         if (from.isAfter(to)){
             throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
         }
 
-        List<TemperatureData> dbEntityList = temperatureDataRepository.findAllBetween(from, to);
+        List<SensorData> dbEntityList = sensorDataRepository.findAllBetween(from, to);
         return mapToResponseDtoList(dbEntityList);
     }
 
-    private List<ResponseTemperatureDataEntryDto> mapToResponseDtoList (List<TemperatureData> entityList){
+    private List<ResponseSensorDataDto> mapToResponseDtoList (List<SensorData> entityList){
         return entityList.stream()
                 .map(entity -> {
-                    ResponseTemperatureDataEntryDto responseDto = modelMapper.map(entity, ResponseTemperatureDataEntryDto.class);
+                    ResponseSensorDataDto responseDto = modelMapper.map(entity, ResponseSensorDataDto.class);
                     responseDto.setRespondentId(entity.getRespondent().getId());
                     return responseDto;
                 }).toList();

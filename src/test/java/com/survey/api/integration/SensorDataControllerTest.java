@@ -2,11 +2,11 @@ package com.survey.api.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.api.security.TokenProvider;
-import com.survey.application.dtos.ResponseTemperatureDataEntryDto;
-import com.survey.application.dtos.TemperatureDataEntryDto;
+import com.survey.application.dtos.ResponseSensorDataDto;
+import com.survey.application.dtos.SensorDataDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.repository.IdentityUserRepository;
-import com.survey.domain.repository.TemperatureDataRepository;
+import com.survey.domain.repository.SensorDataRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,58 +27,64 @@ import java.util.UUID;
 
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 @ExtendWith(IntegrationTestDatabaseInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
-public class TemperatureDataControllerTest {
+public class SensorDataControllerTest {
+    private static final BigDecimal VALID_TEMPERATURE = new BigDecimal("21.5");
+    private static final BigDecimal VALID_HUMIDITY = new BigDecimal("60.4");
+
     private final WebTestClient webTestClient;
     private final ObjectMapper objectMapper;
     private final IdentityUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenProvider tokenProvider;
-    private final TemperatureDataRepository temperatureDataRepository;
+    private final SensorDataRepository sensorDataRepository;
     private final AuthenticationManager authenticationManager;
 
     @Autowired
-    public TemperatureDataControllerTest(WebTestClient webTestClient, ObjectMapper objectMapper, IdentityUserRepository userRepository, PasswordEncoder passwordEncoder, TokenProvider tokenProvider, TemperatureDataRepository temperatureDataRepository, AuthenticationManager authenticationManager) {
+    public SensorDataControllerTest(WebTestClient webTestClient, ObjectMapper objectMapper, IdentityUserRepository userRepository, PasswordEncoder passwordEncoder, TokenProvider tokenProvider, SensorDataRepository sensorDataRepository, AuthenticationManager authenticationManager) {
         this.webTestClient = webTestClient;
         this.objectMapper = objectMapper;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
-        this.temperatureDataRepository = temperatureDataRepository;
+        this.sensorDataRepository = sensorDataRepository;
         this.authenticationManager = authenticationManager;
     }
 
     @BeforeEach
     void setUp(){
-        temperatureDataRepository.deleteAll();
+        sensorDataRepository.deleteAll();
         userRepository.deleteAll();
     }
 
     @Test
-    void saveTemperatureData_ValidData_ShouldReturnCreatedStatus(){
+    void saveSensorData_ValidData_ShouldReturnCreatedStatus(){
         IdentityUser user = createUserWithRole("Respondent");
         String token = authenticateAndGenerateToken(user);
 
-        TemperatureDataEntryDto entryDto = new TemperatureDataEntryDto();
+        SensorDataDto entryDto = new SensorDataDto();
         entryDto.setDateTime(OffsetDateTime.now(UTC));
-        entryDto.setTemperature(BigDecimal.valueOf(21.5));
+        entryDto.setTemperature(VALID_TEMPERATURE);
+        entryDto.setHumidity(VALID_HUMIDITY);
 
         var response = webTestClient.post()
-                .uri("/api/temperaturedata")
+                .uri("/api/sensordata")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(List.of(entryDto))
                 .exchange()
                 .expectStatus().isCreated()
-                .expectBodyList(ResponseTemperatureDataEntryDto.class)
+                .expectBodyList(ResponseSensorDataDto.class)
                 .returnResult().getResponseBody();
 
         assertThat(response).isNotNull();
         assertThat(response).hasSize(1);
         assertThat(response.get(0).getTemperature().compareTo(entryDto.getTemperature())).isEqualTo(0);
+        assertThat(response.get(0).getHumidity().compareTo(entryDto.getHumidity())).isEqualTo(0);
         assertThat(response.get(0).getRespondentId()).isEqualTo(user.getId());
 
     }
@@ -88,11 +94,12 @@ public class TemperatureDataControllerTest {
         IdentityUser user = createUserWithRole("Respondent");
         String token = authenticateAndGenerateToken(user);
 
-        TemperatureDataEntryDto entryDto = new TemperatureDataEntryDto();
+        SensorDataDto entryDto = new SensorDataDto();
         entryDto.setDateTime(OffsetDateTime.now(UTC));
+        entryDto.setHumidity(VALID_HUMIDITY);
 
         webTestClient.post()
-                .uri("/api/temperaturedata")
+                .uri("/api/sensordata")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(List.of(entryDto))
@@ -101,15 +108,16 @@ public class TemperatureDataControllerTest {
     }
 
     @Test
-    void saveTemperatureData_InvalidInputMissingDateTimeField_ShouldReturnBadRequest() {
+    void saveSensorData_InvalidInputMissingDateTimeField_ShouldReturnBadRequest() {
         IdentityUser user = createUserWithRole("Respondent");
         String token = authenticateAndGenerateToken(user);
 
-        TemperatureDataEntryDto entryDto = new TemperatureDataEntryDto();
-        entryDto.setTemperature(BigDecimal.valueOf(21.5));
+        SensorDataDto entryDto = new SensorDataDto();
+        entryDto.setTemperature(VALID_TEMPERATURE);
+        entryDto.setHumidity(VALID_HUMIDITY);
 
         webTestClient.post()
-                .uri("/api/temperaturedata")
+                .uri("/api/sensordata")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(List.of(entryDto))
@@ -122,12 +130,13 @@ public class TemperatureDataControllerTest {
         IdentityUser user = createUserWithRole("Respondent");
         String token = authenticateAndGenerateToken(user);
 
-        TemperatureDataEntryDto entryDto = new TemperatureDataEntryDto();
+        SensorDataDto entryDto = new SensorDataDto();
         entryDto.setDateTime(OffsetDateTime.now(UTC));
         entryDto.setTemperature(BigDecimal.valueOf(100.0));
+        entryDto.setHumidity(VALID_HUMIDITY);
 
         webTestClient.post()
-                .uri("/api/temperaturedata")
+                .uri("/api/sensordata")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(List.of(entryDto))
@@ -136,7 +145,7 @@ public class TemperatureDataControllerTest {
     }
 
     @Test
-    void getTemperatureData_InvalidRange_ShouldReturnBadRequest() {
+    void getSensorData_InvalidRange_ShouldReturnBadRequest() {
         IdentityUser user = createUserWithRole("Respondent");
         String token = authenticateAndGenerateToken(user);
 
@@ -144,7 +153,7 @@ public class TemperatureDataControllerTest {
         OffsetDateTime to = OffsetDateTime.now(UTC).minusDays(1);
 
         webTestClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/api/temperaturedata")
+                .uri(uriBuilder -> uriBuilder.path("/api/sensordata")
                         .queryParam("from", from.toString())
                         .queryParam("to", to.toString())
                         .build())
@@ -154,18 +163,19 @@ public class TemperatureDataControllerTest {
     }
 
     @Test
-    void saveTemperatureData_DuplicateEntry_ShouldReturnConflict(){
+    void saveSensorData_DuplicateEntry_ShouldReturnConflict(){
         IdentityUser user = createUserWithRole("Respondent");
         String token = authenticateAndGenerateToken(user);
 
-        TemperatureDataEntryDto entryDto = new TemperatureDataEntryDto();
+        SensorDataDto entryDto = new SensorDataDto();
         entryDto.setDateTime(OffsetDateTime.now(UTC));
-        entryDto.setTemperature(BigDecimal.valueOf(21.5));
+        entryDto.setTemperature(VALID_TEMPERATURE);
+        entryDto.setHumidity(VALID_HUMIDITY);
 
-        saveTemperatureData(user, entryDto);
+        saveSensorData(user, entryDto);
 
         webTestClient.post()
-                .uri("/api/temperaturedata")
+                .uri("/api/sensordata")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(List.of(entryDto))
@@ -174,33 +184,35 @@ public class TemperatureDataControllerTest {
     }
 
     @Test
-    void getTemperatureData_ValidRange_ShouldReturnOkStatus(){
+    void getSensorData_ValidRange_ShouldReturnOkStatus(){
         IdentityUser user = createUserWithRole("Respondent");
         String token = authenticateAndGenerateToken(user);
 
         OffsetDateTime from = OffsetDateTime.now(UTC).minusDays(1);
         OffsetDateTime to = OffsetDateTime.now(UTC).plusDays(1);
 
-        TemperatureDataEntryDto entryDto = new TemperatureDataEntryDto();
+        SensorDataDto entryDto = new SensorDataDto();
         entryDto.setDateTime(OffsetDateTime.now(UTC));
-        entryDto.setTemperature(BigDecimal.valueOf(21.50));
+        entryDto.setTemperature(VALID_TEMPERATURE);
+        entryDto.setHumidity(VALID_HUMIDITY);
 
-        saveTemperatureData(user, entryDto);
+        saveSensorData(user, entryDto);
 
         var response = webTestClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/api/temperaturedata")
+                .uri(uriBuilder -> uriBuilder.path("/api/sensordata")
                         .queryParam("from", from.toString())
                         .queryParam("to", to.toString())
                         .build())
                 .header("Authorization", "Bearer" + token)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBodyList(ResponseTemperatureDataEntryDto.class)
+                .expectBodyList(ResponseSensorDataDto.class)
                 .returnResult().getResponseBody();
 
         assertThat(response).isNotNull();
         assertThat(response).isNotEmpty();
         assertThat(response.get(0).getTemperature().compareTo(entryDto.getTemperature())).isEqualTo(0);
+        assertThat(response.get(0).getHumidity().compareTo(entryDto.getHumidity())).isEqualTo(0);
         assertThat(response.get(0).getRespondentId()).isEqualTo(user.getId());
     }
 
@@ -221,11 +233,11 @@ public class TemperatureDataControllerTest {
         return tokenProvider.generateToken(authentication);
     }
 
-    private void saveTemperatureData(IdentityUser user, TemperatureDataEntryDto entryDto){
+    private void saveSensorData(IdentityUser user, SensorDataDto entryDto){
         String token = authenticateAndGenerateToken(user);
 
         webTestClient.post()
-                .uri("/api/temperaturedata")
+                .uri("/api/sensordata")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(List.of(entryDto))

@@ -1,5 +1,6 @@
 package com.survey.application.services;
 
+import com.survey.application.dtos.LocalizationPointDto;
 import com.survey.application.dtos.SurveyResultDto;
 import com.survey.application.dtos.surveyDtos.AnswerDto;
 import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
@@ -152,8 +153,10 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         String jpql = "SELECT sp FROM SurveyParticipation sp " +
                 "JOIN sp.survey s " +
                 "JOIN sp.questionAnswers qa " +
+                "LEFT JOIN FETCH sp.localizationDataList ld " +
                 "WHERE sp.survey.id = :surveyId " +
-                "AND sp.date BETWEEN :dateFrom AND :dateTo";
+                "AND sp.date BETWEEN :dateFrom AND :dateTo " +
+                "ORDER BY ld.dateTime";
 
         TypedQuery<SurveyParticipation> query = entityManager.createQuery(jpql, SurveyParticipation.class);
         query.setParameter("surveyId", surveyId);
@@ -179,6 +182,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         dto.setResponseDate(surveyParticipation.getDate());
         dto.setRespondentId(surveyParticipation.getIdentityUser().getId());
         dto.setAnswers(extractAnswers(questionAnswer));
+        dto.setLocalizations(extractLocalizationPoints(surveyParticipation));
+
         return dto;
     }
 
@@ -199,4 +204,11 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
 
         return answers;
     }
+
+    List<LocalizationPointDto> extractLocalizationPoints(SurveyParticipation surveyParticipation){
+        return surveyParticipation.getLocalizationDataList().stream()
+                .map(ld -> new LocalizationPointDto(ld.getLatitude(), ld.getLongitude(), ld.getDateTime()))
+                .toList();
+    }
+
 }

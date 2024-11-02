@@ -9,9 +9,12 @@ import java.util.UUID;
 
 @Getter
 @Setter
-public class ResponseTemperatureDataEntryDto {
+public class ResponseLocalizationDto {
     private UUID id;
     private UUID respondentId;
+    private UUID surveyParticipationId;
     private OffsetDateTime dateTime;
-    private BigDecimal temperature;
+    private BigDecimal latitude;
+    private BigDecimal longitude;
+    private Long rowVersion;
 }
