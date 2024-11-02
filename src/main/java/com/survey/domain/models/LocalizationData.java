@@ -1,10 +1,8 @@
 package com.survey.domain.models;
 
-import com.survey.api.configuration.PointConverter;
 import jakarta.persistence.*;
 import lombok.Data;
-import org.locationtech.jts.geom.Point;
-
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -27,9 +25,11 @@ public class LocalizationData {
     @Column(nullable = false)
     private OffsetDateTime dateTime;
 
-    @Convert(converter = PointConverter.class)
-    @Column(nullable = false, columnDefinition = "GEOGRAPHY")
-    private Point localization;
+    @Column(nullable = false)
+    private BigDecimal latitude;
+
+    @Column(nullable = false)
+    private BigDecimal longitude;
 
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;

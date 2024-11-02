@@ -3,6 +3,7 @@ package com.survey.api.controllers;
 import com.survey.application.dtos.ResponseTemperatureDataEntryDto;
 import com.survey.application.dtos.TemperatureDataEntryDto;
 import com.survey.application.services.TemperatureDataService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -29,6 +30,7 @@ public class TemperatureDataController {
 
     @PostMapping
     @CrossOrigin
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<List<ResponseTemperatureDataEntryDto>> saveTemperatureData(
             @Valid @RequestBody List<TemperatureDataEntryDto> temperatureDataDtoList,
             @RequestHeader(value = "Authorization", required = false) String token){

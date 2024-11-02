@@ -1,20 +1,17 @@
 package com.survey.application.dtos;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.UUID;
 
 @Getter
 @Setter
-public class ResponseLocalizationDto {
-    private UUID id;
-    private UUID respondentId;
-    private UUID surveyParticipationId;
-    private OffsetDateTime dateTime;
+@AllArgsConstructor
+public class LocalizationPointDto {
     private BigDecimal latitude;
     private BigDecimal longitude;
-    private Long rowVersion;
+    private OffsetDateTime dateTime;
 }

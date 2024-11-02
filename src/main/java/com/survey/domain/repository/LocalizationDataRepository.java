@@ -11,17 +11,17 @@ import java.util.UUID;
 
 @Repository
 public interface LocalizationDataRepository extends JpaRepository<LocalizationData, UUID> {
-    @Query(value = "SELECT id, respondent_id, participation_id, date_time, " +
-            "localization.STAsText() AS localization, row_version " +
-            "FROM localization_data " +
-            "WHERE date_time BETWEEN :from AND :to", nativeQuery = true)
-    List<LocalizationData> findAllBetween(OffsetDateTime from, OffsetDateTime to);
+
+    @Query("SELECT ld " +
+            "FROM LocalizationData ld " +
+            "WHERE ld.dateTime BETWEEN :fromDate AND :toDate " +
+            "ORDER BY ld.dateTime")
+    List<LocalizationData> findAllBetween(OffsetDateTime fromDate, OffsetDateTime toDate);
 
 
-    @Query(value = "SELECT id, respondent_id, participation_id, date_time, " +
-            "localization.STAsText() AS localization, row_version " +
-            "FROM localization_data " +
-            "WHERE respondent_id = :respondentId", nativeQuery = true)
+    @Query("SELECT ld " +
+            "FROM LocalizationData ld " +
+            "WHERE ld.identityUser.id = :respondentId")
     List<LocalizationData> findByRespondentId(UUID respondentId);
 
 }
