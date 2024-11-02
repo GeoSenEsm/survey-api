@@ -9,9 +9,10 @@ import java.util.UUID;
 
 @Getter
 @Setter
-public class ResponseTemperatureDataEntryDto {
+public class ResponseSensorDataDto {
     private UUID id;
     private UUID respondentId;
     private OffsetDateTime dateTime;
     private BigDecimal temperature;
+    private BigDecimal humidity;
 }

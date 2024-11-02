@@ -15,7 +15,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Accessors(chain = true)
-public class TemperatureData {
+public class SensorData {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -28,4 +28,6 @@ public class TemperatureData {
     private OffsetDateTime dateTime;
 
     private BigDecimal temperature;
+
+    private BigDecimal humidity;
 }
