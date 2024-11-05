@@ -63,6 +63,7 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.POST, "/api/sensordata").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/localization").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/localization").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/sensordata/last").permitAll();
                 })
                 .httpBasic(Customizer.withDefaults());
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);

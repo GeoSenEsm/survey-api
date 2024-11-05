@@ -1,5 +1,6 @@
 package com.survey.api.controllers;
 
+import com.survey.application.dtos.LastSensorEntryDateDto;
 import com.survey.application.dtos.ResponseSensorDataDto;
 import com.survey.application.dtos.SensorDataDto;
 import com.survey.application.services.SensorDataService;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Validated
 @RestController
@@ -49,5 +51,11 @@ public class SensorDataController {
         return ResponseEntity.status(HttpStatus.OK).body(dtos);
     }
 
+    @GetMapping("/last")
+    @CrossOrigin
+    public ResponseEntity<LastSensorEntryDateDto> getDateOfLastSensorDataForRespondent(@RequestParam("respondentId") UUID respondentId){
+        LastSensorEntryDateDto dto = sensorDataService.getDateOfLastSensorDataForRespondent(respondentId);
+        return ResponseEntity.status(HttpStatus.OK).body(dto);
+    }
 
 }

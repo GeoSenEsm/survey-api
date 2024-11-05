@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface SensorDataRepository extends JpaRepository<SensorData, UUID> {
@@ -14,4 +15,7 @@ public interface SensorDataRepository extends JpaRepository<SensorData, UUID> {
             "WHERE sd.dateTime BETWEEN :fromDate AND :toDate " +
             "ORDER BY sd.respondent.id, sd.dateTime")
     List<SensorData> findAllBetween(OffsetDateTime fromDate, OffsetDateTime toDate);
+
+    @Query(value = "SELECT MAX(sd.dateTime) FROM SensorData sd WHERE sd.respondent.id = :respondentId")
+    Optional<OffsetDateTime> findDateOfLastEntryForRespondent(UUID respondentId);
 }
