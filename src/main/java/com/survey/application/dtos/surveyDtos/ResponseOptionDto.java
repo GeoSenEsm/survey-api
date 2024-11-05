@@ -12,5 +12,6 @@ public class ResponseOptionDto {
     private Integer order;
     private String label;
     private Integer showSection;
+    private String imagePath;
     private Long rowVersion;
 }

@@ -1,0 +1,1 @@
+ALTER TABLE survey ADD CONSTRAINT unique_survey_name UNIQUE (name);

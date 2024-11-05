@@ -19,7 +19,7 @@ public class Survey {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String name;
 
     @Column(name = "row_version", insertable = false)
@@ -30,5 +30,4 @@ public class Survey {
 
     @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SurveySendingPolicy> policies = new ArrayList<>();
-
 }

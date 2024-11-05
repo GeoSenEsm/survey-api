@@ -1,13 +1,17 @@
 package com.survey.api.controllers;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.application.services.SurveyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -19,6 +23,8 @@ import java.util.UUID;
 public class SurveyController {
 
     private final SurveyService surveyService;
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     public SurveyController(SurveyService surveyService) {
@@ -27,9 +33,10 @@ public class SurveyController {
 
 
     @PostMapping
-    public ResponseEntity<ResponseSurveyDto> createSurvey(@Validated @RequestBody CreateSurveyDto createSurveyDto){
-        ResponseSurveyDto responseDto = surveyService.createSurvey(createSurveyDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
+    public ResponseEntity<ResponseSurveyDto> createSurvey(@RequestParam("json") @Validated String createSurveyDto, @RequestParam("files") List<MultipartFile> files) throws JsonProcessingException {
+        CreateSurveyDto surveyDto = objectMapper.readValue(createSurveyDto, CreateSurveyDto.class);
+        ResponseSurveyDto responseDto = surveyService.createSurvey(surveyDto, files);
+        return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body(responseDto);
     }
 
     @GetMapping(params = "completionDate")
@@ -61,10 +68,9 @@ public class SurveyController {
     @CrossOrigin
     @GetMapping("/allwithtimeslots")
     public ResponseEntity<List<ResponseSurveyWithTimeSlotsDto>> getAllSurveysWithTimeSlots(){
-        List<ResponseSurveyWithTimeSlotsDto> responseSurveyWithTimeSlotsDtoList = surveyService.getallSurveysWithTimeSlots();
+        List<ResponseSurveyWithTimeSlotsDto> responseSurveyWithTimeSlotsDtoList = surveyService.getAllSurveysWithTimeSlots();
         return ResponseEntity.status(HttpStatus.OK).body(responseSurveyWithTimeSlotsDtoList);
     }
-
 
 
 }

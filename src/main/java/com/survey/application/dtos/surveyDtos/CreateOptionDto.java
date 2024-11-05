@@ -20,4 +20,6 @@ public class CreateOptionDto {
     @Min(1)
     @Max(9999)
     private Integer showSection;
+
+    private String imagePath;
 }

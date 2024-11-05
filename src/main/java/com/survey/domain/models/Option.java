@@ -33,7 +33,10 @@ public class Option {
 
     private Integer showSection;
 
-    @Column(name = "row_version", insertable = false)
+    private String imagePath;
+
+    @Version
+    @Column(name = "row_version", insertable = false, updatable = false)
     private byte[] rowVersion;
 
 
