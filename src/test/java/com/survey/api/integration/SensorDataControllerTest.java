@@ -2,6 +2,7 @@ package com.survey.api.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.api.security.TokenProvider;
+import com.survey.application.dtos.LastSensorEntryDateDto;
 import com.survey.application.dtos.ResponseSensorDataDto;
 import com.survey.application.dtos.SensorDataDto;
 import com.survey.domain.models.IdentityUser;
@@ -27,7 +28,6 @@ import java.util.UUID;
 
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.entry;
 
 @ExtendWith(IntegrationTestDatabaseInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -37,7 +37,6 @@ public class SensorDataControllerTest {
     private static final BigDecimal VALID_HUMIDITY = new BigDecimal("60.4");
 
     private final WebTestClient webTestClient;
-    private final ObjectMapper objectMapper;
     private final IdentityUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenProvider tokenProvider;
@@ -45,9 +44,8 @@ public class SensorDataControllerTest {
     private final AuthenticationManager authenticationManager;
 
     @Autowired
-    public SensorDataControllerTest(WebTestClient webTestClient, ObjectMapper objectMapper, IdentityUserRepository userRepository, PasswordEncoder passwordEncoder, TokenProvider tokenProvider, SensorDataRepository sensorDataRepository, AuthenticationManager authenticationManager) {
+    public SensorDataControllerTest(WebTestClient webTestClient, IdentityUserRepository userRepository, PasswordEncoder passwordEncoder, TokenProvider tokenProvider, SensorDataRepository sensorDataRepository, AuthenticationManager authenticationManager) {
         this.webTestClient = webTestClient;
-        this.objectMapper = objectMapper;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
@@ -216,6 +214,61 @@ public class SensorDataControllerTest {
         assertThat(response.get(0).getRespondentId()).isEqualTo(user.getId());
     }
 
+    @Test
+    void getDateOfLastSensorDataForRespondent_NonExistentRespondent_ShouldReturnBadRequest(){
+        UUID nonExistentRespondentId = UUID.randomUUID();
+        webTestClient.get()
+                .uri(uriBuilder -> uriBuilder.path("api/sensordata/last")
+                        .queryParam("respondentId", nonExistentRespondentId)
+                        .build())
+                .exchange()
+                .expectStatus().isBadRequest();
+    }
+
+    @Test
+    void getDateOfLastSensorDataForRespondent_ValidRespondent_ShouldReturnOkStatus() {
+        IdentityUser user1 = createUserWithRole("Respondent");
+
+        SensorDataDto entryDto1 = new SensorDataDto();
+        entryDto1.setDateTime(OffsetDateTime.now(UTC).minusDays(1));
+        entryDto1.setTemperature(VALID_TEMPERATURE);
+        entryDto1.setHumidity(VALID_HUMIDITY);
+        saveSensorData(user1, entryDto1);
+
+        SensorDataDto entryDto2 = new SensorDataDto();
+        entryDto2.setDateTime(OffsetDateTime.now(UTC));
+        entryDto2.setTemperature(VALID_TEMPERATURE.add(BigDecimal.ONE));
+        entryDto2.setHumidity(VALID_HUMIDITY);
+        saveSensorData(user1, entryDto2);
+
+        var response = webTestClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/api/sensordata/last")
+                        .queryParam("respondentId", user1.getId())
+                        .build())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(LastSensorEntryDateDto.class)
+                .returnResult().getResponseBody();
+
+        assertThat(response).isNotNull();
+
+        OffsetDateTime expected = entryDto2.getDateTime();
+        OffsetDateTime actual = response.getDateTime();
+        assertThat(actual).isBetween(expected.minusSeconds(1), expected.plusSeconds(1));
+    }
+
+    @Test
+    void getLastSensorData_RespondentWithNoData_ShouldReturnNotFound() {
+        IdentityUser user = createUserWithRole("Respondent");
+
+        webTestClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/api/sensordata/last")
+                        .queryParam("respondentId", user.getId())
+                        .build())
+                .exchange()
+                .expectStatus().isNotFound();
+    }
+
 
     private IdentityUser createUserWithRole(String role){
         IdentityUser user = new IdentityUser()
@@ -244,4 +297,5 @@ public class SensorDataControllerTest {
                 .exchange()
                 .expectStatus().isCreated();
     }
+
 }
