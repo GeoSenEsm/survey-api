@@ -21,16 +21,14 @@ import java.util.UUID;
 @RequestMapping("/api/surveys")
 @CrossOrigin
 public class SurveyController {
-
     private final SurveyService surveyService;
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public SurveyController(SurveyService surveyService) {
+    public SurveyController(SurveyService surveyService, ObjectMapper objectMapper) {
         this.surveyService = surveyService;
+        this.objectMapper = objectMapper;
     }
-
 
     @PostMapping
     public ResponseEntity<ResponseSurveyDto> createSurvey(@RequestParam("json") @Validated String createSurveyDto, @RequestParam("files") List<MultipartFile> files) throws JsonProcessingException {
