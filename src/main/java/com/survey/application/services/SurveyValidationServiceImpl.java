@@ -45,10 +45,11 @@ public class SurveyValidationServiceImpl implements SurveyValidationService{
                         .filter(q -> q.getQuestionType().equals(QuestionType.image_choice.name()))
                         .mapToInt(q -> q.getOptions().size()))
                 .sum();
-
-        if (files.size() != imageChoiceOptionsCount) {
-            throw new IllegalArgumentException("Incorrect number of files uploaded for image choice questions. " +
-                    "Expected: " + imageChoiceOptionsCount + ", Found: " + files.size());
+        if(imageChoiceOptionsCount > 0) {
+            if (files.size() != imageChoiceOptionsCount) {
+                throw new IllegalArgumentException("Incorrect number of files uploaded for image choice questions. " +
+                        "Expected: " + imageChoiceOptionsCount + ", Found: " + files.size());
+            }
         }
     }
 
