@@ -166,6 +166,7 @@ class SendSurveyResponseDtoValidatorTest {
                                                 null,
                                                 null,
                                                 null,
+                                                null,
                                                 null
                                         )
                                 ).collect(Collectors.toList()),
@@ -400,6 +401,7 @@ class SendSurveyResponseDtoValidatorTest {
                                                 null,
                                                 null,
                                                 null,
+                                                null,
                                                 null
                                         )
                                 ).collect(Collectors.toList()),
@@ -419,6 +421,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 Stream.of(
                                         new Option(
                                                 optionId,
+                                                null,
                                                 null,
                                                 null,
                                                 null,
@@ -446,6 +449,7 @@ class SendSurveyResponseDtoValidatorTest {
                                                 null,
                                                 null,
                                                 null,
+                                                null,
                                                 null
                                         )
                                 ).collect(Collectors.toList()),
@@ -465,6 +469,7 @@ class SendSurveyResponseDtoValidatorTest {
                                 Stream.of(
                                         new Option(
                                                 optionId,
+                                                null,
                                                 null,
                                                 null,
                                                 null,

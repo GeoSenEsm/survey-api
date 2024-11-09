@@ -1,21 +1,23 @@
 package com.survey.application.services;
 
-import com.survey.domain.models.*;
+import com.survey.application.dtos.surveyDtos.CreateSurveyDto;
+import com.survey.domain.models.Option;
+import com.survey.domain.models.Question;
+import com.survey.domain.models.Survey;
+import com.survey.domain.models.SurveySection;
 import com.survey.domain.models.enums.QuestionType;
 import com.survey.domain.models.enums.Visibility;
-import com.survey.domain.repository.RespondentGroupRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Dictionary;
+import java.util.Hashtable;
+import java.util.List;
 
 
 @Service
 public class SurveyValidationServiceImpl implements SurveyValidationService{
-    private final RespondentGroupRepository respondentGroupRepository;
-
-    public SurveyValidationServiceImpl(RespondentGroupRepository respondentGroupRepository) {
-        this.respondentGroupRepository = respondentGroupRepository;
-    }
 
     @Override
     public void validateShowSections(Survey survey) {
@@ -34,6 +36,20 @@ public class SurveyValidationServiceImpl implements SurveyValidationService{
             );
         });
 
+    }
+
+    @Override
+    public void validateImageChoiceFiles(CreateSurveyDto survey, List<MultipartFile> files) {
+        int imageChoiceOptionsCount = survey.getSections().stream()
+                .flatMapToInt(section -> section.getQuestions().stream()
+                        .filter(q -> q.getQuestionType().equals(QuestionType.image_choice.name()))
+                        .mapToInt(q -> q.getOptions().size()))
+                .sum();
+
+        if (files.size() != imageChoiceOptionsCount) {
+            throw new IllegalArgumentException("Incorrect number of files uploaded for image choice questions. " +
+                    "Expected: " + imageChoiceOptionsCount + ", Found: " + files.size());
+        }
     }
 
 
@@ -64,6 +80,4 @@ public class SurveyValidationServiceImpl implements SurveyValidationService{
             throw new IllegalArgumentException("Section with order: " + showSection + " must have answer_triggered visibility");
         }
     }
-
-
 }
