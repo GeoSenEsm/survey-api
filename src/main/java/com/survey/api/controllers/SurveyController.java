@@ -32,7 +32,7 @@ public class SurveyController {
     }
 
     @PostMapping
-    public ResponseEntity<ResponseSurveyDto> createSurvey(@RequestParam("json") @Validated String createSurveyDto, @RequestParam("files") List<MultipartFile> files) throws JsonProcessingException {
+    public ResponseEntity<ResponseSurveyDto> createSurvey(@RequestParam("json") @Validated String createSurveyDto, @RequestParam(value = "files", required = false) List<MultipartFile> files) throws JsonProcessingException {
         CreateSurveyDto surveyDto = objectMapper.readValue(createSurveyDto, CreateSurveyDto.class);
         ResponseSurveyDto responseDto = surveyService.createSurvey(surveyDto, files);
         return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body(responseDto);
