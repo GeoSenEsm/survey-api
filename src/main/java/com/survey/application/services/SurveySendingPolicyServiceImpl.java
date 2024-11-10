@@ -1,13 +1,13 @@
 package com.survey.application.services;
 
-import com.survey.application.dtos.CreateSurveySendingPolicyDto;
-import com.survey.application.dtos.SurveySendingPolicyDto;
-import com.survey.application.dtos.SurveySendingPolicyTimesDto;
+import com.survey.application.dtos.*;
 import com.survey.domain.models.*;
+import com.survey.domain.repository.SurveyParticipationTimeSlotRepository;
 import com.survey.domain.repository.SurveyRepository;
 import com.survey.domain.repository.SurveySendingPolicyRepository;
 
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +24,9 @@ public class SurveySendingPolicyServiceImpl implements SurveySendingPolicyServic
 
     @Autowired
     private SurveySendingPolicyRepository surveySendingPolicyRepository;
+
+    @Autowired
+    private SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository;
 
     @Autowired
     private SurveyRepository surveyRepository;
@@ -81,6 +84,21 @@ public class SurveySendingPolicyServiceImpl implements SurveySendingPolicyServic
         return surveySendingPolicies.stream()
                 .map(policy -> convertToDto(policy, surveyId))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public List<SurveySendingPolicyTimesDto> deleteTimeSlotsByIds(TimeSlotsToDeleteDto timeSlotsToDelete) {
+        List<SurveyParticipationTimeSlot> timeSlots = surveyParticipationTimeSlotRepository.findAllById(timeSlotsToDelete.getIds());
+
+        timeSlots.forEach(entity -> entity.setDeleted(true));
+
+        List<SurveyParticipationTimeSlot> updatedEntities = surveyParticipationTimeSlotRepository.saveAllAndFlush(timeSlots);
+        updatedEntities.forEach(entityManager::refresh);
+
+        return updatedEntities.stream()
+                .map(timeSlot -> modelMapper.map(timeSlot, SurveySendingPolicyTimesDto.class))
+                .toList();
     }
 
     private SurveySendingPolicyDto convertToDto(SurveySendingPolicy policy, UUID surveyId) {
