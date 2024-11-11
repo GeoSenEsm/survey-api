@@ -1,13 +1,10 @@
 package com.survey.api.controllers;
 
 
-import com.survey.application.dtos.CreateSurveySendingPolicyDto;
-import com.survey.application.dtos.SurveySendingPolicyDto;
-import com.survey.application.dtos.surveyDtos.ResponseSurveyDto;
+import com.survey.application.dtos.*;
 import com.survey.application.services.SurveySendingPolicyService;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -17,7 +14,6 @@ import javax.management.BadAttributeValueExpException;
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InstanceNotFoundException;
 import javax.management.InvalidAttributeValueException;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -48,6 +44,15 @@ public class SurveySendingPolicyController {
             @RequestParam("surveyId") UUID surveyId) {
         List<SurveySendingPolicyDto> surveysSendingPolicies = surveySendingPolicyService.getSurveysSendingPolicyById(surveyId);
         return ResponseEntity.ok(surveysSendingPolicies);
+    }
+
+    @CrossOrigin
+    @DeleteMapping
+    public ResponseEntity<List<SurveySendingPolicyTimesDto>> deleteTimeSlotsByIds(
+            @Validated @RequestBody TimeSlotsToDeleteDto timeSlotsToDelete
+    ){
+        List<SurveySendingPolicyTimesDto> deletedTimeSlots = surveySendingPolicyService.deleteTimeSlotsByIds(timeSlotsToDelete);
+        return ResponseEntity.status(HttpStatus.OK).body(deletedTimeSlots);
     }
 
 }

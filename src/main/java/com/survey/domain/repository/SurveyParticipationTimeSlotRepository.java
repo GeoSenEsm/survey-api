@@ -10,4 +10,5 @@ import java.util.UUID;
 
 public interface SurveyParticipationTimeSlotRepository extends JpaRepository<SurveyParticipationTimeSlot, UUID> {
     List<SurveyParticipationTimeSlot> findByFinishBetween(OffsetDateTime startOfDay, OffsetDateTime endOfDay);
+    long countByIdIn(List<UUID> ids);
 }

@@ -147,7 +147,7 @@ public class SurveyServiceImpl implements SurveyService {
     public List<ResponseSurveyWithTimeSlotsDto> getAllSurveysWithTimeSlots(){
         List<Survey> surveys = entityManager.createQuery(
                 "SELECT DISTINCT s FROM Survey s LEFT JOIN FETCH s.policies p WHERE EXISTS " +
-                        "(SELECT ts FROM SurveyParticipationTimeSlot ts WHERE ts.surveySendingPolicy = p AND ts.finish > CURRENT_TIMESTAMP)",
+                        "(SELECT ts FROM SurveyParticipationTimeSlot ts WHERE ts.surveySendingPolicy = p AND ts.finish > CURRENT_TIMESTAMP AND ts.isDeleted = false)",
                 Survey.class).getResultList();
 
         TypedQuery<SurveyParticipationTimeSlot> timeSlotsQuery = entityManager.createQuery(
