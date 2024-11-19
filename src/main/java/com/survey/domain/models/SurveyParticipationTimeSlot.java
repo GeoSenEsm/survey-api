@@ -22,7 +22,9 @@ public class SurveyParticipationTimeSlot {
     @JoinColumn(name = "survey_sending_policy_id")
     private SurveySendingPolicy surveySendingPolicy;
 
-    @Column(name = "row_version", insertable = false)
+    private boolean isDeleted = false;
+
+    @Column(name = "row_version", insertable = false, updatable = false)
     private byte[] rowVersion;
 
 }

@@ -12,4 +12,5 @@ public class SurveySendingPolicyTimesDto {
     private UUID id;
     private OffsetDateTime start;
     private OffsetDateTime finish;
+    private boolean isDeleted;
 }
