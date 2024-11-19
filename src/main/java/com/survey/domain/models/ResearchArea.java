@@ -23,4 +23,6 @@ public class ResearchArea {
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;
 
+    @Column(name = "[order]", nullable = false)
+    private Integer order;
 }

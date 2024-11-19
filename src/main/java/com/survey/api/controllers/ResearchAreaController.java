@@ -4,6 +4,7 @@ import com.survey.application.dtos.ResearchAreaDto;
 import com.survey.application.dtos.ResponseResearchAreaDto;
 import com.survey.application.services.ResearchAreaService;
 import jakarta.validation.Valid;
+import org.apache.coyote.BadRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +21,7 @@ public class ResearchAreaController {
     }
 
     @PostMapping
-    public ResponseEntity<List<ResponseResearchAreaDto>> saveResearchAreaData(@Valid @RequestBody List<ResearchAreaDto> researchAreaDtoList) {
+    public ResponseEntity<List<ResponseResearchAreaDto>> saveResearchAreaData(@Valid @RequestBody List<ResearchAreaDto> researchAreaDtoList) throws BadRequestException {
         List<ResponseResearchAreaDto> responseResearchAreaDto = researchAreaService.saveResearchArea(researchAreaDtoList);
         return ResponseEntity.status(HttpStatus.CREATED).body(responseResearchAreaDto);
     }
