@@ -13,6 +13,7 @@ public class ResponseLocalizationDto {
     private UUID id;
     private UUID respondentId;
     private UUID surveyParticipationId;
+    private UUID surveyId;
     private OffsetDateTime dateTime;
     private BigDecimal latitude;
     private BigDecimal longitude;
