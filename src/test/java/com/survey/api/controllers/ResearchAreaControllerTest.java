@@ -3,6 +3,7 @@ package com.survey.api.controllers;
 import com.survey.application.dtos.ResearchAreaDto;
 import com.survey.application.dtos.ResponseResearchAreaDto;
 import com.survey.application.services.ResearchAreaService;
+import org.apache.coyote.BadRequestException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -34,7 +35,7 @@ class ResearchAreaControllerTest {
     }
 
     @Test
-    void saveResearchAreaData_ShouldReturnCreatedStatus() {
+    void saveResearchAreaData_ShouldReturnCreatedStatus() throws BadRequestException {
         ResearchAreaDto researchAreaDto1 = new ResearchAreaDto();
         researchAreaDto1.setLatitude(VALID_LATITUDE);
         researchAreaDto1.setLongitude(VALID_LONGITUDE);
