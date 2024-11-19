@@ -1,6 +1,5 @@
 package com.survey.api.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.api.security.TokenProvider;
 import com.survey.application.dtos.LastSensorEntryDateDto;
 import com.survey.application.dtos.ResponseSensorDataDto;
@@ -32,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(IntegrationTestDatabaseInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
-public class SensorDataControllerTest {
+public class SensorDataIntegrationTest {
     private static final BigDecimal VALID_TEMPERATURE = new BigDecimal("21.5");
     private static final BigDecimal VALID_HUMIDITY = new BigDecimal("60.4");
 
@@ -44,7 +43,7 @@ public class SensorDataControllerTest {
     private final AuthenticationManager authenticationManager;
 
     @Autowired
-    public SensorDataControllerTest(WebTestClient webTestClient, IdentityUserRepository userRepository, PasswordEncoder passwordEncoder, TokenProvider tokenProvider, SensorDataRepository sensorDataRepository, AuthenticationManager authenticationManager) {
+    public SensorDataIntegrationTest(WebTestClient webTestClient, IdentityUserRepository userRepository, PasswordEncoder passwordEncoder, TokenProvider tokenProvider, SensorDataRepository sensorDataRepository, AuthenticationManager authenticationManager) {
         this.webTestClient = webTestClient;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
