@@ -47,7 +47,7 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
     }
 
     private InitialSurvey findInitialSurvey() {
-        return initialSurveyRepository.findTopByOrderByIdAsc()
+        return initialSurveyRepository.findTopByRowVersionDesc()
                 .orElseThrow(() -> new NoSuchElementException("No initial survey created"));
     }
 

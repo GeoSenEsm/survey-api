@@ -107,7 +107,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     }
 
     public InitialSurvey getOrCreateInitialSurvey() {
-        return initialSurveyRepository.findTopByOrderByIdAsc()
+        return initialSurveyRepository.findTopByRowVersionDesc()
                 .orElseGet(() -> {
                     InitialSurvey newSurvey = new InitialSurvey();
                     return initialSurveyRepository.save(newSurvey);

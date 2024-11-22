@@ -8,6 +8,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface LocalizationDataService {
-    List<ResponseLocalizationDto> saveLocalizationData(List<LocalizationDataDto> localizationDataDtos, String token);
-    List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime from, OffsetDateTime to, UUID respondentId);
+    List<ResponseLocalizationDto> saveLocalizationData(List<LocalizationDataDto> localizationDataDtoList, String token);
+    List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime from, OffsetDateTime to, UUID respondentId, UUID surveyId, boolean outsideResearchArea);
 }

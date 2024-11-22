@@ -7,7 +7,7 @@ import com.survey.domain.models.SurveyParticipation;
 import com.survey.domain.repository.LocalizationDataRepository;
 import com.survey.domain.repository.SurveyParticipationRepository;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.TypedQuery;
+import jakarta.persistence.Query;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -37,9 +37,9 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
 
     @Override
     @Transactional
-    public List<ResponseLocalizationDto> saveLocalizationData(List<LocalizationDataDto> localizationDataDtos, String token) {
+    public List<ResponseLocalizationDto> saveLocalizationData(List<LocalizationDataDto> localizationDataDtoList, String token) {
 
-        List<LocalizationData> entities = localizationDataDtos.stream()
+        List<LocalizationData> entities = localizationDataDtoList.stream()
                 .map(this::mapToEntity)
                 .toList();
 
@@ -53,21 +53,61 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
     }
 
     @Override
-    public List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime from, OffsetDateTime to, UUID respondentId) {
-        if (from.isAfter(to)){
+    public List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime from, OffsetDateTime to, UUID respondentId, UUID surveyId, boolean outsideResearchArea) {
+        if (from != null && to != null && from.isAfter(to)) {
             throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
         }
 
-        String jpql = "SELECT ld FROM LocalizationData ld " +
-                "WHERE ld.dateTime BETWEEN :fromDate AND :toDate " +
-                (respondentId != null ? "AND ld.identityUser.id = :respondentId " : "") +
-                "ORDER BY ld.dateTime";
+        StringBuilder jpql = new StringBuilder("SELECT ld.* FROM localization_data ld ");
+        jpql.append("WHERE 1=1 ");
 
-        TypedQuery<LocalizationData> query = entityManager.createQuery(jpql, LocalizationData.class);
-        query.setParameter("fromDate", from);
-        query.setParameter("toDate", to);
+        if (from != null) {
+            jpql.append("AND ld.date_time >= :fromDate ");
+        }
+        if (to != null) {
+            jpql.append("AND ld.date_time <= :toDate ");
+        }
+        if (respondentId != null) {
+            jpql.append("AND ld.respondent_id = :respondentId ");
+        }
+        if (surveyId != null) {
+            jpql.append("AND ld.participation_id IS NOT NULL ");
+            jpql.append("AND EXISTS (SELECT 1 FROM survey_participation sp WHERE sp.id = ld.participation_id AND sp.survey_id = :surveyId) ");
+        }
+        if (outsideResearchArea) {
+            jpql.append("\nAND EXISTS (")
+                    .append("SELECT 1 ")
+                    .append("FROM (")
+                    .append("    SELECT geography::::STGeomFromText('POLYGON((' + ")
+                    .append("    (SELECT STRING_AGG(CAST(longitude AS NVARCHAR(20)) + ' ' + CAST(latitude AS NVARCHAR(20)), ', ') ")
+                    .append("""
+                             WITHIN GROUP (ORDER BY [order])\s
+                            + ', ' +
+                                (SELECT CAST(longitude AS NVARCHAR(20)) + ' ' + CAST(latitude AS NVARCHAR(20))
+                                 FROM research_area
+                                 WHERE [order] = (SELECT MIN([order]) FROM research_area))
+                            FROM research_area)""")
+                    .append("    + '))', 4326).MakeValid() AS area_geography ")
+                    .append(") AS polygon ")
+                    .append("WHERE polygon.area_geography.STContains(geography::::Point(CAST(ld.latitude AS NVARCHAR(20)), CAST(ld.longitude AS NVARCHAR(20)), 4326)) = 0")
+                    .append(")");
+        }
+
+        jpql.append("ORDER BY ld.date_time");
+
+        Query query = entityManager.createNativeQuery(jpql.toString(), LocalizationData.class);
+
+        if (from != null) {
+            query.setParameter("fromDate", from);
+        }
+        if (to != null) {
+            query.setParameter("toDate", to);
+        }
         if (respondentId != null) {
             query.setParameter("respondentId", respondentId);
+        }
+        if (surveyId != null) {
+            query.setParameter("surveyId", surveyId);
         }
 
         List<LocalizationData> dbEntityList = query.getResultList();
@@ -98,12 +138,9 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
 
         if (entity.getSurveyParticipation() != null){
             responseDto.setSurveyParticipationId(entity.getSurveyParticipation().getId());
+            responseDto.setSurveyId(entity.getSurveyParticipation().getSurvey().getId());
         }
         responseDto.setRespondentId(entity.getIdentityUser().getId());
         return responseDto;
     }
-
-
-
-
 }
