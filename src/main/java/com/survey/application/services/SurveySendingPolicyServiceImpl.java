@@ -7,7 +7,6 @@ import com.survey.domain.repository.SurveyRepository;
 import com.survey.domain.repository.SurveySendingPolicyRepository;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,6 +82,7 @@ public class SurveySendingPolicyServiceImpl implements SurveySendingPolicyServic
 
         return surveySendingPolicies.stream()
                 .map(policy -> convertToDto(policy, surveyId))
+                .filter(dto -> !dto.getTimeSlots().isEmpty())
                 .collect(Collectors.toList());
     }
 
@@ -104,6 +104,13 @@ public class SurveySendingPolicyServiceImpl implements SurveySendingPolicyServic
     private SurveySendingPolicyDto convertToDto(SurveySendingPolicy policy, UUID surveyId) {
         SurveySendingPolicyDto dto = modelMapper.map(policy, SurveySendingPolicyDto.class);
         dto.setSurveyId(surveyId);
+
+        List<SurveySendingPolicyTimesDto> nonDeletedTimeSlots = policy.getTimeSlots().stream()
+                .filter(slot -> !slot.isDeleted())
+                .map(slot -> modelMapper.map(slot, SurveySendingPolicyTimesDto.class))
+                .toList();
+
+        dto.setTimeSlots(nonDeletedTimeSlots);
         return dto;
     }
 }
