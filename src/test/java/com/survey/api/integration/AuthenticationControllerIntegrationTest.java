@@ -19,16 +19,16 @@ import java.util.UUID;
 @ExtendWith(IntegrationTestDatabaseInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
-public class AuthenticationControllerTest{
+public class AuthenticationControllerIntegrationTest {
     private final WebTestClient webTestClient;
     private final ObjectMapper objectMapper;
     private final IdentityUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public AuthenticationControllerTest(WebTestClient webTestClient, ObjectMapper objectMapper,
-                                        IdentityUserRepository identityUserRepository,
-                                        PasswordEncoder passwordEncoder){
+    public AuthenticationControllerIntegrationTest(WebTestClient webTestClient, ObjectMapper objectMapper,
+                                                   IdentityUserRepository identityUserRepository,
+                                                   PasswordEncoder passwordEncoder){
 
         this.webTestClient = webTestClient;
         this.objectMapper = objectMapper;

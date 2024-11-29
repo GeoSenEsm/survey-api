@@ -59,7 +59,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         this.surveyParticipationTimeValidationService = surveyParticipationTimeValidationService;
     }
 
-    private Survey findSurveyById(UUID surveyId) {
+    Survey findSurveyById(UUID surveyId) {
         return surveyRepository.findById(surveyId)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid survey ID - survey doesn't exist"));
     }
@@ -69,16 +69,28 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     }
 
 
-    private SurveyParticipation saveSurveyParticipation(IdentityUser identityUser, Survey survey, OffsetDateTime startDate, OffsetDateTime finishDate, boolean isOnline) {
-        OffsetDateTime participationDate = isOnline
-                ? surveyParticipationTimeValidationService.getCorrectSurveyParticipationDateTimeOnline(identityUser.getId(), survey.getId(), startDate, finishDate)
-                : surveyParticipationTimeValidationService.getCorrectSurveyParticipationDateTimeOffline(identityUser.getId(), survey.getId(), startDate, finishDate);
-
-        if (participationDate == null && !isOnline) return null;
+    private SurveyParticipation saveSurveyParticipationOnline(IdentityUser identityUser, Survey survey, OffsetDateTime surveyStartDate, OffsetDateTime surveyFinishDate){
+        OffsetDateTime surveyParticipationDateToSave = surveyParticipationTimeValidationService
+                .getCorrectSurveyParticipationDateTimeOnline(identityUser.getId(), survey.getId(), surveyStartDate, surveyFinishDate);
 
         SurveyParticipation participation = new SurveyParticipation();
         participation.setIdentityUser(identityUser);
-        participation.setDate(participationDate);
+        participation.setDate(surveyParticipationDateToSave);
+        participation.setSurvey(survey);
+        return participation;
+    }
+
+    private SurveyParticipation saveSurveyParticipationOffline(IdentityUser identityUser, Survey survey, OffsetDateTime surveyStartDate, OffsetDateTime surveyFinishDate){
+        OffsetDateTime surveyParticipationDateToSave = surveyParticipationTimeValidationService
+                .getCorrectSurveyParticipationDateTimeOffline(identityUser.getId(), survey.getId(), surveyStartDate, surveyFinishDate);
+
+        if (surveyParticipationDateToSave == null){
+            return null;
+        }
+
+        SurveyParticipation participation = new SurveyParticipation();
+        participation.setIdentityUser(identityUser);
+        participation.setDate(surveyParticipationDateToSave);
         participation.setSurvey(survey);
         return participation;
     }
@@ -151,12 +163,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     public SurveyParticipationDto saveSurveyResponseOnline(SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto, String token) throws InvalidAttributeValueException {
         IdentityUser identityUser = claimsPrincipalServiceImpl.findIdentityUser();
         Survey survey = findSurveyById(sendOnlineSurveyResponseDto.getSurveyId());
-        SurveyParticipation surveyParticipation = saveSurveyParticipation(identityUser, survey, sendOnlineSurveyResponseDto.getStartDate(), sendOnlineSurveyResponseDto.getFinishDate(), true);
 
-        if (surveyParticipation == null) {
-            throw new IllegalArgumentException("Failed to save survey participation. Participation data is invalid or missing.");
-        }
-
+        SurveyParticipation surveyParticipation = saveSurveyParticipationOnline(identityUser, survey, sendOnlineSurveyResponseDto.getStartDate(), sendOnlineSurveyResponseDto.getFinishDate());
         SurveyParticipation finalSurveyParticipation = mapQuestionAnswers(sendOnlineSurveyResponseDto, surveyParticipation, survey);
         surveyParticipationRepository.save(finalSurveyParticipation);
         return mapToDto(finalSurveyParticipation, sendOnlineSurveyResponseDto, identityUser);
@@ -171,7 +179,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                 .filter(dto -> sendSurveyResponseDtoValidator.isValid(dto, null))
                 .map(dto -> {
                     Survey survey = findSurveyById(dto.getSurveyId());
-                    SurveyParticipation participation = saveSurveyParticipation(identityUser, survey, dto.getStartDate(), dto.getFinishDate(), false);
+                    SurveyParticipation participation = saveSurveyParticipationOffline(identityUser, survey, dto.getStartDate(), dto.getFinishDate());
                     if (participation == null) return null;
 
                     SurveyParticipation finalParticipation = mapQuestionAnswers(dto, participation, survey);

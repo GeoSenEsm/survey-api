@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,52 +29,49 @@ public class SurveyParticipationTimeValidationServiceImpl implements SurveyParti
 
     @Override
     public OffsetDateTime getCorrectSurveyParticipationDateTimeOnline(UUID identityUserId, UUID surveyId, OffsetDateTime surveyStartDate, OffsetDateTime surveyFinishDate) {
-        SurveyParticipationTimeSlot currentTimeSlot = validateAndFindTimeSlot(surveyId, surveyStartDate, identityUserId);
-
-        if (!isWithinTimeSlot(currentTimeSlot, surveyStartDate, surveyFinishDate)) {
-            throw new IllegalArgumentException("Start and finish dates do not fit within the time slot.");
+        SurveyParticipationTimeSlot timeSlot = getCurrentlyActiveTimesSlot(surveyId);
+        if (timeSlot == null){
+            throw new IllegalArgumentException("This survey does not have any currently active time slots.");
         }
 
-        return calculateParticipationDate(currentTimeSlot, surveyStartDate, surveyFinishDate);
+        if (!areSurveyStartAndFinishDatesWithinGivenTimeSlot(timeSlot, surveyStartDate, surveyFinishDate)){
+            throw new IllegalArgumentException("SurveyStartDate and/or surveyFinishDate do not fit in time slot.");
+        }
+
+        if (!isSurveyFinishDateBeforeCurrentTime(surveyFinishDate)){
+            throw new IllegalArgumentException("Survey finish date is from the future.");
+        }
+
+        if (hasRespondentParticipatedInSurveyInSpecifiedTimeSlot(surveyId, identityUserId, timeSlot)){
+            throw new IllegalArgumentException("Respondent already participated in this survey in this time slot.");
+        }
+
+        return getFinalSurveyParticipationDate(timeSlot, surveyStartDate, surveyFinishDate);
     }
 
     @Override
     public OffsetDateTime getCorrectSurveyParticipationDateTimeOffline(UUID identityUserId, UUID surveyId, OffsetDateTime surveyStartDate, OffsetDateTime surveyFinishDate) {
-        SurveyParticipationTimeSlot timeSlot = findTimeSlotForStartDate(surveyId, surveyStartDate);
+        SurveyParticipationTimeSlot timeSlot = findTimeSlotForSurveyStartDate(surveyId, surveyStartDate);
 
         if (timeSlot == null ||
-            hasExistingParticipation(surveyId, identityUserId, timeSlot) ||
-                !isWithinTimeSlot(timeSlot, surveyStartDate, surveyFinishDate)){
+                !isTimeslotInThePast(timeSlot) ||
+                !areSurveyStartAndFinishDatesWithinGivenTimeSlot(timeSlot, surveyStartDate, surveyFinishDate) ||
+                !isSurveyFinishDateBeforeCurrentTime(surveyFinishDate) ||
+                hasRespondentParticipatedInSurveyInSpecifiedTimeSlot(surveyId, identityUserId, timeSlot)) {
             return null;
         }
-
-        return calculateParticipationDate(timeSlot, surveyStartDate, surveyFinishDate);
+        return getFinalSurveyParticipationDate(timeSlot, surveyStartDate, surveyFinishDate);
     }
 
 
-
-    private SurveyParticipationTimeSlot validateAndFindTimeSlot(UUID surveyId, OffsetDateTime surveyStartDate, UUID identityUserId) {
-        SurveyParticipationTimeSlot timeSlot = findTimeSlotForStartDate(surveyId, surveyStartDate);
-
-        if (timeSlot == null) {
-            throw new IllegalArgumentException("No active time slot found for the given start date: " + surveyStartDate);
-        }
-
-        if (hasExistingParticipation(surveyId, identityUserId, timeSlot)) {
-            throw new IllegalArgumentException("Respondent already participated in this survey during the time slot: " +
-                    timeSlot.getStart() + " - " + timeSlot.getFinish());
-        }
-
-        return timeSlot;
+    private boolean isSurveyFinishDateBeforeCurrentTime(OffsetDateTime surveyFinishDate){
+        return surveyFinishDate.isBefore(OffsetDateTime.now(ZoneOffset.UTC));
     }
 
-    private SurveyParticipationTimeSlot findTimeSlotForStartDate(UUID surveyId, OffsetDateTime surveyStartDate) {
-        if (surveyStartDate.isAfter(OffsetDateTime.now())) {
-            return null;
-        }
+    private SurveyParticipationTimeSlot findTimeSlotForSurveyStartDate(UUID surveyId, OffsetDateTime surveyStartDate){
+        List<SurveySendingPolicy> sendingPolicies = surveySendingPolicyRepository.findAllBySurveyId(surveyId);
 
-        List<SurveySendingPolicy> policies = surveySendingPolicyRepository.findAllBySurveyId(surveyId);
-        return policies.stream()
+        return sendingPolicies.stream()
                 .flatMap(policy -> policy.getTimeSlots().stream())
                 .filter(slot -> !slot.isDeleted() &&
                         surveyStartDate.isAfter(slot.getStart()) &&
@@ -82,19 +80,35 @@ public class SurveyParticipationTimeValidationServiceImpl implements SurveyParti
                 .orElse(null);
     }
 
-    private boolean hasExistingParticipation(UUID surveyId, UUID respondentId, SurveyParticipationTimeSlot timeSlot) {
+    private SurveyParticipationTimeSlot getCurrentlyActiveTimesSlot(UUID surveyId){
+        List<SurveySendingPolicy> sendingPolicies = surveySendingPolicyRepository.findAllBySurveyId(surveyId);
+
+        return sendingPolicies.stream()
+                .flatMap(policy -> policy.getTimeSlots().stream())
+                .filter(slot -> !slot.isDeleted() &&
+                        OffsetDateTime.now(ZoneOffset.UTC).isAfter(slot.getStart()) &&
+                        OffsetDateTime.now(ZoneOffset.UTC).isBefore(slot.getFinish().plusMinutes(ALLOWED_LATE_MINUTES)))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean isTimeslotInThePast(SurveyParticipationTimeSlot timeSlot){
+        return timeSlot.getStart().isBefore(OffsetDateTime.now(ZoneOffset.UTC))
+                && timeSlot.getFinish().isBefore(OffsetDateTime.now(ZoneOffset.UTC));
+    }
+
+    private boolean areSurveyStartAndFinishDatesWithinGivenTimeSlot(SurveyParticipationTimeSlot timeSlot, OffsetDateTime surveyStartDate, OffsetDateTime surveyFinishDate){
+        return surveyStartDate.isBefore(surveyFinishDate) &&
+                surveyStartDate.isAfter(timeSlot.getStart()) &&
+                surveyFinishDate.isBefore(timeSlot.getFinish().plusMinutes(ALLOWED_LATE_MINUTES));
+    }
+
+    private boolean hasRespondentParticipatedInSurveyInSpecifiedTimeSlot(UUID surveyId, UUID respondentId, SurveyParticipationTimeSlot timeSlot){
         return surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(surveyId, respondentId, timeSlot.getStart(), timeSlot.getFinish());
     }
 
-    private boolean isWithinTimeSlot(SurveyParticipationTimeSlot timeSlot, OffsetDateTime startDate, OffsetDateTime finishDate) {
-        return startDate.isBefore(finishDate) &&
-                startDate.isAfter(timeSlot.getStart()) &&
-                startDate.isBefore(timeSlot.getFinish()) &&
-                finishDate.isBefore(timeSlot.getFinish().plusMinutes(ALLOWED_LATE_MINUTES));
-    }
-
-    private OffsetDateTime calculateParticipationDate(SurveyParticipationTimeSlot timeSlot, OffsetDateTime startDate, OffsetDateTime finishDate) {
-        return finishDate.isBefore(timeSlot.getFinish()) ? finishDate : startDate;
+    private OffsetDateTime getFinalSurveyParticipationDate(SurveyParticipationTimeSlot timeSlot, OffsetDateTime surveyStartDate, OffsetDateTime surveyFinishDate){
+        return surveyFinishDate.isBefore(timeSlot.getFinish()) ? surveyFinishDate : surveyStartDate;
     }
 
 }

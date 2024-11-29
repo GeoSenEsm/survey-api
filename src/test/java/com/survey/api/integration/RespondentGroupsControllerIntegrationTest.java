@@ -20,12 +20,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @ExtendWith(IntegrationTestDatabaseInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
-public class RespondentGroupsIntegrationTest {
+public class RespondentGroupsControllerIntegrationTest {
     private final WebTestClient webTestClient;
     private final RespondentGroupRepository repository;
 
     @Autowired
-    public RespondentGroupsIntegrationTest(WebTestClient webTestClient, RespondentGroupRepository repository) {
+    public RespondentGroupsControllerIntegrationTest(WebTestClient webTestClient, RespondentGroupRepository repository) {
         this.webTestClient = webTestClient;
         this.repository = repository;
     }

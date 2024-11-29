@@ -31,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(IntegrationTestDatabaseInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
-public class SensorDataIntegrationTest {
+public class SensorDataControllerIntegrationTest {
     private static final BigDecimal VALID_TEMPERATURE = new BigDecimal("21.5");
     private static final BigDecimal VALID_HUMIDITY = new BigDecimal("60.4");
 
@@ -43,7 +43,7 @@ public class SensorDataIntegrationTest {
     private final AuthenticationManager authenticationManager;
 
     @Autowired
-    public SensorDataIntegrationTest(WebTestClient webTestClient, IdentityUserRepository userRepository, PasswordEncoder passwordEncoder, TokenProvider tokenProvider, SensorDataRepository sensorDataRepository, AuthenticationManager authenticationManager) {
+    public SensorDataControllerIntegrationTest(WebTestClient webTestClient, IdentityUserRepository userRepository, PasswordEncoder passwordEncoder, TokenProvider tokenProvider, SensorDataRepository sensorDataRepository, AuthenticationManager authenticationManager) {
         this.webTestClient = webTestClient;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
