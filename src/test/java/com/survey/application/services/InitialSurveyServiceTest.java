@@ -70,9 +70,10 @@ class InitialSurveyServiceTest {
         assertEquals(QUESTION_ORDER, responseDtoList.get(0).getOrder());
         assertEquals(OPTION_ORDER, responseDtoList.get(0).getOptions().get(0).getOrder());
     }
+
     @Test
     void getInitialSurvey_ShouldThrowNoSuchElementException_WhenNoSurveyExists() {
-        when(initialSurveyRepository.findTopByOrderByIdAsc()).thenReturn(Optional.empty());
+        when(initialSurveyRepository.findTopByRowVersionDesc()).thenReturn(Optional.empty());
 
         NoSuchElementException exception = assertThrows(
                 NoSuchElementException.class,

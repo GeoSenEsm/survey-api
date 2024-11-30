@@ -1,7 +1,8 @@
 package com.survey.api.controllers;
 
 import com.survey.application.dtos.SurveyResultDto;
-import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
+import com.survey.application.dtos.surveyDtos.SendOfflineSurveyResponseDto;
+import com.survey.application.dtos.surveyDtos.SendOnlineSurveyResponseDto;
 import com.survey.application.dtos.surveyDtos.SurveyParticipationDto;
 import com.survey.application.services.SurveyResponsesService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -29,12 +30,21 @@ public class SurveyResponsesController {
     public SurveyResponsesController(SurveyResponsesService surveyResponsesService){
         this.surveyResponsesService = surveyResponsesService;
     }
+
     @CrossOrigin
     @PostMapping
     @SecurityRequirement(name = "bearerAuth")
-    public ResponseEntity<SurveyParticipationDto> saveSurveyResponse(@Validated @RequestBody SendSurveyResponseDto sendSurveyResponseDto, @RequestHeader(value="Authorization", required = false) String token) throws InvalidAttributeValueException {
-        SurveyParticipationDto surveyParticipationDto = surveyResponsesService.saveSurveyResponse(sendSurveyResponseDto, token);
+    public ResponseEntity<SurveyParticipationDto> saveSurveyResponseOnline(@Validated @RequestBody SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto, @RequestHeader(value="Authorization", required = false) String token) throws InvalidAttributeValueException {
+        SurveyParticipationDto surveyParticipationDto = surveyResponsesService.saveSurveyResponseOnline(sendOnlineSurveyResponseDto, token);
         return ResponseEntity.status(HttpStatus.CREATED).body(surveyParticipationDto);
+    }
+
+    @CrossOrigin
+    @PostMapping("/offline")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<List<SurveyParticipationDto>> saveSurveyResponseOffline(@RequestBody List<SendOfflineSurveyResponseDto> sendOfflineSurveyResponseDtoList){
+        List<SurveyParticipationDto> surveyParticipationDtoList = surveyResponsesService.saveSurveyResponsesOffline(sendOfflineSurveyResponseDtoList);
+        return ResponseEntity.status(HttpStatus.CREATED).body(surveyParticipationDtoList);
     }
 
     @GetMapping("/results")

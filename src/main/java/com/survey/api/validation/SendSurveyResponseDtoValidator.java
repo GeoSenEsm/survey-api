@@ -1,34 +1,31 @@
 package com.survey.api.validation;
 
 import com.survey.application.dtos.RespondentGroupDto;
-import com.survey.application.dtos.SurveySendingPolicyDto;
 import com.survey.application.dtos.surveyDtos.AnswerDto;
 import com.survey.application.dtos.surveyDtos.SelectedOptionDto;
 import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.RespondentGroupService;
-import com.survey.application.services.SurveySendingPolicyService;
-import com.survey.domain.models.Option;
-import com.survey.domain.models.Question;
-import com.survey.domain.models.Survey;
-import com.survey.domain.models.SurveySection;
+import com.survey.domain.models.*;
 import com.survey.domain.repository.OptionRepository;
 import com.survey.domain.repository.RespondentDataRepository;
 import com.survey.domain.repository.SurveyRepository;
+import com.survey.domain.repository.SurveySendingPolicyRepository;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
 
+@Component
 public class SendSurveyResponseDtoValidator
 implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
 
     private final SurveyRepository surveyRepository;
-    private final SurveySendingPolicyService surveySendingPolicyService;
+    private final SurveySendingPolicyRepository surveySendingPolicyRepository;
     private final RespondentGroupService respondentGroupService;
     private final ClaimsPrincipalService claimsPrincipalService;
     private final RespondentDataRepository respondentDataRepository;
@@ -38,14 +35,14 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
 
 
     public SendSurveyResponseDtoValidator(SurveyRepository surveyRepository,
-                                          SurveySendingPolicyService surveySendingPolicyService,
+                                          SurveySendingPolicyRepository surveySendingPolicyRepository,
                                           RespondentGroupService respondentGroupService,
                                           ClaimsPrincipalService claimsPrincipalService,
                                           RespondentDataRepository respondentDataRepository,
                                           OptionRepository optionRepository){
 
         this.surveyRepository = surveyRepository;
-        this.surveySendingPolicyService = surveySendingPolicyService;
+        this.surveySendingPolicyRepository = surveySendingPolicyRepository;
         this.respondentGroupService = respondentGroupService;
         this.claimsPrincipalService = claimsPrincipalService;
         this.respondentDataRepository = respondentDataRepository;
@@ -59,31 +56,23 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         if (
                 sendSurveyResponseDto == null ||
                 sendSurveyResponseDto.getSurveyId() == null ||
+                sendSurveyResponseDto.getStartDate() == null ||
+                sendSurveyResponseDto.getFinishDate() == null ||
                 sendSurveyResponseDto.getAnswers() == null)
         {
-            constraintValidatorContext
-                    .buildConstraintViolationWithTemplate("Survey response data is invalid")
-                    .addPropertyNode("surveyId")
-                    .addConstraintViolation();
+            addConstraintViolation(constraintValidatorContext, "Survey response data is invalid", "surveyId");
             return false;
         }
 
         Optional<Survey> surveyOptional = surveyRepository.findById(sendSurveyResponseDto.getSurveyId());
 
         if (surveyOptional.isEmpty()){
-            constraintValidatorContext
-                    .buildConstraintViolationWithTemplate("This survey does not exist")
-                    .addPropertyNode("surveyId")
-                    .addConstraintViolation();
+            addConstraintViolation(constraintValidatorContext, "This survey does not exist", "surveyId");
             return false;
         }
 
         Survey survey = surveyOptional.get();
         boolean isValid = true;
-
-        if (!validateIfTheSurveyIsActive(survey.getId(), constraintValidatorContext)) {
-            return false;
-        }
 
         if (!validateAllRequiredQuestionsAnswered(survey, sendSurveyResponseDto.getAnswers(), constraintValidatorContext)) {
             return false;
@@ -106,10 +95,7 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         for (AnswerDto answerDto : sendSurveyResponseDto.getAnswers()){
             answerFoundMappings.put(answerDto.getQuestionId(), true);
             if (!questionIdMappings.containsKey(answerDto.getQuestionId())){
-                constraintValidatorContext
-                        .buildConstraintViolationWithTemplate("Each answer must match an existing question for specified survey")
-                        .addPropertyNode("answers")
-                        .addConstraintViolation();
+                addConstraintViolation(constraintValidatorContext, "Each answer must match an existing question for specified survey", "answers");
                 isValid = false;
                 continue;
             }
@@ -136,26 +122,17 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
     private boolean validateNumericAnswer(AnswerDto answerDto, ConstraintValidatorContext ctx, String answerTypeName) {
         boolean result = true;
         if (answerDto.getNumericAnswer() == null){
-            ctx
-                    .buildConstraintViolationWithTemplate(answerTypeName + " must have a numeric value")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
+            addConstraintViolation(ctx, answerTypeName + " must have a numeric value", "answers");
             result = false;
         }
 
         if (answerDto.getSelectedOptions() != null && !answerDto.getSelectedOptions().isEmpty()){
-            ctx
-                    .buildConstraintViolationWithTemplate(answerTypeName + " must not have a selected options")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
+            addConstraintViolation(ctx, answerTypeName + " must not have a selected options", "answers");
             result = false;
         }
 
         if (answerDto.getYesNoAnswer() != null){
-            ctx
-                    .buildConstraintViolationWithTemplate(answerTypeName + " answer must not have a yes/no answer specified")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
+            addConstraintViolation(ctx, answerTypeName + " answer must not have a yes/no answer specified", "answers");
             result = false;
         }
         return result;
@@ -164,26 +141,17 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
     private boolean validateYesNoAnswer(AnswerDto answerDto, ConstraintValidatorContext ctx){
         boolean result = true;
         if (answerDto.getNumericAnswer() != null){
-            ctx
-                    .buildConstraintViolationWithTemplate("'Yes/No' answer must not have a numeric value")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
+            addConstraintViolation(ctx, "'Yes/No' answer must not have a numeric value", "answers");
             result = false;
         }
 
         if (answerDto.getSelectedOptions() != null && !answerDto.getSelectedOptions().isEmpty()){
-            ctx
-                    .buildConstraintViolationWithTemplate("'Yes/No' answer must not have a selected options")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
+            addConstraintViolation(ctx, "'Yes/No' answer must not have a selected options", "answers");
             result = false;
         }
 
         if (answerDto.getYesNoAnswer() == null){
-            ctx
-                    .buildConstraintViolationWithTemplate("'Yes/No' answer must have a yes/no answer specified")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
+            addConstraintViolation(ctx, "'Yes/No' answer must have a yes/no answer specified", "answers");
             result = false;
         }
 
@@ -196,9 +164,7 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         if (result) {
             if (answerDto.getNumericAnswer() > question.getNumberRange().getTo() ||
                     answerDto.getNumericAnswer() < question.getNumberRange().getFrom()) {
-                ctx.buildConstraintViolationWithTemplate("Answer violates a number range constraint")
-                        .addPropertyNode("answers")
-                        .addConstraintViolation();
+                addConstraintViolation(ctx, "Answer violates a number range constraint", "answers");
                 result = false;
             }
         }
@@ -210,35 +176,23 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         boolean multiple = questionTypeName.equals("Multiple");
         boolean result = true;
         if (answerDto.getNumericAnswer() != null){
-            ctx
-                    .buildConstraintViolationWithTemplate(questionTypeName + " choice answer must not have a numeric value")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
+            addConstraintViolation(ctx, questionTypeName + " choice answer must not have a numeric value", "answers");
             result = false;
         }
 
         if (answerDto.getYesNoAnswer() != null){
-            ctx
-                    .buildConstraintViolationWithTemplate(questionTypeName + " choice answer must not have a yes/no answer specified")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
+            addConstraintViolation(ctx, questionTypeName + " choice answer must not have a yes/no answer specified", "answers");
             result = false;
         }
 
         List<SelectedOptionDto> selectedOptions = answerDto.getSelectedOptions();
         if (!multiple && (selectedOptions == null || selectedOptions.size() != 1)){
-            ctx
-                    .buildConstraintViolationWithTemplate(questionTypeName + " choice answer must have exactly one selected option")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
+            addConstraintViolation(ctx, questionTypeName + " choice answer must have exactly one selected option", "answers");
             result = false;
         }
 
         if (multiple && (selectedOptions == null || selectedOptions.isEmpty())){
-            ctx
-                    .buildConstraintViolationWithTemplate(questionTypeName + " choice answer must have at least one selected option")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
+            addConstraintViolation(ctx, questionTypeName + " choice answer must have at least one selected option", "answers");
             result = false;
         }
 
@@ -249,35 +203,10 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
                 .collect(Collectors.toCollection(HashSet::new));
 
         if (selectedOptions != null && selectedOptions.stream().anyMatch(x -> !optionsIds.contains(x.getOptionId()))){
-            ctx
-                    .buildConstraintViolationWithTemplate(questionTypeName + " choice answer must have a selected option matching available option for the proper question")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
-
+            addConstraintViolation(ctx, questionTypeName + " choice answer must have a selected option matching available option for the proper question", "answers");
             result = false;
         }
         return result;
-    }
-
-    private boolean validateIfTheSurveyIsActive(UUID surveyId, ConstraintValidatorContext ctx){
-        OffsetDateTime now = OffsetDateTime.now();
-
-        List<SurveySendingPolicyDto> activeTimeSlots = surveySendingPolicyService.getSurveysSendingPolicyById(surveyId);
-
-        boolean isActive = activeTimeSlots.stream().anyMatch(policy ->
-                policy.getTimeSlots().stream().anyMatch(slot ->
-                        now.isAfter(slot.getStart()) && now.isBefore(slot.getFinish())
-                )
-        );
-
-        if (!isActive) {
-            ctx.buildConstraintViolationWithTemplate("The survey is not active")
-                    .addPropertyNode("surveyId")
-                    .addConstraintViolation();
-            return false;
-        }
-
-        return true;
     }
 
     private boolean isVisibleToParticipant(SurveySection section, List<AnswerDto> answers) {
@@ -300,9 +229,7 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
                 ).findAny().isEmpty();
 
         if (!allRequiredQuestionsAnswered) {
-            ctx.buildConstraintViolationWithTemplate("All required questions must be answered")
-                    .addPropertyNode("answers")
-                    .addConstraintViolation();
+            addConstraintViolation(ctx, "All required questions must be answered", "answers");
         }
 
         return allRequiredQuestionsAnswered;
@@ -338,5 +265,15 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         }
         return false;
     }
+
+    private void addConstraintViolation(ConstraintValidatorContext ctx, String message, String propertyNode) {
+        if (ctx != null) {
+            ctx
+                    .buildConstraintViolationWithTemplate(message)
+                    .addPropertyNode(propertyNode)
+                    .addConstraintViolation();
+        }
+    }
+
 }
 

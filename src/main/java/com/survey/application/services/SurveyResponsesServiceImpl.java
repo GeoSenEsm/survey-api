@@ -1,16 +1,12 @@
 package com.survey.application.services;
 
+import com.survey.api.validation.SendSurveyResponseDtoValidator;
 import com.survey.application.dtos.LocalizationPointDto;
 import com.survey.application.dtos.SurveyResultDto;
-import com.survey.application.dtos.surveyDtos.AnswerDto;
-import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
-import com.survey.application.dtos.surveyDtos.SurveyParticipationDto;
+import com.survey.application.dtos.surveyDtos.*;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.QuestionType;
-import com.survey.domain.repository.OptionRepository;
-import com.survey.domain.repository.QuestionRepository;
-import com.survey.domain.repository.SurveyParticipationRepository;
-import com.survey.domain.repository.SurveyRepository;
+import com.survey.domain.repository.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import org.modelmapper.ModelMapper;
@@ -21,7 +17,6 @@ import org.springframework.web.context.annotation.RequestScope;
 
 import javax.management.InvalidAttributeValueException;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -30,33 +25,41 @@ import java.util.stream.Stream;
 @RequestScope
 public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final SurveyParticipationRepository surveyParticipationRepository;
+    private final SurveySendingPolicyRepository surveySendingPolicyRepository;
     private final SurveyRepository surveyRepository;
     private final OptionRepository optionRepository;
     private final QuestionRepository questionRepository;
     private final ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl;
     private final ModelMapper modelMapper;
     private final EntityManager entityManager;
+    private final SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator;
+    private final SurveyParticipationTimeValidationService surveyParticipationTimeValidationService;
+
 
 
     @Autowired
     public SurveyResponsesServiceImpl(
             SurveyParticipationRepository surveyParticipationRepository,
+            SurveySendingPolicyRepository surveySendingPolicyRepository,
             SurveyRepository surveyRepository,
             OptionRepository optionRepository,
             QuestionRepository questionRepository,
             ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl,
             ModelMapper modelMapper,
-            EntityManager entityManager) {
+            EntityManager entityManager, SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator, SurveyParticipationTimeValidationService surveyParticipationTimeValidationService) {
         this.surveyParticipationRepository = surveyParticipationRepository;
+        this.surveySendingPolicyRepository = surveySendingPolicyRepository;
         this.surveyRepository = surveyRepository;
         this.optionRepository = optionRepository;
         this.questionRepository = questionRepository;
         this.claimsPrincipalServiceImpl = claimsPrincipalServiceImpl;
         this.modelMapper = modelMapper;
         this.entityManager = entityManager;
+        this.sendSurveyResponseDtoValidator = sendSurveyResponseDtoValidator;
+        this.surveyParticipationTimeValidationService = surveyParticipationTimeValidationService;
     }
 
-    private Survey findSurveyById(UUID surveyId) {
+    Survey findSurveyById(UUID surveyId) {
         return surveyRepository.findById(surveyId)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid survey ID - survey doesn't exist"));
     }
@@ -66,13 +69,32 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     }
 
 
-    private SurveyParticipation saveSurveyParticipation(IdentityUser identityUser, Survey survey) {
-        SurveyParticipation surveyParticipation = new SurveyParticipation();
-        surveyParticipation.setIdentityUser(identityUser);
-        surveyParticipation.setDate(OffsetDateTime.now(ZoneOffset.UTC));
-        surveyParticipation.setSurvey(survey);
-        return surveyParticipation;
+    private SurveyParticipation saveSurveyParticipationOnline(IdentityUser identityUser, Survey survey, OffsetDateTime surveyStartDate, OffsetDateTime surveyFinishDate){
+        OffsetDateTime surveyParticipationDateToSave = surveyParticipationTimeValidationService
+                .getCorrectSurveyParticipationDateTimeOnline(identityUser.getId(), survey.getId(), surveyStartDate, surveyFinishDate);
+
+        SurveyParticipation participation = new SurveyParticipation();
+        participation.setIdentityUser(identityUser);
+        participation.setDate(surveyParticipationDateToSave);
+        participation.setSurvey(survey);
+        return participation;
     }
+
+    private SurveyParticipation saveSurveyParticipationOffline(IdentityUser identityUser, Survey survey, OffsetDateTime surveyStartDate, OffsetDateTime surveyFinishDate){
+        OffsetDateTime surveyParticipationDateToSave = surveyParticipationTimeValidationService
+                .getCorrectSurveyParticipationDateTimeOffline(identityUser.getId(), survey.getId(), surveyStartDate, surveyFinishDate);
+
+        if (surveyParticipationDateToSave == null){
+            return null;
+        }
+
+        SurveyParticipation participation = new SurveyParticipation();
+        participation.setIdentityUser(identityUser);
+        participation.setDate(surveyParticipationDateToSave);
+        participation.setSurvey(survey);
+        return participation;
+    }
+
     private Map<UUID, Option> findOptionsBySurveyId(List<UUID> questionIds) {
         return optionRepository.findByQuestionIdIn(questionIds)
                 .stream()
@@ -138,14 +160,36 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
 
     @Override
     @Transactional
-    public SurveyParticipationDto saveSurveyResponse(SendSurveyResponseDto sendSurveyResponseDto, String token) throws InvalidAttributeValueException {
+    public SurveyParticipationDto saveSurveyResponseOnline(SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto, String token) throws InvalidAttributeValueException {
         IdentityUser identityUser = claimsPrincipalServiceImpl.findIdentityUser();
-        Survey survey = findSurveyById(sendSurveyResponseDto.getSurveyId());
-        SurveyParticipation surveyParticipation = saveSurveyParticipation(identityUser, survey);
-        SurveyParticipation finalSurveyParticipation = mapQuestionAnswers(sendSurveyResponseDto, surveyParticipation, survey);
+        Survey survey = findSurveyById(sendOnlineSurveyResponseDto.getSurveyId());
+
+        SurveyParticipation surveyParticipation = saveSurveyParticipationOnline(identityUser, survey, sendOnlineSurveyResponseDto.getStartDate(), sendOnlineSurveyResponseDto.getFinishDate());
+        SurveyParticipation finalSurveyParticipation = mapQuestionAnswers(sendOnlineSurveyResponseDto, surveyParticipation, survey);
         surveyParticipationRepository.save(finalSurveyParticipation);
-        return mapToDto(finalSurveyParticipation, sendSurveyResponseDto, identityUser);
+        return mapToDto(finalSurveyParticipation, sendOnlineSurveyResponseDto, identityUser);
     }
+
+    @Override
+    @Transactional
+    public List<SurveyParticipationDto> saveSurveyResponsesOffline(List<SendOfflineSurveyResponseDto> sendOfflineSurveyResponseDtoList) {
+        IdentityUser identityUser = claimsPrincipalServiceImpl.findIdentityUser();
+
+        return sendOfflineSurveyResponseDtoList.stream()
+                .filter(dto -> sendSurveyResponseDtoValidator.isValid(dto, null))
+                .map(dto -> {
+                    Survey survey = findSurveyById(dto.getSurveyId());
+                    SurveyParticipation participation = saveSurveyParticipationOffline(identityUser, survey, dto.getStartDate(), dto.getFinishDate());
+                    if (participation == null) return null;
+
+                    SurveyParticipation finalParticipation = mapQuestionAnswers(dto, participation, survey);
+                    surveyParticipationRepository.save(finalParticipation);
+                    return mapToDto(finalParticipation, dto, identityUser);
+                })
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
 
     @Override
     @Transactional

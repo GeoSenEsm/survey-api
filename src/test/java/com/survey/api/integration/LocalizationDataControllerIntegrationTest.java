@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(IntegrationTestDatabaseInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
-public class LocalizationDataIntegrationTest {
+public class LocalizationDataControllerIntegrationTest {
     private static final BigDecimal VALID_LATITUDE = new BigDecimal("52.237049");
     private static final BigDecimal VALID_LONGITUDE = new BigDecimal("21.017532");
     private static final BigDecimal INVALID_LATITUDE = new BigDecimal("60.237049");
@@ -46,7 +46,7 @@ public class LocalizationDataIntegrationTest {
     private final ResearchAreaRepository researchAreaRepository;
 
     @Autowired
-    public LocalizationDataIntegrationTest(WebTestClient webTestClient, IdentityUserRepository userRepository, PasswordEncoder passwordEncoder, TokenProvider tokenProvider, LocalizationDataRepository localizationDataRepository, AuthenticationManager authenticationManager, ResearchAreaRepository researchAreaRepository) {
+    public LocalizationDataControllerIntegrationTest(WebTestClient webTestClient, IdentityUserRepository userRepository, PasswordEncoder passwordEncoder, TokenProvider tokenProvider, LocalizationDataRepository localizationDataRepository, AuthenticationManager authenticationManager, ResearchAreaRepository researchAreaRepository) {
         this.webTestClient = webTestClient;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;

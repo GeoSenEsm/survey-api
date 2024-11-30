@@ -5,7 +5,7 @@ import com.survey.application.dtos.SurveySendingPolicyDto;
 import com.survey.application.dtos.SurveySendingPolicyTimesDto;
 import com.survey.application.dtos.surveyDtos.AnswerDto;
 import com.survey.application.dtos.surveyDtos.SelectedOptionDto;
-import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
+import com.survey.application.dtos.surveyDtos.SendOnlineSurveyResponseDto;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.RespondentGroupService;
 import com.survey.application.services.SurveySendingPolicyService;
@@ -36,7 +36,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class SendSurveyResponseDtoValidatorTest {
+class SendOnlineSurveyResponseDtoValidatorTest {
 
     @Mock
     private SurveyRepository surveyRepository;
@@ -71,8 +71,10 @@ class SendSurveyResponseDtoValidatorTest {
     @Test
     void shouldFailWhenSurveyDoesNotExist() {
         UUID surveyId = UUID.randomUUID();
-        SendSurveyResponseDto dto = new SendSurveyResponseDto();
+        SendOnlineSurveyResponseDto dto = new SendOnlineSurveyResponseDto();
         dto.setSurveyId(surveyId);
+        dto.setStartDate(OffsetDateTime.now());
+        dto.setFinishDate(OffsetDateTime.now().plusHours(1));
         dto.setAnswers(Collections.emptyList());
 
         boolean isValid = validator.isValid(dto, context);
@@ -93,7 +95,7 @@ class SendSurveyResponseDtoValidatorTest {
         AnswerDto answerDto = new AnswerDto();
         answerDto.setQuestionId(questionId);
 
-        SendSurveyResponseDto dto = new SendSurveyResponseDto();
+        SendOnlineSurveyResponseDto dto = new SendOnlineSurveyResponseDto();
         dto.setSurveyId(surveyId);
         dto.setAnswers(Collections.singletonList(answerDto));
 
@@ -104,7 +106,7 @@ class SendSurveyResponseDtoValidatorTest {
 
     @ParameterizedTest
     @MethodSource("getValidDataWithSingleQuestionSurvey")
-    void shouldPassWithAnswerMatchingQuestionType(Survey survey, SendSurveyResponseDto response) {
+    void shouldPassWithAnswerMatchingQuestionType(Survey survey, SendOnlineSurveyResponseDto response) {
         when(surveyRepository.findById(survey.getId())).thenReturn(Optional.of(survey));
         when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
                 .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
@@ -215,8 +217,10 @@ class SendSurveyResponseDtoValidatorTest {
                         ),
                         null
                 ),
-                new SendSurveyResponseDto(
+                new SendOnlineSurveyResponseDto(
                         surveyId,
+                        OffsetDateTime.now(),
+                        OffsetDateTime.now().plusMinutes(1),
                         Stream.of(
                                 answerDto
                         ).collect(Collectors.toList())
@@ -226,7 +230,7 @@ class SendSurveyResponseDtoValidatorTest {
 
     @ParameterizedTest
     @MethodSource("getInvalidDataWithSingleQuestion")
-    void shouldFailWhenSingleAnswerIsInvalidOrMissing(Survey survey, SendSurveyResponseDto response) {
+    void shouldFailWhenSingleAnswerIsInvalidOrMissing(Survey survey, SendOnlineSurveyResponseDto response) {
         when(surveyRepository.findById(survey.getId())).thenReturn(Optional.of(survey));
         when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
                 .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
@@ -526,49 +530,6 @@ class SendSurveyResponseDtoValidatorTest {
         );
     }
 
-    @Test
-    void shouldFailWhenSurveyDoesNotHaveSendingPolicy() {
-        UUID surveyId = UUID.randomUUID();
-        SendSurveyResponseDto sendSurveyResponseDto = new SendSurveyResponseDto();
-        sendSurveyResponseDto.setSurveyId(surveyId);
-        sendSurveyResponseDto.setAnswers(List.of());
-
-        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(new Survey()));
-        when(surveySendingPolicyService.getSurveysSendingPolicyById(surveyId))
-                .thenReturn(List.of());
-
-        boolean isValid = validator.isValid(sendSurveyResponseDto, context);
-
-        assertFalse(isValid);
-        verify(context).buildConstraintViolationWithTemplate("The survey is not active");
-    }
-
-    @Test
-    void shouldFailWhenSurveyIsNotActive() {
-        UUID surveyId = UUID.randomUUID();
-        SendSurveyResponseDto sendSurveyResponseDto = new SendSurveyResponseDto();
-        sendSurveyResponseDto.setSurveyId(surveyId);
-        sendSurveyResponseDto.setAnswers(List.of());
-
-        SurveySendingPolicyTimesDto pastTimeSlot = new SurveySendingPolicyTimesDto();
-        pastTimeSlot.setStart(OffsetDateTime.now().minusDays(2));
-        pastTimeSlot.setFinish(OffsetDateTime.now().minusDays(1));
-
-        SurveySendingPolicyDto invalidPolicy = new SurveySendingPolicyDto();
-        invalidPolicy.setId(UUID.randomUUID());
-        invalidPolicy.setSurveyId(surveyId);
-        invalidPolicy.setTimeSlots(List.of(pastTimeSlot));
-
-        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(new Survey()));
-        when(surveySendingPolicyService.getSurveysSendingPolicyById(surveyId))
-                .thenReturn(List.of(invalidPolicy));
-
-        boolean isValid = validator.isValid(sendSurveyResponseDto, context);
-
-        assertFalse(isValid);
-        verify(context).buildConstraintViolationWithTemplate("The survey is not active");
-    }
-
     private SurveySendingPolicyDto validSurveySendingPolicy(UUID surveyId) {
         SurveySendingPolicyTimesDto pastTimeSlot = new SurveySendingPolicyTimesDto();
         pastTimeSlot.setStart(OffsetDateTime.now().minusDays(2));
@@ -616,8 +577,10 @@ class SendSurveyResponseDtoValidatorTest {
         when(respondentDataRepository.findByIdentityUserId(userId)).thenReturn(respondent);
         when(respondentGroupService.getRespondentGroups(respondent.getId()))
                 .thenReturn(respondentGroups);
-        SendSurveyResponseDto dto = new SendSurveyResponseDto();
+        SendOnlineSurveyResponseDto dto = new SendOnlineSurveyResponseDto();
         dto.setSurveyId(surveyID);
+        dto.setStartDate(OffsetDateTime.now());
+        dto.setFinishDate(OffsetDateTime.now().plusMinutes(1));
         dto.setAnswers(new ArrayList<>());
         boolean isValid = validator.isValid(dto, context);
         assertTrue(isValid);
@@ -659,7 +622,7 @@ class SendSurveyResponseDtoValidatorTest {
         when(respondentDataRepository.findByIdentityUserId(userId)).thenReturn(respondent);
         when(respondentGroupService.getRespondentGroups(respondent.getId()))
                 .thenReturn(respondentGroups);
-        SendSurveyResponseDto dto = new SendSurveyResponseDto();
+        SendOnlineSurveyResponseDto dto = new SendOnlineSurveyResponseDto();
         dto.setSurveyId(surveyID);
         dto.setAnswers(new ArrayList<>());
         boolean isValid = validator.isValid(dto, context);
@@ -711,8 +674,10 @@ class SendSurveyResponseDtoValidatorTest {
         when(optionRepository.findByIdIn(Stream.of(firstQuestionSelectedAnswerId).toList()))
                 .thenReturn(Stream.of(optionToBeSelected).toList());
 
-        SendSurveyResponseDto response = new SendSurveyResponseDto()
+        SendOnlineSurveyResponseDto response = new SendOnlineSurveyResponseDto()
                 .setSurveyId(surveyId)
+                .setStartDate(OffsetDateTime.now())
+                .setFinishDate(OffsetDateTime.now().plusMinutes(1))
                 .setAnswers(Stream.of(
                         new AnswerDto()
                                 .setQuestionId(firstQuestionId)
@@ -771,7 +736,7 @@ class SendSurveyResponseDtoValidatorTest {
         when(optionRepository.findByIdIn(Stream.of(firstQuestionSelectedAnswerId).toList()))
                 .thenReturn(Stream.of(optionToBeSelected).toList());
 
-        SendSurveyResponseDto response = new SendSurveyResponseDto()
+        SendOnlineSurveyResponseDto response = new SendOnlineSurveyResponseDto()
                 .setSurveyId(surveyId)
                 .setAnswers(Stream.of(
                         new AnswerDto()
@@ -833,8 +798,10 @@ class SendSurveyResponseDtoValidatorTest {
         when(optionRepository.findByIdIn(Stream.of(firstQuestionSelectedAnswerId).toList()))
                 .thenReturn(Stream.of(optionToBeSelected).toList());
 
-        SendSurveyResponseDto response = new SendSurveyResponseDto()
+        SendOnlineSurveyResponseDto response = new SendOnlineSurveyResponseDto()
                 .setSurveyId(surveyId)
+                .setStartDate(OffsetDateTime.now())
+                .setFinishDate(OffsetDateTime.now().plusMinutes(1))
                 .setAnswers(Stream.of(
                         new AnswerDto()
                                 .setQuestionId(firstQuestionId)
@@ -884,8 +851,10 @@ class SendSurveyResponseDtoValidatorTest {
         when(optionRepository.findByIdIn(options.stream().map(Option::getId).toList()))
                 .thenReturn(options);
 
-        SendSurveyResponseDto response = new SendSurveyResponseDto()
+        SendOnlineSurveyResponseDto response = new SendOnlineSurveyResponseDto()
                 .setSurveyId(surveyId)
+                .setStartDate(OffsetDateTime.now())
+                .setFinishDate(OffsetDateTime.now().plusMinutes(1))
                 .setAnswers(Stream.of(
                         new AnswerDto()
                                 .setQuestionId(questionId)
@@ -933,7 +902,7 @@ class SendSurveyResponseDtoValidatorTest {
         when(optionRepository.findByIdIn(options.stream().map(Option::getId).toList()))
                 .thenReturn(options);
 
-        SendSurveyResponseDto response = new SendSurveyResponseDto()
+        SendOnlineSurveyResponseDto response = new SendOnlineSurveyResponseDto()
                 .setSurveyId(surveyId)
                 .setAnswers(Stream.of(
                         new AnswerDto()
@@ -983,7 +952,7 @@ class SendSurveyResponseDtoValidatorTest {
         when(optionRepository.findByIdIn(options.stream().map(Option::getId).toList()))
                 .thenReturn(options);
 
-        SendSurveyResponseDto response = new SendSurveyResponseDto()
+        SendOnlineSurveyResponseDto response = new SendOnlineSurveyResponseDto()
                 .setSurveyId(surveyId)
                 .setAnswers(Stream.of(
                         new AnswerDto()
@@ -997,9 +966,9 @@ class SendSurveyResponseDtoValidatorTest {
 
     @Test
     void shouldReturnFalseWhenSendSurveyResponseDtoIsNull() {
-        SendSurveyResponseDto sendSurveyResponseDto = null;
+        SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto = null;
 
-        boolean result = validator.isValid(sendSurveyResponseDto, context);
+        boolean result = validator.isValid(sendOnlineSurveyResponseDto, context);
 
         assertFalse(result);
         verify(context).buildConstraintViolationWithTemplate("Survey response data is invalid");
@@ -1008,11 +977,11 @@ class SendSurveyResponseDtoValidatorTest {
 
     @Test
     void shouldReturnFalseWhenSurveyIdIsNull() {
-        SendSurveyResponseDto sendSurveyResponseDto = new SendSurveyResponseDto();
-        sendSurveyResponseDto.setSurveyId(null);
-        sendSurveyResponseDto.setAnswers(Collections.emptyList());
+        SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto = new SendOnlineSurveyResponseDto();
+        sendOnlineSurveyResponseDto.setSurveyId(null);
+        sendOnlineSurveyResponseDto.setAnswers(Collections.emptyList());
 
-        boolean result = validator.isValid(sendSurveyResponseDto, context);
+        boolean result = validator.isValid(sendOnlineSurveyResponseDto, context);
 
         assertFalse(result);
         verify(context).buildConstraintViolationWithTemplate("Survey response data is invalid");
@@ -1021,11 +990,11 @@ class SendSurveyResponseDtoValidatorTest {
 
     @Test
     void shouldReturnFalseWhenAnswersAreNull() {
-        SendSurveyResponseDto sendSurveyResponseDto = new SendSurveyResponseDto();
-        sendSurveyResponseDto.setSurveyId(UUID.randomUUID());
-        sendSurveyResponseDto.setAnswers(null);
+        SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto = new SendOnlineSurveyResponseDto();
+        sendOnlineSurveyResponseDto.setSurveyId(UUID.randomUUID());
+        sendOnlineSurveyResponseDto.setAnswers(null);
 
-        boolean result = validator.isValid(sendSurveyResponseDto, context);
+        boolean result = validator.isValid(sendOnlineSurveyResponseDto, context);
 
         assertFalse(result);
         verify(context).buildConstraintViolationWithTemplate("Survey response data is invalid");

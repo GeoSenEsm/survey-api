@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -35,6 +36,8 @@ class SurveyResponsesServiceImplTest {
     private static final String OPTION_2 = "Option 2";
     private static final boolean YES_NO_ANSWER = true;
     private static final int NUMERIC_ANSWER = 4;
+    private static final BigDecimal VALID_LATITUDE = new BigDecimal("52.237049");
+    private static final BigDecimal VALID_LONGITUDE = new BigDecimal("21.017532");
 
     @Mock
     private EntityManager entityManager;
@@ -44,6 +47,7 @@ class SurveyResponsesServiceImplTest {
     private Survey survey;
     private IdentityUser user;
     private List<QuestionAnswer> questionAnswerList;
+    private List<LocalizationData> localizationDataList;
     private SurveyParticipation surveyParticipation;
 
     @BeforeEach
@@ -51,6 +55,7 @@ class SurveyResponsesServiceImplTest {
         survey = createSurvey();
         user = createIdentityUser();
         questionAnswerList = createQuestionAnswerList();
+        localizationDataList = createLocalizationDataList();
         surveyParticipation = createSurveyParticipation();
     }
 
@@ -71,14 +76,20 @@ class SurveyResponsesServiceImplTest {
         assertEquals(SURVEY_NAME, results.get(0).getSurveyName());
         assertEquals(QUESTION_1, results.get(0).getQuestion());
         assertEquals(OPTION_1, results.get(0).getAnswers().get(0));
+        assertEquals(VALID_LATITUDE, results.get(0).getLocalizations().get(0).getLatitude());
+        assertEquals(VALID_LONGITUDE, results.get(0).getLocalizations().get(0).getLongitude());
 
         assertEquals(SURVEY_NAME, results.get(1).getSurveyName());
         assertEquals(QUESTION_2, results.get(1).getQuestion());
         assertEquals(YES_NO_ANSWER, results.get(1).getAnswers().get(0));
+        assertEquals(VALID_LATITUDE, results.get(1).getLocalizations().get(0).getLatitude());
+        assertEquals(VALID_LONGITUDE, results.get(1).getLocalizations().get(0).getLongitude());
 
         assertEquals(SURVEY_NAME, results.get(2).getSurveyName());
         assertEquals(QUESTION_3, results.get(2).getQuestion());
         assertEquals(NUMERIC_ANSWER, results.get(2).getAnswers().get(0));
+        assertEquals(VALID_LATITUDE, results.get(2).getLocalizations().get(0).getLatitude());
+        assertEquals(VALID_LONGITUDE, results.get(2).getLocalizations().get(0).getLongitude());
 
         verify(mockQuery).setParameter("surveyId", surveyId);
         verify(mockQuery).setParameter("dateFrom", dateFrom);
@@ -112,6 +123,7 @@ class SurveyResponsesServiceImplTest {
         participation.setDate(OffsetDateTime.now(ZoneOffset.UTC));
         participation.setIdentityUser(user);
         participation.setQuestionAnswers(questionAnswerList);
+        participation.setLocalizationDataList(localizationDataList);
         return participation;
     }
 
@@ -126,6 +138,14 @@ class SurveyResponsesServiceImplTest {
         IdentityUser user = new IdentityUser();
         user.setId(UUID.randomUUID());
         return user;
+    }
+
+    private List<LocalizationData> createLocalizationDataList(){
+        LocalizationData localizationData = new LocalizationData();
+        localizationData.setLatitude(VALID_LATITUDE);
+        localizationData.setLongitude(VALID_LONGITUDE);
+        localizationData.setDateTime(OffsetDateTime.now());
+        return List.of(localizationData);
     }
 
     private List<QuestionAnswer> createQuestionAnswerList() {

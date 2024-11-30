@@ -71,7 +71,7 @@ class RespondentDataServiceTest {
                 .thenReturn(Optional.of(identityUser));
         when(claimsPrincipalService.findIdentityUser()).thenReturn(identityUser);
         when(respondentDataRepository.existsByIdentityUserId(MOCK_USER_ID)).thenReturn(false);
-        when(initialSurveyRepository.findTopByOrderByIdAsc()).thenReturn(Optional.of(initialSurvey));
+        when(initialSurveyRepository.findTopByRowVersionDesc()).thenReturn(Optional.of(initialSurvey));
         when(initialSurveyQuestionRepository.findAllById(List.of(respondentDataDto.getQuestionId())))
                 .thenReturn(List.of(mockQuestion));
         when(initialSurveyOptionRepository.findAllById(List.of(respondentDataDto.getOptionId())))
@@ -162,13 +162,13 @@ class RespondentDataServiceTest {
 
     @Test
     void getOrCreateInitialSurvey_ShouldReturnExistingSurvey_WhenExists() {
-        when(initialSurveyRepository.findTopByOrderByIdAsc()).thenReturn(Optional.of(initialSurvey));
+        when(initialSurveyRepository.findTopByRowVersionDesc()).thenReturn(Optional.of(initialSurvey));
 
         InitialSurvey result = respondentDataService.getOrCreateInitialSurvey();
 
         assertNotNull(result);
         assertEquals(initialSurvey, result);
-        verify(initialSurveyRepository, times(1)).findTopByOrderByIdAsc();
+        verify(initialSurveyRepository, times(1)).findTopByRowVersionDesc();
         verify(initialSurveyRepository, never()).save(any(InitialSurvey.class));
     }
 
@@ -177,14 +177,14 @@ class RespondentDataServiceTest {
         InitialSurvey newSurvey = new InitialSurvey();
         newSurvey.setId(UUID.randomUUID());
 
-        when(initialSurveyRepository.findTopByOrderByIdAsc()).thenReturn(Optional.empty());
+        when(initialSurveyRepository.findTopByRowVersionDesc()).thenReturn(Optional.empty());
         when(initialSurveyRepository.save(any(InitialSurvey.class))).thenReturn(newSurvey);
 
         InitialSurvey result = respondentDataService.getOrCreateInitialSurvey();
 
         assertNotNull(result);
         assertSame(newSurvey, result);
-        verify(initialSurveyRepository, times(1)).findTopByOrderByIdAsc();
+        verify(initialSurveyRepository, times(1)).findTopByRowVersionDesc();
         verify(initialSurveyRepository, times(1)).save(any(InitialSurvey.class));
     }
 
