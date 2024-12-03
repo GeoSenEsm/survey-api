@@ -63,8 +63,9 @@ class InitialSurveyControllerTest {
 
         verify(initialSurveyService, times(1)).createInitialSurvey(anyList());
     }
+
     @Test
-    void getInitialSurveyById_ShouldReturnOkResponse() {
+    void getInitialSurvey_ShouldReturnOkResponse() {
         InitialSurveyQuestionResponseDto responseDto = createQuestionResponseDto();
 
         when(initialSurveyService.getInitialSurvey())
@@ -87,6 +88,7 @@ class InitialSurveyControllerTest {
 
         verify(initialSurveyService, times(1)).getInitialSurvey();
     }
+
     private InitialSurveyQuestionResponseDto createQuestionResponseDto() {
         InitialSurveyQuestionResponseDto responseDto = new InitialSurveyQuestionResponseDto();
         responseDto.setId(UUID.randomUUID());

@@ -2,6 +2,7 @@ package com.survey.application.services;
 
 import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.domain.models.*;
+import com.survey.domain.models.enums.InitialSurveyState;
 import com.survey.domain.repository.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -51,6 +52,11 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     @Transactional
     public Map<String, Object> createRespondent(List<CreateRespondentDataDto> dto, String tokenWithPrefix)
             throws BadCredentialsException, InvalidAttributeValueException, InstanceAlreadyExistsException, BadRequestException {
+
+        if(!isInitialSurveyPublished()){
+            throw new NoSuchElementException("Initial survey not published yet.");
+        }
+
         UUID currentUserUUID = getCurrentUserUUID();
 
         checkIfRespondentDataExists(currentUserUUID);
@@ -96,6 +102,11 @@ public class RespondentDataServiceImpl implements RespondentDataService{
                 .orElseThrow(NoSuchElementException::new);
 
         return mapRespondentDataToResponse(dbRespondentData);
+    }
+
+    private boolean isInitialSurveyPublished(){
+        Optional<InitialSurvey> optionalInitialSurvey = initialSurveyRepository.findTopByRowVersionDesc();
+        return optionalInitialSurvey.filter(initialSurvey -> initialSurvey.getState() == InitialSurveyState.published).isPresent();
     }
 
     private RespondentData initializeRespondentData(UUID userId) {
