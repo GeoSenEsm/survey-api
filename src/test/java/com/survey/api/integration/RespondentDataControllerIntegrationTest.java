@@ -3,6 +3,7 @@ package com.survey.api.integration;
 import com.survey.api.security.TokenProvider;
 import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.domain.models.*;
+import com.survey.domain.models.enums.InitialSurveyState;
 import com.survey.domain.repository.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -78,6 +79,8 @@ public class RespondentDataControllerIntegrationTest {
 
         InitialSurvey initialSurvey = new InitialSurvey();
         initialSurvey.setQuestions(List.of(question));
+
+        initialSurvey.setState(InitialSurveyState.published);
 
         initialSurveyRepository.saveAndFlush(initialSurvey);
 
@@ -184,6 +187,8 @@ public class RespondentDataControllerIntegrationTest {
         InitialSurvey initialSurvey = new InitialSurvey();
         initialSurvey.setQuestions(Collections.singletonList(question));
         initialSurvey.setRowVersion(new byte[]{0});
+
+        initialSurvey.setState(InitialSurveyState.published);
         initialSurvey = initialSurveyRepository.saveAndFlush(initialSurvey);
 
         question.setInitialSurvey(initialSurvey);

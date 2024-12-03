@@ -32,12 +32,14 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     private final InitialSurveyRepository initialSurveyRepository;
     private final InitialSurveyQuestionRepository initialSurveyQuestionRepository;
     private final InitialSurveyOptionRepository initialSurveyOptionRepository;
+    private final RespondentGroupRepository respondentGroupRepository;
+    private final RespondentToGroupRepository respondentToGroupRepository;
 
 
 
     @Autowired
     public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository,
-                                     ClaimsPrincipalService claimsPrincipalService, IdentityUserRepository identityUserRepository, EntityManager entityManager, InitialSurveyRepository initialSurveyRepository, InitialSurveyQuestionRepository initialSurveyQuestionRepository, InitialSurveyOptionRepository initialSurveyOptionRepository) {
+                                     ClaimsPrincipalService claimsPrincipalService, IdentityUserRepository identityUserRepository, EntityManager entityManager, InitialSurveyRepository initialSurveyRepository, InitialSurveyQuestionRepository initialSurveyQuestionRepository, InitialSurveyOptionRepository initialSurveyOptionRepository, RespondentGroupRepository respondentGroupRepository, RespondentToGroupRepository respondentToGroupRepository) {
         this.respondentDataRepository = respondentDataRepository;
         this.claimsPrincipalService = claimsPrincipalService;
         this.entityManager = entityManager;
@@ -45,20 +47,22 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         this.initialSurveyRepository = initialSurveyRepository;
         this.initialSurveyQuestionRepository = initialSurveyQuestionRepository;
         this.initialSurveyOptionRepository = initialSurveyOptionRepository;
+        this.respondentGroupRepository = respondentGroupRepository;
+        this.respondentToGroupRepository = respondentToGroupRepository;
     }
 
     @Override
     @Transactional
-    public Map<String, Object> createRespondent(List<CreateRespondentDataDto> dto, String tokenWithPrefix)
+    public Map<String, Object> createRespondent(List<CreateRespondentDataDto> dtoList, String tokenWithPrefix)
             throws BadCredentialsException, InvalidAttributeValueException, InstanceAlreadyExistsException, BadRequestException {
-        UUID currentUserUUID = getCurrentUserUUID();
+        IdentityUser identityUser = claimsPrincipalService.findIdentityUser();
+        checkIfRespondentDataExists(identityUser.getId());
 
-        checkIfRespondentDataExists(currentUserUUID);
-
-        RespondentData respondentData = initializeRespondentData(currentUserUUID);
-        respondentData.setRespondentDataQuestions(createRespondentDataQuestions(dto, respondentData));
+        RespondentData respondentData = initializeRespondentData(identityUser.getId());
+        respondentData.setRespondentDataQuestions(createRespondentDataQuestions(dtoList, respondentData));
         RespondentData savedRespondentData = respondentDataRepository.save(respondentData);
 
+        saveRespondentToGroupEntities(dtoList, savedRespondentData);
         return mapRespondentDataToResponse(savedRespondentData);
     }
 
@@ -97,6 +101,45 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
         return mapRespondentDataToResponse(dbRespondentData);
     }
+
+    private void saveRespondentToGroupEntities(List<CreateRespondentDataDto> createRespondentDataDtoList, RespondentData respondentData) {
+        List<RespondentToGroup> respondentToGroupList = new ArrayList<>();
+
+        for (CreateRespondentDataDto dto : createRespondentDataDtoList) {
+            String questionContent = initialSurveyQuestionRepository.findById(dto.getQuestionId())
+                    .map(InitialSurveyQuestion::getContent)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid Question ID: " + dto.getQuestionId()));
+
+            String optionContent = initialSurveyOptionRepository.findById(dto.getOptionId())
+                    .map(InitialSurveyOption::getContent)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid Option ID: " + dto.getOptionId()));
+
+            String groupName = questionContent + " - " + optionContent;
+
+            RespondentGroup rg = respondentGroupRepository.findByGroupName(groupName);
+            if (rg == null) {
+                throw new IllegalArgumentException("Group not found for name: " + groupName);
+            }
+
+            RespondentToGroup rtg = new RespondentToGroup();
+            rtg.setRespondentData(respondentData);
+            rtg.setRespondentGroup(rg);
+            respondentToGroupList.add(rtg);
+        }
+
+        RespondentGroup respondentGroupAll = respondentGroupRepository.findByGroupName("All");
+        if (respondentGroupAll == null) {
+            throw new IllegalArgumentException("Default group 'All' not found");
+        }
+
+        RespondentToGroup rtgAll = new RespondentToGroup();
+        rtgAll.setRespondentData(respondentData);
+        rtgAll.setRespondentGroup(respondentGroupAll);
+        respondentToGroupList.add(rtgAll);
+
+        respondentToGroupRepository.saveAllAndFlush(respondentToGroupList);
+    }
+
 
     private RespondentData initializeRespondentData(UUID userId) {
         RespondentData respondentData = new RespondentData();
@@ -186,7 +229,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
     private Map<String, Object> mapRespondentDataToResponse(RespondentData respondentData) {
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("id", respondentData.getId());
+        response.put("id", respondentData.getIdentityUser().getId());
         response.put("username", respondentData.getUsername());
 
         respondentData.getRespondentDataQuestions().forEach(respondentDataQuestion -> {
