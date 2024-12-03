@@ -79,6 +79,7 @@ public class RespondentDataControllerIntegrationTest {
 
         InitialSurvey initialSurvey = new InitialSurvey();
         initialSurvey.setQuestions(List.of(question));
+        initialSurvey.setState(InitialSurveyState.published);
 
         initialSurvey.setState(InitialSurveyState.published);
 
@@ -185,6 +186,7 @@ public class RespondentDataControllerIntegrationTest {
         option.setQuestion(question);
 
         InitialSurvey initialSurvey = new InitialSurvey();
+        initialSurvey.setState(InitialSurveyState.published);
         initialSurvey.setQuestions(Collections.singletonList(question));
         initialSurvey.setRowVersion(new byte[]{0});
 
