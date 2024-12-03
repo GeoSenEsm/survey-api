@@ -1,5 +1,7 @@
 package com.survey.domain.models;
 
+import com.survey.domain.models.enums.InitialSurveyState;
+import com.survey.domain.models.enums.InitialSurveyStateConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,7 +22,11 @@ public class InitialSurvey {
     @OneToMany(mappedBy = "initialSurvey", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InitialSurveyQuestion> questions = new ArrayList<>();
 
+    @Column(nullable = false)
+    @Convert(converter = InitialSurveyStateConverter.class)
+    private InitialSurveyState state;
+
     @Version
-    @Column(name = "row_version", insertable = false)
+    @Column(name = "row_version", insertable = false, updatable = false)
     private byte[] rowVersion;
 }

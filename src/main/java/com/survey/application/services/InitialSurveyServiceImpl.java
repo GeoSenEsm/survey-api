@@ -1,9 +1,11 @@
 package com.survey.application.services;
 
 import com.survey.application.dtos.initialSurvey.*;
+import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.InitialSurvey;
 import com.survey.domain.models.InitialSurveyOption;
 import com.survey.domain.models.InitialSurveyQuestion;
+import com.survey.domain.models.enums.InitialSurveyState;
 import com.survey.domain.repository.InitialSurveyRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -12,8 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,17 +27,23 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
     private final ModelMapper modelMapper;
     @PersistenceContext
     private final EntityManager entityManager;
+    private final ClaimsPrincipalService claimsPrincipalService;
 
     @Autowired
-    public InitialSurveyServiceImpl(InitialSurveyRepository initialSurveyQuestionRepository, ModelMapper modelMapper, EntityManager entityManager) {
+    public InitialSurveyServiceImpl(InitialSurveyRepository initialSurveyQuestionRepository, ModelMapper modelMapper, EntityManager entityManager, ClaimsPrincipalService claimsPrincipalService) {
         this.initialSurveyRepository = initialSurveyQuestionRepository;
         this.modelMapper = modelMapper;
         this.entityManager = entityManager;
+        this.claimsPrincipalService = claimsPrincipalService;
     }
 
     @Override
     @Transactional
     public List<InitialSurveyQuestionResponseDto> createInitialSurvey(List<CreateInitialSurveyQuestionDto> createInitialSurveyQuestionDtoList) {
+        if (isInitialSurveyPublished()){
+            throw new IllegalStateException("Initial survey is already published.");
+        }
+
         InitialSurvey initialSurvey = mapToInitialSurvey(createInitialSurveyQuestionDtoList);
         InitialSurvey dbInitialSurvey = initialSurveyRepository.saveAndFlush(initialSurvey);
         entityManager.refresh(dbInitialSurvey);
@@ -43,7 +53,52 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
     @Override
     @Transactional
     public List<InitialSurveyQuestionResponseDto> getInitialSurvey() {
-        return mapToInitialSurveyResponseDto(findInitialSurvey());
+        IdentityUser identityUser = claimsPrincipalService.findIdentityUser();
+        String userRole = identityUser.getRole();
+
+        return switch (userRole) {
+            case "Respondent" -> {
+                if (isInitialSurveyPublished()) {
+                    yield mapToInitialSurveyResponseDto(findInitialSurvey());
+                }
+                throw new NoSuchElementException("Initial survey not published yet.");
+            }
+            case "Admin" -> mapToInitialSurveyResponseDto(findInitialSurvey());
+            default -> null;
+        };
+    }
+
+    @Override
+    public InitialSurveyStateDto checkInitialSurveyState() {
+        InitialSurveyStateDto initialSurveyStateDto = new InitialSurveyStateDto();
+        try {
+            initialSurveyStateDto.setText(findInitialSurvey().getState().toString());
+        } catch (NoSuchElementException e){
+            initialSurveyStateDto.setText("not_created");
+        }
+
+        return initialSurveyStateDto;
+    }
+
+    @Override
+    public void publishInitialSurvey() {
+        canPublishInitialSurvey();
+
+        InitialSurvey initialSurvey = findInitialSurvey();
+        initialSurvey.setState(InitialSurveyState.published);
+        initialSurveyRepository.saveAndFlush(initialSurvey);
+    }
+
+    private void canPublishInitialSurvey(){
+        InitialSurvey initialSurvey = findInitialSurvey();
+        if (initialSurvey.getState() == InitialSurveyState.published){
+            throw new IllegalStateException("Initial survey is already published.");
+        }
+    }
+
+    private boolean isInitialSurveyPublished(){
+        Optional<InitialSurvey> optionalInitialSurvey = initialSurveyRepository.findTopByRowVersionDesc();
+        return optionalInitialSurvey.filter(initialSurvey -> initialSurvey.getState() == InitialSurveyState.published).isPresent();
     }
 
     private InitialSurvey findInitialSurvey() {
@@ -53,6 +108,7 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
 
     private List<InitialSurveyQuestionResponseDto> mapToInitialSurveyResponseDto(InitialSurvey initialSurvey) {
         return initialSurvey.getQuestions().stream()
+                .sorted(Comparator.comparing(InitialSurveyQuestion::getOrder))
                 .map(this::mapToInitialSurveyQuestionResponseDto)
                 .collect(Collectors.toList());
     }
@@ -61,6 +117,7 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
         InitialSurveyQuestionResponseDto questionDto = modelMapper.map(question, InitialSurveyQuestionResponseDto.class);
         questionDto.setOptions(
                 question.getOptions().stream()
+                        .sorted(Comparator.comparing(InitialSurveyOption::getOrder))
                         .map(this::mapToInitialSurveyOptionResponseDto)
                         .collect(Collectors.toList()));
         return questionDto;
@@ -77,6 +134,8 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
                 .peek(question -> question.setInitialSurvey(initialSurvey))
                 .collect(Collectors.toList());
         initialSurvey.setQuestions(questions);
+        initialSurvey.setState(InitialSurveyState.created);
+
         return initialSurvey;
     }
 
