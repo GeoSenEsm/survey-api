@@ -90,15 +90,15 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
     }
 
     private void createRespondentGroups(InitialSurvey initialSurvey){
-        List<RespondentGroup> respondentGroups = new ArrayList<>();
+        List<RespondentGroup> respondentGroups = initialSurvey.getQuestions().stream()
+                        .flatMap(question -> question.getOptions().stream()
+                                .map(option -> {
+                                    RespondentGroup respondentGroup = new RespondentGroup();
+                                    respondentGroup.setName(question.getContent() + " - " + option.getContent());
+                                    return respondentGroup;
+                                })
+                        ).toList();
 
-        for (InitialSurveyQuestion question : initialSurvey.getQuestions()){
-            for (InitialSurveyOption option : question.getOptions()){
-                RespondentGroup respondentGroup = new RespondentGroup();
-                respondentGroup.setName(question.getContent() + " - " + option.getContent());
-                respondentGroups.add(respondentGroup);
-            }
-        }
         respondentGroupRepository.saveAll(respondentGroups);
     }
 
