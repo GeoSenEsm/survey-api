@@ -81,6 +81,8 @@ public class RespondentDataControllerIntegrationTest {
         initialSurvey.setQuestions(List.of(question));
         initialSurvey.setState(InitialSurveyState.published);
 
+        initialSurvey.setState(InitialSurveyState.published);
+
         initialSurveyRepository.saveAndFlush(initialSurvey);
 
         CreateRespondentDataDto createDto = new CreateRespondentDataDto();
@@ -187,6 +189,8 @@ public class RespondentDataControllerIntegrationTest {
         initialSurvey.setState(InitialSurveyState.published);
         initialSurvey.setQuestions(Collections.singletonList(question));
         initialSurvey.setRowVersion(new byte[]{0});
+
+        initialSurvey.setState(InitialSurveyState.published);
         initialSurvey = initialSurveyRepository.saveAndFlush(initialSurvey);
 
         question.setInitialSurvey(initialSurvey);

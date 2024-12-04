@@ -1,12 +1,10 @@
 package com.survey.application.services;
 
 import com.survey.application.dtos.initialSurvey.*;
-import com.survey.domain.models.IdentityUser;
-import com.survey.domain.models.InitialSurvey;
-import com.survey.domain.models.InitialSurveyOption;
-import com.survey.domain.models.InitialSurveyQuestion;
+import com.survey.domain.models.*;
 import com.survey.domain.models.enums.InitialSurveyState;
 import com.survey.domain.repository.InitialSurveyRepository;
+import com.survey.domain.repository.RespondentGroupRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.modelmapper.ModelMapper;
@@ -14,10 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,13 +23,15 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
     @PersistenceContext
     private final EntityManager entityManager;
     private final ClaimsPrincipalService claimsPrincipalService;
+    private final RespondentGroupRepository respondentGroupRepository;
 
     @Autowired
-    public InitialSurveyServiceImpl(InitialSurveyRepository initialSurveyQuestionRepository, ModelMapper modelMapper, EntityManager entityManager, ClaimsPrincipalService claimsPrincipalService) {
+    public InitialSurveyServiceImpl(InitialSurveyRepository initialSurveyQuestionRepository, ModelMapper modelMapper, EntityManager entityManager, ClaimsPrincipalService claimsPrincipalService, RespondentGroupRepository respondentGroupRepository) {
         this.initialSurveyRepository = initialSurveyQuestionRepository;
         this.modelMapper = modelMapper;
         this.entityManager = entityManager;
         this.claimsPrincipalService = claimsPrincipalService;
+        this.respondentGroupRepository = respondentGroupRepository;
     }
 
     @Override
@@ -81,12 +78,28 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
     }
 
     @Override
-    public void publishInitialSurvey() {
+    @Transactional
+    public void publishInitialSurveyAndCreateRespondentGroups() {
         canPublishInitialSurvey();
 
         InitialSurvey initialSurvey = findInitialSurvey();
         initialSurvey.setState(InitialSurveyState.published);
         initialSurveyRepository.saveAndFlush(initialSurvey);
+
+        createRespondentGroups(initialSurvey);
+    }
+
+    private void createRespondentGroups(InitialSurvey initialSurvey){
+        List<RespondentGroup> respondentGroups = initialSurvey.getQuestions().stream()
+                        .flatMap(question -> question.getOptions().stream()
+                                .map(option -> {
+                                    RespondentGroup respondentGroup = new RespondentGroup();
+                                    respondentGroup.setName(question.getContent() + " - " + option.getContent());
+                                    return respondentGroup;
+                                })
+                        ).toList();
+
+        respondentGroupRepository.saveAll(respondentGroups);
     }
 
     private void canPublishInitialSurvey(){

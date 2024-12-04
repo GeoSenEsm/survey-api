@@ -4,6 +4,7 @@ import com.survey.application.dtos.initialSurvey.CreateInitialSurveyQuestionDto;
 import com.survey.application.dtos.initialSurvey.InitialSurveyQuestionResponseDto;
 import com.survey.application.dtos.initialSurvey.InitialSurveyStateDto;
 import com.survey.application.services.InitialSurveyService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +29,7 @@ public class InitialSurveyController {
         List<InitialSurveyQuestionResponseDto> initialSurveyResponseDto = initialSurveyService.createInitialSurvey(createInitialSurveyQuestionDtoList);
         return ResponseEntity.status(HttpStatus.CREATED).body(initialSurveyResponseDto);
     }
-
+    @SecurityRequirement(name = "bearerAuth")
     @GetMapping
     public ResponseEntity<List<InitialSurveyQuestionResponseDto>> getInitialSurvey() {
         List<InitialSurveyQuestionResponseDto> initialSurveyResponseDto = initialSurveyService.getInitialSurvey();
@@ -43,7 +44,7 @@ public class InitialSurveyController {
 
     @PatchMapping("/publish")
     public ResponseEntity<Void> publishInitialSurvey(){
-        initialSurveyService.publishInitialSurvey();
+        initialSurveyService.publishInitialSurveyAndCreateRespondentGroups();
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 

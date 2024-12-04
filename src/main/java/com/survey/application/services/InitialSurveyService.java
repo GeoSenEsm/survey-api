@@ -10,5 +10,5 @@ public interface InitialSurveyService {
     List<InitialSurveyQuestionResponseDto> createInitialSurvey(List<CreateInitialSurveyQuestionDto> createInitialSurveyQuestionDtoList);
     List<InitialSurveyQuestionResponseDto> getInitialSurvey();
     InitialSurveyStateDto checkInitialSurveyState();
-    void publishInitialSurvey();
+    void publishInitialSurveyAndCreateRespondentGroups();
 }
