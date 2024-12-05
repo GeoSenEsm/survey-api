@@ -4,6 +4,7 @@ import com.survey.application.dtos.initialSurvey.CreateInitialSurveyOptionDto;
 import com.survey.application.dtos.initialSurvey.CreateInitialSurveyQuestionDto;
 import com.survey.application.dtos.initialSurvey.InitialSurveyOptionResponseDto;
 import com.survey.application.dtos.initialSurvey.InitialSurveyQuestionResponseDto;
+import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.InitialSurvey;
 import com.survey.domain.models.InitialSurveyOption;
 import com.survey.domain.models.InitialSurveyQuestion;
@@ -35,6 +36,8 @@ class InitialSurveyServiceTest {
     private ModelMapper modelMapper;
     @Mock
     private EntityManager entityManager;
+    @Mock
+    private ClaimsPrincipalService claimsPrincipalService;
     @InjectMocks
     private InitialSurveyServiceImpl initialSurveyService;
     private List<CreateInitialSurveyQuestionDto> createInitialSurvey;
@@ -73,6 +76,9 @@ class InitialSurveyServiceTest {
 
     @Test
     void getInitialSurvey_ShouldThrowNoSuchElementException_WhenNoSurveyExists() {
+        IdentityUser mockedIdentityUser = mock(IdentityUser.class);
+        when(mockedIdentityUser.getRole()).thenReturn("Respondent");
+        when(claimsPrincipalService.findIdentityUser()).thenReturn(mockedIdentityUser);
         when(initialSurveyRepository.findTopByRowVersionDesc()).thenReturn(Optional.empty());
 
         NoSuchElementException exception = assertThrows(
@@ -80,7 +86,7 @@ class InitialSurveyServiceTest {
                 () -> initialSurveyService.getInitialSurvey()
         );
 
-        assertEquals("No initial survey created", exception.getMessage());
+        assertEquals("Initial survey not published yet.", exception.getMessage());
     }
 
     private InitialSurveyOptionResponseDto createOptionResponseDto() {
