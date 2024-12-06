@@ -2,7 +2,7 @@ package com.survey.application.services;
 
 import com.survey.application.dtos.initialSurvey.*;
 import com.survey.domain.models.*;
-import com.survey.domain.models.enums.InitialSurveyState;
+import com.survey.domain.models.enums.SurveyState;
 import com.survey.domain.repository.InitialSurveyRepository;
 import com.survey.domain.repository.RespondentGroupRepository;
 import jakarta.persistence.EntityManager;
@@ -80,10 +80,12 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
     @Override
     @Transactional
     public void publishInitialSurveyAndCreateRespondentGroups() {
-        canPublishInitialSurvey();
-
         InitialSurvey initialSurvey = findInitialSurvey();
-        initialSurvey.setState(InitialSurveyState.published);
+
+        if (initialSurvey.getState() == SurveyState.published){
+            throw new IllegalStateException("Initial survey is already published.");
+        }
+        initialSurvey.setState(SurveyState.published);
         initialSurveyRepository.saveAndFlush(initialSurvey);
 
         createRespondentGroups(initialSurvey);
@@ -102,16 +104,9 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
         respondentGroupRepository.saveAll(respondentGroups);
     }
 
-    private void canPublishInitialSurvey(){
-        InitialSurvey initialSurvey = findInitialSurvey();
-        if (initialSurvey.getState() == InitialSurveyState.published){
-            throw new IllegalStateException("Initial survey is already published.");
-        }
-    }
-
     private boolean isInitialSurveyPublished(){
         Optional<InitialSurvey> optionalInitialSurvey = initialSurveyRepository.findTopByRowVersionDesc();
-        return optionalInitialSurvey.filter(initialSurvey -> initialSurvey.getState() == InitialSurveyState.published).isPresent();
+        return optionalInitialSurvey.filter(initialSurvey -> initialSurvey.getState() == SurveyState.published).isPresent();
     }
 
     private InitialSurvey findInitialSurvey() {
@@ -147,7 +142,7 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
                 .peek(question -> question.setInitialSurvey(initialSurvey))
                 .collect(Collectors.toList());
         initialSurvey.setQuestions(questions);
-        initialSurvey.setState(InitialSurveyState.created);
+        initialSurvey.setState(SurveyState.created);
 
         return initialSurvey;
     }

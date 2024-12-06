@@ -72,5 +72,19 @@ public class SurveyController {
         return ResponseEntity.status(HttpStatus.OK).body(responseSurveyWithTimeSlotsDtoList);
     }
 
+    @PatchMapping("/publish")
+    public ResponseEntity<Void> publishSurvey(@RequestParam("surveyId") UUID surveyId){
+        surveyService.publishSurvey(surveyId);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @DeleteMapping("/{surveyId}")
+    public ResponseEntity<Void> deleteSurvey(@PathVariable UUID surveyId){
+        surveyService.deleteSurvey(surveyId);
+        return ResponseEntity.status(HttpStatus.OK).build();
+    }
+
+
+
 
 }

@@ -1,7 +1,7 @@
 package com.survey.domain.models;
 
-import com.survey.domain.models.enums.InitialSurveyState;
-import com.survey.domain.models.enums.InitialSurveyStateConverter;
+import com.survey.domain.models.enums.SurveyState;
+import com.survey.domain.models.enums.SurveyStateConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -23,8 +23,8 @@ public class InitialSurvey {
     private List<InitialSurveyQuestion> questions = new ArrayList<>();
 
     @Column(nullable = false)
-    @Convert(converter = InitialSurveyStateConverter.class)
-    private InitialSurveyState state;
+    @Convert(converter = SurveyStateConverter.class)
+    private SurveyState state;
 
     @Version
     @Column(name = "row_version", insertable = false, updatable = false)

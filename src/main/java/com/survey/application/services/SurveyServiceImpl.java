@@ -4,6 +4,7 @@ import com.survey.application.dtos.SurveySendingPolicyTimesDto;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.QuestionType;
+import com.survey.domain.models.enums.SurveyState;
 import com.survey.domain.models.enums.Visibility;
 import com.survey.domain.repository.*;
 import jakarta.persistence.EntityManager;
@@ -137,9 +138,7 @@ public class SurveyServiceImpl implements SurveyService {
 
     @Override
     public ResponseSurveyDto getSurveyById(UUID surveyId) {
-        Survey survey = surveyRepository.findById(surveyId)
-                .orElseThrow(() -> new NoSuchElementException("Survey not found with id: " + surveyId));
-
+        Survey survey = findSurveyById(surveyId);
         return modelMapper.map(survey, ResponseSurveyDto.class);
     }
 
@@ -182,10 +181,40 @@ public class SurveyServiceImpl implements SurveyService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public void publishSurvey(UUID surveyId) {
+        Survey survey = findSurveyById(surveyId);
+
+        if (isSurveyPublished(surveyId)) {
+            throw new IllegalStateException("Survey is already published.");
+        }
+        survey.setState(SurveyState.published);
+        surveyRepository.saveAndFlush(survey);
+    }
+
+    @Override
+    public void deleteSurvey(UUID surveyId) {
+        if (isSurveyPublished(surveyId)){
+            throw new IllegalStateException("Cannot delete published survey.");
+        }
+
+        surveyRepository.delete(findSurveyById(surveyId));
+    }
+
+    private boolean isSurveyPublished(UUID surveyId){
+        return findSurveyById(surveyId).getState() == SurveyState.published;
+    }
+
+
+    private Survey findSurveyById(UUID surveyId){
+        return surveyRepository.findById(surveyId)
+                .orElseThrow(() -> new NoSuchElementException("Survey not found with id: " + surveyId));
+    }
 
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto, List<MultipartFile> files){
         Survey survey = new Survey();
         survey.setName(createSurveyDto.getName());
+        survey.setState(SurveyState.created);
         survey.setSections(createSurveyDto.getSections().stream()
                 .map(sectionDto -> mapToSurveySection(sectionDto, survey, files))
                 .collect(Collectors.toList()));

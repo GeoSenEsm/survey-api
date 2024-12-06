@@ -15,4 +15,6 @@ public interface SurveyService {
     List<ResponseSurveyShortSummariesDto> getSurveysShortSummaries();
     ResponseSurveyDto getSurveyById(UUID surveyId);
     List<ResponseSurveyWithTimeSlotsDto> getAllSurveysWithTimeSlots();
+    void publishSurvey(UUID surveyId);
+    void deleteSurvey(UUID surveyId);
 }
