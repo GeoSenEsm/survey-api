@@ -1,0 +1,1 @@
+DROP TABLE respondent_data;

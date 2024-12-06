@@ -1,0 +1,1 @@
+ALTER TABLE question_answer DROP COLUMN yes_no_answer;

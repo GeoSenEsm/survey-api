@@ -1,0 +1,2 @@
+drop trigger respondent_data_assign_to_groups_after_insert;
+drop trigger respondent_data_assign_to_groups_after_update;

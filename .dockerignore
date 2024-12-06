@@ -1,0 +1,6 @@
+./target/*
+./src/test/*
+./logs
+./.git
+./.idea
+./.github
