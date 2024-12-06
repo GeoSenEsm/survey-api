@@ -110,7 +110,7 @@ public class RespondentDataControllerIntegrationTest {
         assertThat(bodyRespondent).isNotNull();
         assertThat(bodyRespondent).containsEntry("id", validRespondent.getId().toString());
         assertThat(bodyRespondent).containsEntry("username", validRespondent.getUsername());
-        assertThat(bodyRespondent).containsEntry(QUESTION_CONTENT, OPTION_CONTENT_1);
+        assertThat(bodyRespondent).containsEntry(QUESTION_CONTENT, initialSurvey.get(0).getOptions().get(0).getId().toString());
     }
 
     @Test
@@ -154,7 +154,7 @@ public class RespondentDataControllerIntegrationTest {
         assertThat(response).isNotNull();
         assertThat(response).containsEntry("id", respondent.getId().toString());
         assertThat(response).containsEntry("username", respondent.getUsername());
-        assertThat(response).containsEntry(QUESTION_CONTENT, OPTION_CONTENT_1);
+        assertThat(response).containsEntry(QUESTION_CONTENT, initialSurvey.get(0).getOptions().get(0).getId().toString());
     }
 
     @Test
@@ -226,7 +226,7 @@ public class RespondentDataControllerIntegrationTest {
         assertThat(response).hasSize(1);
         assertThat(response.get(0)).containsEntry("id", invalidRespondent.getId().toString());
         assertThat(response.get(0)).containsEntry("username", invalidRespondent.getUsername());
-        assertThat(response.get(0)).containsEntry(QUESTION_CONTENT, OPTION_CONTENT_2);
+        assertThat(response.get(0)).containsEntry(QUESTION_CONTENT, initialSurvey.get(0).getOptions().get(1).getId().toString());
     }
 
     @Test

@@ -334,8 +334,8 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         respondentData.getRespondentDataQuestions().forEach(question -> {
             String questionContent = question.getQuestion().getContent();
             question.getOptions().forEach(option -> {
-                String optionContent = option.getOption().getContent();
-                response.put(questionContent, optionContent);
+                UUID optionId = option.getOption().getId();
+                response.put(questionContent, optionId);
             });
         });
     }

@@ -102,7 +102,7 @@ class RespondentDataServiceTest {
         assertNotNull(response);
         assertEquals(identityUser.getId(), response.get("id"));
         assertEquals(RESPONDENT_USERNAME, response.get("username"));
-        assertEquals(OPTION_CONTENT, response.get(QUESTION_CONTENT));
+        assertEquals(OPTION_ID, response.get(QUESTION_CONTENT));
     }
 
     @Test
@@ -161,7 +161,7 @@ class RespondentDataServiceTest {
         assertNotNull(response);
         assertEquals(identityUser.getId(), response.get("id"));
         assertEquals(RESPONDENT_USERNAME, response.get("username"));
-        assertEquals(OPTION_CONTENT, response.get(QUESTION_CONTENT));
+        assertEquals(OPTION_ID, response.get(QUESTION_CONTENT));
     }
 
     @Test
