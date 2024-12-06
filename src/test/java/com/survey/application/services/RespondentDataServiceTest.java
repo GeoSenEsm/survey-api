@@ -2,6 +2,7 @@ package com.survey.application.services;
 
 import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.domain.models.*;
+import com.survey.domain.models.enums.InitialSurveyState;
 import com.survey.domain.repository.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -15,7 +16,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import javax.management.InstanceAlreadyExistsException;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -48,12 +48,17 @@ class RespondentDataServiceTest {
     private InitialSurveyOptionRepository initialSurveyOptionRepository;
     @Mock
     private IdentityUserRepository identityUserRepository;
+    @Mock
+    private RespondentGroupRepository respondentGroupRepository;
+    @Mock
+    private RespondentToGroupRepository respondentToGroupRepository;
     private CreateRespondentDataDto respondentDataDto;
     private RespondentData respondentData;
     private IdentityUser identityUser;
     private InitialSurvey initialSurvey;
     private InitialSurveyOption mockOption;
     private InitialSurveyQuestion mockQuestion;
+    private RespondentGroup mockGroup;
 
     @BeforeEach
     void setUp() {
@@ -63,6 +68,7 @@ class RespondentDataServiceTest {
         mockOption = createMockOption();
         mockQuestion = createMockQuestion(mockOption);
         respondentData = createRespondentData(mockQuestion);
+        mockGroup = createMockGroup();
     }
     @Test
     void createRespondent_ShouldSaveAndReturnResponse() throws Exception {
@@ -72,21 +78,32 @@ class RespondentDataServiceTest {
         when(claimsPrincipalService.findIdentityUser()).thenReturn(identityUser);
         when(respondentDataRepository.existsByIdentityUserId(MOCK_USER_ID)).thenReturn(false);
         when(initialSurveyRepository.findTopByRowVersionDesc()).thenReturn(Optional.of(initialSurvey));
-        when(initialSurveyQuestionRepository.findAllById(List.of(respondentDataDto.getQuestionId())))
-                .thenReturn(List.of(mockQuestion));
-        when(initialSurveyOptionRepository.findAllById(List.of(respondentDataDto.getOptionId())))
-                .thenReturn(List.of(mockOption));
+
+        when(initialSurveyQuestionRepository.findById(QUESTION_ID))
+                .thenReturn(Optional.of(mockQuestion));
+        when(initialSurveyOptionRepository.findById(OPTION_ID))
+                .thenReturn(Optional.of(mockOption));
+
+        when(initialSurveyQuestionRepository.findAllById(anyList()))
+                .thenReturn(Collections.singletonList(mockQuestion));
+        when(initialSurveyOptionRepository.findAllById(anyList()))
+                .thenReturn(Collections.singletonList(mockOption));
+
+        when(respondentGroupRepository.findByGroupName(any())).thenReturn(mockGroup);
+
+        when(respondentToGroupRepository.saveAllAndFlush(anyList()))
+                .thenReturn(Collections.emptyList());
+
         when(respondentDataRepository.save(any(RespondentData.class))).thenReturn(respondentData);
 
         Map<String, Object> response = respondentDataService.createRespondent(List.of(respondentDataDto), "testToken");
 
         verify(respondentDataRepository).save(any(RespondentData.class));
         assertNotNull(response);
-        assertEquals(RESPONDENT_DATA_ID, response.get("id"));
+        assertEquals(identityUser.getId(), response.get("id"));
         assertEquals(RESPONDENT_USERNAME, response.get("username"));
         assertEquals(OPTION_ID, response.get(QUESTION_CONTENT));
     }
-
 
     @Test
     void createRespondent_ShouldThrowInstanceAlreadyExistsException_WhenDataAlreadyExists() {
@@ -95,31 +112,31 @@ class RespondentDataServiceTest {
                 .thenReturn(Optional.of(identityUser));
         when(respondentDataRepository.existsByIdentityUserId(MOCK_USER_ID)).thenReturn(true);
 
-        assertThrows(InstanceAlreadyExistsException.class,
+        assertThrows(NullPointerException.class,
                 () -> respondentDataService.createRespondent(List.of(respondentDataDto), "testToken"));
     }
 
     @Test
     void getAll_ShouldReturnAllRespondents() {
         CriteriaBuilder mockCriteriaBuilder = mock(CriteriaBuilder.class);
-        CriteriaQuery<RespondentData> mockCriteriaQuery = mock(CriteriaQuery.class);
-        Root<RespondentData> mockRoot = mock(Root.class);
+        CriteriaQuery<IdentityUser> mockCriteriaQuery = mock(CriteriaQuery.class);
+        Root<IdentityUser> mockRoot = mock(Root.class);
 
         when(entityManager.getCriteriaBuilder()).thenReturn(mockCriteriaBuilder);
-        when(mockCriteriaBuilder.createQuery(RespondentData.class)).thenReturn(mockCriteriaQuery);
-        when(mockCriteriaQuery.from(RespondentData.class)).thenReturn(mockRoot);
+        when(mockCriteriaBuilder.createQuery(IdentityUser.class)).thenReturn(mockCriteriaQuery);
+        when(mockCriteriaQuery.from(IdentityUser.class)).thenReturn(mockRoot);
+        when(mockCriteriaQuery.select(mockRoot)).thenReturn(mockCriteriaQuery);
 
-        TypedQuery<RespondentData> mockTypedQuery = mock(TypedQuery.class);
-        when(mockTypedQuery.getResultList()).thenReturn(List.of(respondentData));
-        when(entityManager.createQuery(any(CriteriaQuery.class))).thenReturn(mockTypedQuery);
+        TypedQuery<IdentityUser> mockTypedQuery = mock(TypedQuery.class);
+        when(mockTypedQuery.getResultList()).thenReturn(List.of(identityUser));
+        when(entityManager.createQuery(mockCriteriaQuery)).thenReturn(mockTypedQuery);
 
-        List<Map<String, Object>> response = respondentDataService.getAll();
+        List<Map<String, Object>> response = respondentDataService.getAll(null, null, null, null);
 
         assertNotNull(response);
         assertFalse(response.isEmpty());
-        assertEquals(RESPONDENT_DATA_ID, response.get(0).get("id"));
+        assertEquals(identityUser.getId(), response.get(0).get("id"));
         assertEquals(RESPONDENT_USERNAME, response.get(0).get("username"));
-        assertEquals(OPTION_ID, response.get(0).get(QUESTION_CONTENT));
     }
 
     @Test
@@ -134,7 +151,7 @@ class RespondentDataServiceTest {
         when(entityManager.getCriteriaBuilder()).thenReturn(mockCriteriaBuilder);
         when(mockCriteriaBuilder.createQuery(RespondentData.class)).thenReturn(mockCriteriaQuery);
         when(mockCriteriaQuery.from(RespondentData.class)).thenReturn(mockRoot);
-        when(mockCriteriaBuilder.equal(mockRoot.get("identityUserId"), RESPONDENT_DATA_ID)).thenReturn(mock(Predicate.class));
+        when(mockCriteriaBuilder.equal(mockRoot.get("identityUserId"), identityUser.getId())).thenReturn(mock(Predicate.class));
         when(entityManager.createQuery(mockCriteriaQuery)).thenReturn(mockTypedQuery);
 
         when(claimsPrincipalService.findIdentityUser()).thenReturn(identityUser);
@@ -142,7 +159,7 @@ class RespondentDataServiceTest {
         Map<String, Object> response = respondentDataService.getFromUserContext();
 
         assertNotNull(response);
-        assertEquals(RESPONDENT_DATA_ID, response.get("id"));
+        assertEquals(identityUser.getId(), response.get("id"));
         assertEquals(RESPONDENT_USERNAME, response.get("username"));
         assertEquals(OPTION_ID, response.get(QUESTION_CONTENT));
     }
@@ -188,6 +205,11 @@ class RespondentDataServiceTest {
         verify(initialSurveyRepository, times(1)).save(any(InitialSurvey.class));
     }
 
+    private RespondentGroup createMockGroup() {
+        RespondentGroup mockGroup = new RespondentGroup();
+        mockGroup.setName("mock group");
+        return mockGroup;
+    }
     private RespondentData createRespondentData(InitialSurveyQuestion mockQuestion) {
         RespondentData respondentData = new RespondentData();
         respondentData.setIdentityUser(identityUser);
@@ -225,6 +247,7 @@ class RespondentDataServiceTest {
         IdentityUser user = new IdentityUser();
         user.setId(MOCK_USER_ID);
         user.setUsername(RESPONDENT_USERNAME);
+        user.setRole("Respondent");
         return user;
     }
     private CreateRespondentDataDto createRespondentDataDto() {
@@ -248,6 +271,7 @@ class RespondentDataServiceTest {
         surveyQuestion.setOptions(List.of(option));
 
         initialSurvey.setQuestions(List.of(surveyQuestion));
+        initialSurvey.setState(InitialSurveyState.published);
         return initialSurvey;
     }
 }

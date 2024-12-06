@@ -2,6 +2,7 @@ package com.survey.api.controllers;
 
 import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.application.services.RespondentDataService;
+import com.survey.domain.models.enums.RespondentFilterOption;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -11,6 +12,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
+import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -50,9 +52,9 @@ class RespondentDataControllerTest {
                 .bodyValue(Collections.singletonList(dto))
                 .exchange()
                 .expectStatus().isCreated()
-                .expectBody(Map.class)
+                .expectBody(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .consumeWith(response -> {
-                    Map body = response.getResponseBody();
+                    Map<String, Object> body = response.getResponseBody();
                     assert body != null;
                     assert body.get("username").equals("User1");
                     assert body.get("id").equals(1);
@@ -63,11 +65,16 @@ class RespondentDataControllerTest {
     @Test
     void getAll_ShouldReturnOkResponse() {
         Map<String, Object> responseItem = createResponseMap();
-        when(respondentDataService.getAll())
-                .thenReturn(Collections.singletonList(responseItem));
+        when(respondentDataService.getAll(any(RespondentFilterOption.class), any(Integer.class), any(OffsetDateTime.class), any(OffsetDateTime.class)))
+                .thenReturn(List.of(responseItem));
 
         webTestClient.get()
-                .uri("/api/respondents/all")
+                .uri(uriBuilder -> uriBuilder.path("/api/respondents/all")
+                        .queryParam("filterOption", RespondentFilterOption.skipped_surveys)
+                        .queryParam("amount", 10)
+                        .queryParam("from", "2024-01-01T00:00:00Z")
+                        .queryParam("to", "2024-12-31T23:59:59Z")
+                        .build())
                 .exchange()
                 .expectStatus().isOk()
                 .expectBodyList(new ParameterizedTypeReference<Map<String, Object>>() {})
@@ -79,7 +86,7 @@ class RespondentDataControllerTest {
                     assert body.get(0).get("id").equals(1);
                 });
 
-        verify(respondentDataService, times(1)).getAll();
+        verify(respondentDataService, times(1)).getAll(any(RespondentFilterOption.class), any(Integer.class), any(OffsetDateTime.class), any(OffsetDateTime.class));
     }
     @Test
     void getFromUserContext_ShouldReturnOkResponse() {
@@ -91,9 +98,9 @@ class RespondentDataControllerTest {
                 .uri("/api/respondents")
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody(Map.class)
+                .expectBody(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .consumeWith(response -> {
-                    Map body = response.getResponseBody();
+                    Map<String, Object> body = response.getResponseBody();
                     assert body != null;
                     assert body.get("username").equals("User1");
                     assert body.get("id").equals(1);

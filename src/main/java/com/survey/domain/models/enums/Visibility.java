@@ -1,7 +1,10 @@
 package com.survey.domain.models.enums;
 
+import lombok.Getter;
+
 import java.util.Arrays;
 
+@Getter
 public enum Visibility {
     always(0),
     group_specific(1),
@@ -11,10 +14,6 @@ public enum Visibility {
 
     Visibility(int value) {
         this.value = value;
-    }
-
-    public int getValue() {
-        return value;
     }
 
     public static Visibility fromValue(int value) {
