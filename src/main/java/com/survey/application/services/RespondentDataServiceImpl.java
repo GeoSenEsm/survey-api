@@ -73,110 +73,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         predicates.add(cb.equal(identityUserRoot.get("role"), "Respondent"));
 
         if(filterOption != null){
-            if (from == null || to == null || amount == null) {
-                throw new IllegalArgumentException("'from', 'to' and 'amount' are required for filtering.");
-            }
-            switch (filterOption) {
-                case skipped_surveys:
-                    Subquery<UUID> activeSurveySubquery = cq.subquery(UUID.class);
-                    Root<SurveyParticipationTimeSlot> timeSlotRoot = activeSurveySubquery.from(SurveyParticipationTimeSlot.class);
-                    activeSurveySubquery.select(timeSlotRoot.get("surveySendingPolicy").get("survey").get("id"))
-                            .where(
-                                    cb.and(
-                                            cb.equal(timeSlotRoot.get("isDeleted"), false),
-                                            cb.lessThanOrEqualTo(timeSlotRoot.get("finish"), to),
-                                            cb.greaterThanOrEqualTo(timeSlotRoot.get("start"), from)
-                                    )
-                            );
-
-                    Subquery<UUID> visibleSurveySubquery = cq.subquery(UUID.class);
-                    Root<SurveySection> surveySectionRoot = visibleSurveySubquery.from(SurveySection.class);
-
-                    Predicate alwaysVisible = cb.equal(surveySectionRoot.get("visibility"), Visibility.always);
-
-                    Join<SurveySection, SectionToUserGroup> sectionToGroupJoin = surveySectionRoot.join("sectionToUserGroups", JoinType.LEFT);
-                    Join<SectionToUserGroup, RespondentGroup> groupJoin = sectionToGroupJoin.join("group", JoinType.LEFT);
-                    Join<RespondentGroup, RespondentData> respondentDataJoin = groupJoin.join("respondentData", JoinType.LEFT);
-
-                    Predicate groupSpecificVisible = cb.and(
-                            cb.equal(surveySectionRoot.get("visibility"), Visibility.group_specific),
-                            respondentDataJoin.get("identityUserId").in(identityUserRoot.get("id"))
-                    );
-
-                    Predicate sectionVisible = cb.or(alwaysVisible, groupSpecificVisible);
-
-                    visibleSurveySubquery.select(surveySectionRoot.get("survey").get("id"))
-                            .where(sectionVisible);
-
-                    Subquery<UUID> activeVisibleSurveysSubquery = cq.subquery(UUID.class);
-                    Root<SurveySection> activeVisibleRoot = activeVisibleSurveysSubquery.from(SurveySection.class);
-                    activeVisibleSurveysSubquery.select(activeVisibleRoot.get("survey").get("id"))
-                            .where(
-                                    cb.and(
-                                            activeVisibleRoot.get("survey").get("id").in(activeSurveySubquery),
-                                            activeVisibleRoot.get("survey").get("id").in(visibleSurveySubquery)
-                                    )
-                            );
-
-                    Subquery<Long> activeVisibleSurveysCountSubquery = cq.subquery(Long.class);
-                    Root<SurveySection> countRoot = activeVisibleSurveysCountSubquery.from(SurveySection.class);
-                    activeVisibleSurveysCountSubquery.select(cb.countDistinct(countRoot.get("survey").get("id")))
-                            .where(countRoot.get("survey").get("id").in(activeVisibleSurveysSubquery));
-
-                    Subquery<Long> participationCountSubquery = cq.subquery(Long.class);
-                    Root<SurveyParticipation> participationRoot = participationCountSubquery.from(SurveyParticipation.class);
-                    participationCountSubquery.select(cb.count(participationRoot.get("id")))
-                            .where(
-                                    cb.and(
-                                            cb.equal(participationRoot.get("identityUser").get("id"),
-                                                    identityUserRoot.get("id")),
-                                            participationRoot.get("survey").get("id").in(
-                                                    activeVisibleSurveysSubquery
-                                            )
-                                    )
-                            );
-
-                    predicates.add(cb.ge(
-                            cb.diff(
-                                    activeVisibleSurveysCountSubquery,
-                                    participationCountSubquery.getSelection()
-                            ),
-                            amount.longValue()
-                    ));
-                    break;
-                case location_not_sent:
-                    OffsetDateTime adjustedFrom = from.plusDays(1);
-                    OffsetDateTime adjustedTo = to.plusDays(1);
-
-                    Subquery<Long> localizationCountSubquery = cq.subquery(Long.class);
-                    Root<LocalizationData> localizationRoot = localizationCountSubquery.from(LocalizationData.class);
-
-                    localizationCountSubquery.select(cb.count(localizationRoot.get("id")))
-                            .where(
-                                    cb.and(
-                                            cb.equal(localizationRoot.get("identityUser").get("id"), identityUserRoot.get("id")),
-                                            cb.between(localizationRoot.get("dateTime"), adjustedFrom, adjustedTo)
-                                    )
-                            );
-
-                    predicates.add(cb.lessThanOrEqualTo(localizationCountSubquery.getSelection(), amount.longValue()));
-                    break;
-                case sensors_data_not_sent:
-                    Subquery<Long> sensorDataCountSubquery = cq.subquery(Long.class);
-                    Root<SensorData> sensorDataRoot = sensorDataCountSubquery.from(SensorData.class);
-
-                    sensorDataCountSubquery.select(cb.count(sensorDataRoot.get("id")))
-                            .where(
-                                    cb.equal(sensorDataRoot.get("respondent").get("id"), identityUserRoot.get("id")),
-                                    cb.between(sensorDataRoot.get("dateTime"), from, to)
-                            );
-
-                    predicates.add(cb.lessThanOrEqualTo(sensorDataCountSubquery.getSelection(), amount.longValue()));
-                    break;
-                default:
-                    throw new IllegalArgumentException("Invalid filter option: " + filterOption);
-
-            }
+            predicates.add(buildFilterPredicate(cb, cq, identityUserRoot, filterOption, amount, from, to));
         }
 
         cq.select(identityUserRoot).where(cb.and(predicates.toArray(new Predicate[0])));
@@ -209,6 +106,98 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         return mapRespondentDataToResponse(dbRespondentData);
     }
 
+    private Predicate buildFilterPredicate(CriteriaBuilder cb, CriteriaQuery<IdentityUser> cq, Root<IdentityUser> identityUserRoot, RespondentFilterOption filterOption, Integer amount, OffsetDateTime from, OffsetDateTime to) {
+        if (from == null || to == null || amount == null) {
+            throw new IllegalArgumentException("'from', 'to' and 'amount' are required for filtering.");
+        }
+        return switch (filterOption) {
+            case skipped_surveys -> buildSkippedSurveysPredicate(cb, cq, identityUserRoot, amount, from, to);
+            case location_not_sent -> buildLocationNotSentPredicate(cb, cq, identityUserRoot, amount, from, to);
+            case sensors_data_not_sent -> buildSensorsDataNotSentPredicate(cb, cq, identityUserRoot, amount, from, to);
+        };
+    }
+
+    private Predicate buildSkippedSurveysPredicate(CriteriaBuilder cb, CriteriaQuery<IdentityUser> cq, Root<IdentityUser> identityUserRoot, Integer amount, OffsetDateTime from, OffsetDateTime to) {
+        Subquery<UUID> activeSurveySubquery = createActiveSurveySubquery(cb, cq, from, to);
+        Subquery<UUID> visibleSurveySubquery = createVisibleSurveySubquery(cb, cq, identityUserRoot);
+
+        Subquery<Long> activeVisibleSurveysCountSubquery = cq.subquery(Long.class);
+        Root<SurveySection> countRoot = activeVisibleSurveysCountSubquery.from(SurveySection.class);
+        activeVisibleSurveysCountSubquery.select(cb.countDistinct(countRoot.get("survey").get("id")))
+                .where(countRoot.get("survey").get("id").in(activeSurveySubquery),
+                        countRoot.get("survey").get("id").in(visibleSurveySubquery));
+
+        Subquery<Long> participationCountSubquery = cq.subquery(Long.class);
+        Root<SurveyParticipation> participationRoot = participationCountSubquery.from(SurveyParticipation.class);
+        participationCountSubquery.select(cb.count(participationRoot.get("id")))
+                .where(cb.equal(participationRoot.get("identityUser").get("id"), identityUserRoot.get("id")),
+                        participationRoot.get("survey").get("id").in(activeSurveySubquery));
+
+        return cb.ge(cb.diff(activeVisibleSurveysCountSubquery, participationCountSubquery.getSelection()), amount.longValue());
+    }
+    private Predicate buildLocationNotSentPredicate(
+            CriteriaBuilder cb,
+            CriteriaQuery<?> cq,
+            Root<IdentityUser> identityUserRoot,
+            Integer amount,
+            OffsetDateTime from,
+            OffsetDateTime to) {
+
+        OffsetDateTime adjustedFrom = from.plusDays(1);
+        OffsetDateTime adjustedTo = to.plusDays(1);
+
+        Subquery<Long> localizationCountSubquery = cq.subquery(Long.class);
+        Root<LocalizationData> localizationRoot = localizationCountSubquery.from(LocalizationData.class);
+        localizationCountSubquery.select(cb.count(localizationRoot.get("id")))
+                .where(cb.equal(localizationRoot.get("identityUser").get("id"), identityUserRoot.get("id")),
+                        cb.between(localizationRoot.get("dateTime"), adjustedFrom, adjustedTo));
+
+        return cb.lessThanOrEqualTo(localizationCountSubquery.getSelection(), amount.longValue());
+    }
+    private Predicate buildSensorsDataNotSentPredicate(
+            CriteriaBuilder cb,
+            CriteriaQuery<?> cq,
+            Root<IdentityUser> identityUserRoot,
+            Integer amount,
+            OffsetDateTime from,
+            OffsetDateTime to) {
+
+        Subquery<Long> sensorDataCountSubquery = cq.subquery(Long.class);
+        Root<SensorData> sensorDataRoot = sensorDataCountSubquery.from(SensorData.class);
+        sensorDataCountSubquery.select(cb.count(sensorDataRoot.get("id")))
+                .where(cb.equal(sensorDataRoot.get("respondent").get("id"), identityUserRoot.get("id")),
+                        cb.between(sensorDataRoot.get("dateTime"), from, to));
+
+        return cb.lessThanOrEqualTo(sensorDataCountSubquery.getSelection(), amount.longValue());
+    }
+    private Subquery<UUID> createActiveSurveySubquery(CriteriaBuilder cb, CriteriaQuery<?> cq, OffsetDateTime from, OffsetDateTime to) {
+        Subquery<UUID> activeSurveySubquery = cq.subquery(UUID.class);
+        Root<SurveyParticipationTimeSlot> timeSlotRoot = activeSurveySubquery.from(SurveyParticipationTimeSlot.class);
+        activeSurveySubquery.select(timeSlotRoot.get("surveySendingPolicy").get("survey").get("id"))
+                .where(cb.and(cb.equal(timeSlotRoot.get("isDeleted"), false),
+                        cb.lessThanOrEqualTo(timeSlotRoot.get("finish"), to),
+                        cb.greaterThanOrEqualTo(timeSlotRoot.get("start"), from)));
+        return activeSurveySubquery;
+    }
+    private Subquery<UUID> createVisibleSurveySubquery(CriteriaBuilder cb, CriteriaQuery<?> cq, Root<IdentityUser> identityUserRoot) {
+        Subquery<UUID> visibleSurveySubquery = cq.subquery(UUID.class);
+        Root<SurveySection> surveySectionRoot = visibleSurveySubquery.from(SurveySection.class);
+
+        Predicate alwaysVisible = cb.equal(surveySectionRoot.get("visibility"), Visibility.always);
+
+        Join<SurveySection, SectionToUserGroup> sectionToGroupJoin = surveySectionRoot.join("sectionToUserGroups", JoinType.LEFT);
+        Join<SectionToUserGroup, RespondentGroup> groupJoin = sectionToGroupJoin.join("group", JoinType.LEFT);
+        Join<RespondentGroup, RespondentData> respondentDataJoin = groupJoin.join("respondentData", JoinType.LEFT);
+
+        Predicate groupSpecificVisible = cb.and(
+                cb.equal(surveySectionRoot.get("visibility"), Visibility.group_specific),
+                respondentDataJoin.get("identityUserId").in(identityUserRoot.get("id")));
+
+        Predicate sectionVisible = cb.or(alwaysVisible, groupSpecificVisible);
+        visibleSurveySubquery.select(surveySectionRoot.get("survey").get("id")).where(sectionVisible);
+
+        return visibleSurveySubquery;
+    }
     private void saveRespondentToGroupEntities(List<CreateRespondentDataDto> createRespondentDataDtoList, RespondentData respondentData) {
         List<RespondentToGroup> respondentToGroupList = new ArrayList<>();
 
