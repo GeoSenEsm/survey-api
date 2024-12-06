@@ -18,6 +18,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.util.List;
@@ -26,16 +27,18 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(IntegrationTestDatabaseInitializer.class)
-@AutoConfigureWebTestClient
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@TestPropertySource(properties = "ADMIN_USER_PASSWORD=testAdminPassword")
+@AutoConfigureWebTestClient
 public class InitialSurveyControllerIntegrationTest {
+    private static final String adminPassword = "testAdminPassword";
+    private static final String respondentPassword = "testRespondentPassword";
     private static final String QUESTION_1 = "Gender";
     private static final String OPTION_1_1 = "male";
     private static final String OPTION_1_2 = "female";
     private static final String QUESTION_2 = "Student";
     private static final String OPTION_2_1 = "yes";
     private static final String OPTION_2_2 = "no";
-
     private final IdentityUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
@@ -61,8 +64,8 @@ public class InitialSurveyControllerIntegrationTest {
 
     @Test
     void createInitialSurveyAsAdmin_ShouldReturnCreatedStatus_WhenInitialSurveyIsNotPublished(){
-        IdentityUser admin = createUserWithRole("Admin");
-        String adminToken = authenticateAndGenerateToken(admin);
+        IdentityUser admin = createUserWithRole("Admin", adminPassword);
+        String adminToken = authenticateAndGenerateToken(admin, adminPassword);
 
         List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto = generateValidInitialSurveyCreateDto();
 
@@ -91,8 +94,8 @@ public class InitialSurveyControllerIntegrationTest {
 
     @Test
     void createInitialSurveyAsAdmin_ShouldReturnBadRequest_WhenInitialSurveyIsAlreadyPublished(){
-        IdentityUser admin = createUserWithRole("Admin");
-        String adminToken = authenticateAndGenerateToken(admin);
+        IdentityUser admin = createUserWithRole("Admin", adminPassword);
+        String adminToken = authenticateAndGenerateToken(admin, adminPassword);
 
         List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto = generateValidInitialSurveyCreateDto();
         saveInitialSurveyAsAdmin(initialSurveyCreateDto);
@@ -114,8 +117,8 @@ public class InitialSurveyControllerIntegrationTest {
 
     @Test
     void publishInitialSurveyAsAdmin_ShouldReturnBadRequest_WhenInitialSurveyIsAlreadyPublished(){
-        IdentityUser admin = createUserWithRole("Admin");
-        String adminToken = authenticateAndGenerateToken(admin);
+        IdentityUser admin = createUserWithRole("Admin", adminPassword);
+        String adminToken = authenticateAndGenerateToken(admin, adminPassword);
 
         List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto = generateValidInitialSurveyCreateDto();
         saveInitialSurveyAsAdmin(initialSurveyCreateDto);
@@ -135,8 +138,8 @@ public class InitialSurveyControllerIntegrationTest {
 
     @Test
     void getInitialSurveyAsRespondent_ShouldReturnNotFound_WhenInitialSurveyExistsButIsNotPublished(){
-        IdentityUser respondent = createUserWithRole("Respondent");
-        String respondentToken = authenticateAndGenerateToken(respondent);
+        IdentityUser respondent = createUserWithRole("Respondent", respondentPassword);
+        String respondentToken = authenticateAndGenerateToken(respondent, respondentPassword);
 
         List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto = generateValidInitialSurveyCreateDto();
         saveInitialSurveyAsAdmin(initialSurveyCreateDto);
@@ -153,16 +156,16 @@ public class InitialSurveyControllerIntegrationTest {
         List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto = generateValidInitialSurveyCreateDto();
         saveInitialSurveyAsAdmin(initialSurveyCreateDto);
 
-        IdentityUser admin = createUserWithRole("Admin");
-        String adminToken = authenticateAndGenerateToken(admin);
+        IdentityUser admin = createUserWithRole("Admin", adminPassword);
+        String adminToken = authenticateAndGenerateToken(admin, adminPassword);
 
         webTestClient.patch()
                 .uri("/api/initialsurvey/publish")
                 .header("Authorization", "Bearer " + adminToken)
                 .exchange();
 
-        IdentityUser respondent = createUserWithRole("Respondent");
-        String respondentToken = authenticateAndGenerateToken(respondent);
+        IdentityUser respondent = createUserWithRole("Respondent", respondentPassword);
+        String respondentToken = authenticateAndGenerateToken(respondent, respondentPassword);
 
         var response = webTestClient.get()
                 .uri("/api/initialsurvey")
@@ -190,8 +193,8 @@ public class InitialSurveyControllerIntegrationTest {
         List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto = generateValidInitialSurveyCreateDto();
         saveInitialSurveyAsAdmin(initialSurveyCreateDto);
 
-        IdentityUser admin = createUserWithRole("Admin");
-        String adminToken = authenticateAndGenerateToken(admin);
+        IdentityUser admin = createUserWithRole("Admin", adminPassword);
+        String adminToken = authenticateAndGenerateToken(admin, adminPassword);
 
         webTestClient.patch()
                 .uri("/api/initialsurvey/publish")
@@ -222,8 +225,8 @@ public class InitialSurveyControllerIntegrationTest {
 
 
     private void saveInitialSurveyAsAdmin(List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto){
-        IdentityUser admin = createUserWithRole("Admin");
-        String adminToken = authenticateAndGenerateToken(admin);
+        IdentityUser admin = createUserWithRole("Admin", adminPassword);
+        String adminToken = authenticateAndGenerateToken(admin, adminPassword);
 
         webTestClient.post()
                 .uri("/api/initialsurvey")
@@ -248,19 +251,19 @@ public class InitialSurveyControllerIntegrationTest {
         return List.of(questionDto1, questionDto2);
     }
 
-    private IdentityUser createUserWithRole(String role) {
+    private IdentityUser createUserWithRole(String role, String password) {
         IdentityUser user = new IdentityUser()
                 .setId(UUID.randomUUID())
                 .setRole(role)
                 .setUsername(UUID.randomUUID().toString())
-                .setPasswordHash(passwordEncoder.encode("pswd"));
+                .setPasswordHash(passwordEncoder.encode(password));
 
         return userRepository.saveAndFlush(user);
     }
 
-    private String authenticateAndGenerateToken(IdentityUser user) {
+    private String authenticateAndGenerateToken(IdentityUser user, String password) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(user.getUsername(), "pswd"));
+                new UsernamePasswordAuthenticationToken(user.getUsername(), password));
         return tokenProvider.generateToken(authentication);
     }
 }

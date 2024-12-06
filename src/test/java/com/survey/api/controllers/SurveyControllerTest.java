@@ -2,44 +2,35 @@ package com.survey.api.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.application.dtos.surveyDtos.*;
-import com.survey.application.services.StorageService;
 import com.survey.application.services.SurveyService;
 import com.survey.domain.models.enums.QuestionType;
 import com.survey.domain.models.enums.Visibility;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.function.BodyInserters;
 
 import java.util.List;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@AutoConfigureMockMvc
+
 public class SurveyControllerTest {
     @InjectMocks
     SurveyController surveyController;
-    @Autowired
-    private MockMvc mockMvc;
     @Mock
     private SurveyService surveyService;
     @Mock
     private ObjectMapper objectMapper;
-    @Mock
-    private StorageService storageService;
-    private ResponseSurveyDto responseSurveyDto;
+    private WebTestClient webTestClient;
+
     private CreateSurveyDto createSurveyDto;
     private static final String SURVEY_NAME = "Survey1";
     private static final String SECTION_NAME = "Section1";
@@ -48,41 +39,43 @@ public class SurveyControllerTest {
     private static final int SECTION_ORDER = 1;
     private static final int QUESTION_ORDER = 1;
     private static final int OPTION_ORDER = 1;
-    private static final String IMAGE_PATH = "uploads/Survey1/questions/1/options/1";
+
+
 
     @BeforeEach
-    void setup() {
+    void setUp() {
         MockitoAnnotations.openMocks(this);
-        mockMvc = MockMvcBuilders.standaloneSetup(surveyController).build();
+        webTestClient = WebTestClient.bindToController(surveyController).build();
         createSurveyDto = createMockCreateSurveyDto();
-        responseSurveyDto = createMockResponseSurveyDto();
     }
 
     @Test
     void createSurvey_ShouldReturnCreatedResponse() throws Exception {
-        String createSurveyDtoJson = new ObjectMapper().writeValueAsString(createSurveyDto);
-        MockMultipartFile file = new MockMultipartFile("files", "testFile.txt", "text/plain", "sample file content".getBytes());
+        String jsonSurveyDto = new ObjectMapper().writeValueAsString(createSurveyDto);
+        ResponseSurveyDto responseSurveyDto = createMockResponseSurveyDto();
+        MultipartBodyBuilder multipartBodyBuilder = new MultipartBodyBuilder();
+        multipartBodyBuilder.part("json", jsonSurveyDto);
 
-        when(surveyService.createSurvey(any(CreateSurveyDto.class), any()))
+        when(surveyService.createSurvey(any(), any()))
                 .thenReturn(responseSurveyDto);
-        when(objectMapper.readValue(anyString(), eq(CreateSurveyDto.class))).thenReturn(createSurveyDto);
-        when(storageService.store(any(), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn(IMAGE_PATH);
+        when(objectMapper.readValue(anyString(), eq(CreateSurveyDto.class)))
+                .thenReturn(createSurveyDto);
 
-        var mvcResult = mockMvc.perform(MockMvcRequestBuilders
-                        .multipart("/api/surveys")
-                        .file(file)
-                        .param("json", createSurveyDtoJson)
-                        .contentType(MediaType.MULTIPART_FORM_DATA))
-                .andExpect(status().isCreated())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                        .andReturn();
+        ResponseSurveyDto response = webTestClient.post()
+                .uri("/api/surveys")
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .body(BodyInserters.fromMultipartData(multipartBodyBuilder.build()))
+                .exchange()
+                .expectStatus()
+                .isCreated()
+                .expectBody(ResponseSurveyDto.class)
+                .returnResult()
+                .getResponseBody();
 
-        String jsonResponse = mvcResult.getResponse().getContentAsString();
-        ResponseSurveyDto actualResponse = new ObjectMapper().readValue(jsonResponse, ResponseSurveyDto.class);
-
-        assertThat(actualResponse).isNotNull();
-        assertThat(actualResponse).usingRecursiveComparison().isEqualTo(responseSurveyDto);
+        Assertions.assertThat(response).isNotNull();
+        Assertions.assertThat(response.getName()).isEqualTo(SURVEY_NAME);
+        Assertions.assertThat(response.getSections().get(0).getQuestions().get(0).getContent()).isEqualTo(QUESTION_CONTENT);
+        Assertions.assertThat(response.getSections().get(0).getQuestions().get(0).getOptions().get(0).getLabel()).isEqualTo(OPTION_LABEL);
     }
 
     private CreateSurveyDto createMockCreateSurveyDto() {
@@ -91,7 +84,7 @@ public class SurveyControllerTest {
         createOptionDto.setOrder(OPTION_ORDER);
 
         CreateQuestionDto createQuestionDto = new CreateQuestionDto();
-        createQuestionDto.setQuestionType(QuestionType.image_choice.name());
+        createQuestionDto.setQuestionType(QuestionType.single_choice.name());
         createQuestionDto.setOrder(QUESTION_ORDER);
         createQuestionDto.setContent(QUESTION_CONTENT);
         createQuestionDto.setOptions(List.of(createOptionDto));
@@ -113,11 +106,10 @@ public class SurveyControllerTest {
         ResponseOptionDto responseOptionDto = new ResponseOptionDto();
         responseOptionDto.setOrder(OPTION_ORDER);
         responseOptionDto.setLabel(OPTION_LABEL);
-        responseOptionDto.setImagePath(IMAGE_PATH);
 
         ResponseQuestionDto responseQuestionDto = new ResponseQuestionDto();
         responseQuestionDto.setContent(QUESTION_CONTENT);
-        responseQuestionDto.setQuestionType(QuestionType.image_choice);
+        responseQuestionDto.setQuestionType(QuestionType.single_choice);
         responseQuestionDto.setOrder(QUESTION_ORDER);
         responseQuestionDto.setOptions(List.of(responseOptionDto));
 

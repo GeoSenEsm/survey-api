@@ -31,7 +31,7 @@ public class RespondentGroupServiceImpl implements RespondentGroupService {
             if(respondentDataRepository.existsByIdentityUserId(respondentId)){
                 throw new IllegalArgumentException("Invalid respondent ID - respondent doesn't exist");
             }
-            return respondentToGroupRepository.findGroupsByRespondentDataId(respondentId)
+            return respondentToGroupRepository.findGroupsByIdentityUserId(respondentId)
                     .stream()
                     .map(group -> modelMapper.map(group.getRespondentGroup(), RespondentGroupDto.class))
                     .collect(Collectors.toList());

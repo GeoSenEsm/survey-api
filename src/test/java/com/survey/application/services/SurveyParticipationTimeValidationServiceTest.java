@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestPropertySource;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -21,6 +22,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest(classes = SurveyParticipationTimeValidationService.class)
+@TestPropertySource(properties = "ADMIN_USER_PASSWORD=testAdminPassword")
 public class SurveyParticipationTimeValidationServiceTest {
 
     @InjectMocks

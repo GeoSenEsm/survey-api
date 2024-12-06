@@ -12,18 +12,22 @@ import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWeb
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.util.UUID;
 
 @ExtendWith(IntegrationTestDatabaseInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@TestPropertySource(properties = "ADMIN_USER_PASSWORD=testAdminPassword")
 @AutoConfigureWebTestClient
 public class AuthenticationControllerIntegrationTest {
     private final WebTestClient webTestClient;
     private final ObjectMapper objectMapper;
     private final IdentityUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private static final String adminPassword = "testAdminPassword";
+
 
     @Autowired
     public AuthenticationControllerIntegrationTest(WebTestClient webTestClient, ObjectMapper objectMapper,
@@ -57,7 +61,7 @@ public class AuthenticationControllerIntegrationTest {
     @Test
     public void testLoginForExistingUserButWrongPassword() throws JsonProcessingException{
         String randomUsername = UUID.randomUUID().toString();
-        IdentityUser user = new IdentityUser(null, randomUsername, "some password hash", "ADMIN");
+        IdentityUser user = new IdentityUser(null, randomUsername, adminPassword, "ADMIN");
         userRepository.save(user);
 
         LoginDto dto = LoginDto
@@ -79,14 +83,14 @@ public class AuthenticationControllerIntegrationTest {
     @Test
     public void testLoginWIthCorrectCredentials() throws JsonProcessingException{
         String randomUsername = UUID.randomUUID().toString();
-        String passwordHash = passwordEncoder.encode("password");
+        String passwordHash = passwordEncoder.encode(adminPassword);
         IdentityUser user = new IdentityUser(null, randomUsername, passwordHash, "ADMIN");
         userRepository.save(user);
 
         LoginDto dto = LoginDto
                 .builder()
                 .withUsername(randomUsername)
-                .withPassword("password")
+                .withPassword(adminPassword)
                 .build();
 
         String json = objectMapper.writeValueAsString(dto);
