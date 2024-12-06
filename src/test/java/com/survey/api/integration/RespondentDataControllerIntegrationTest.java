@@ -24,6 +24,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.BodyInserters;
 
@@ -40,6 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(IntegrationTestDatabaseInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@TestPropertySource(properties = "ADMIN_USER_PASSWORD=testAdminPassword")
 @AutoConfigureWebTestClient()
 public class RespondentDataControllerIntegrationTest {
     private final WebTestClient webTestClient;
@@ -58,6 +60,7 @@ public class RespondentDataControllerIntegrationTest {
     private static final String OPTION_CONTENT_2 = "Blue";
     private static final int OPTION_ORDER = 1;
     private static final String SECTION_NAME = "Section1";
+    private static final String adminPassword = "testAdminPassword";
 
     @Autowired
     public RespondentDataControllerIntegrationTest(WebTestClient webTestClient, IdentityUserRepository userRepository, RespondentToGroupRepository respondentToGroupRepository, InitialSurveyRepository initialSurveyRepository, SurveyRepository surveyRepository, RespondentGroupRepository respondentGroupRepository, PasswordEncoder passwordEncoder,
@@ -480,13 +483,13 @@ public class RespondentDataControllerIntegrationTest {
                 .setId(UUID.randomUUID())
                 .setRole("ADMIN")
                 .setUsername(UUID.randomUUID().toString())
-                .setPasswordHash(passwordEncoder.encode("password"));
+                .setPasswordHash(passwordEncoder.encode(adminPassword));
 
         identityUser = userRepository.saveAndFlush(identityUser);
 
         Authentication authentication = authenticationManager
                 .authenticate(new UsernamePasswordAuthenticationToken(identityUser.getUsername(),
-                        "password"));
+                        adminPassword));
 
         return tokenProvider.generateToken(authentication);
     }

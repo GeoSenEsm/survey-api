@@ -18,6 +18,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.math.BigDecimal;
@@ -30,11 +31,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(IntegrationTestDatabaseInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@TestPropertySource(properties = "ADMIN_USER_PASSWORD=testAdminPassword")
 @AutoConfigureWebTestClient
 public class SensorDataControllerIntegrationTest {
     private static final BigDecimal VALID_TEMPERATURE = new BigDecimal("21.5");
     private static final BigDecimal VALID_HUMIDITY = new BigDecimal("60.4");
-
     private final WebTestClient webTestClient;
     private final IdentityUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
