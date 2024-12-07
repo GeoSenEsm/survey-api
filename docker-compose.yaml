@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=passw
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlvolume:/var/opt/mssql
+
+  spring_app:
+    build:
+      context: .
+    container_name: spring_app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - sqlserver
+    environment:
+      - FILE_UPLOAD_DIR=/var/opt/mssql/images
+        - SPRING_DATASOURCE_URL=jdbc:sqlserver://sqlserver:1433;databaseName=Survey3;trustServerCertificate=true;encrypt=true
+      - SPRING_DATASOURCE_USERNAME=SA
+      - SPRING_DATASOURCE_PASSWORD=Miki_2024
+      - SPRING_FLYWAY_USERNAME=SA
+      - SPRING_FLYWAY_PASSWORD=Miki_2024
+    volumes:
+      - imagevolume:/uploads
+
+volumes:
+  sqlvolume:
+  imagevolume:

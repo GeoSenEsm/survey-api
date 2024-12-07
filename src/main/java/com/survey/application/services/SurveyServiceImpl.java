@@ -4,7 +4,6 @@ import com.survey.application.dtos.SurveySendingPolicyTimesDto;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.QuestionType;
-import com.survey.domain.models.enums.SurveyState;
 import com.survey.domain.models.enums.Visibility;
 import com.survey.domain.repository.*;
 import jakarta.persistence.EntityManager;
@@ -15,16 +14,11 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.annotation.RequestScope;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,8 +34,7 @@ public class SurveyServiceImpl implements SurveyService {
     private final EntityManager entityManager;
     private final SurveyValidationService surveyValidationService;
     private final ClaimsPrincipalService claimsPrincipalService;
-    private final StorageService storageService;
-
+    private final SurveySendingPolicyRepository surveySendingPolicyRepository;
 
     @Autowired
     public SurveyServiceImpl(SurveyRepository surveyRepository, ModelMapper modelMapper,
@@ -49,7 +42,8 @@ public class SurveyServiceImpl implements SurveyService {
                              EntityManager entityManager,
                              SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository,
                              SurveyValidationService surveyValidationService,
-                             ClaimsPrincipalService claimsPrincipalService, StorageService storageService) {
+                             ClaimsPrincipalService claimsPrincipalService,
+                             SurveySendingPolicyRepository surveySendingPolicyRepository) {
         this.surveyRepository = surveyRepository;
         this.modelMapper = modelMapper;
         this.respondentGroupRepository = respondentGroupRepository;
@@ -57,14 +51,14 @@ public class SurveyServiceImpl implements SurveyService {
         this.surveyParticipationTimeSlotRepository = surveyParticipationTimeSlotRepository;
         this.surveyValidationService = surveyValidationService;
         this.claimsPrincipalService = claimsPrincipalService;
-        this.storageService = storageService;
+        this.surveySendingPolicyRepository = surveySendingPolicyRepository;
     }
 
     @Override
-    public ResponseSurveyDto createSurvey(CreateSurveyDto createSurveyDto, List<MultipartFile> files) {
-        surveyValidationService.validateImageChoiceFiles(createSurveyDto, files);
-        Survey surveyEntity = mapToSurvey(createSurveyDto, files);
+    public ResponseSurveyDto createSurvey(CreateSurveyDto createSurveyDto) {
+        Survey surveyEntity = mapToSurvey(createSurveyDto);
         surveyValidationService.validateShowSections(surveyEntity);
+
 
         Survey dbSurvey = surveyRepository.saveAndFlush(surveyEntity);
         entityManager.refresh(dbSurvey);
@@ -94,6 +88,7 @@ public class SurveyServiceImpl implements SurveyService {
                 .map(survey -> modelMapper.map(survey, ResponseSurveyShortDto.class))
                 .collect(Collectors.toList());
     }
+
 
 
     @Override
@@ -138,105 +133,70 @@ public class SurveyServiceImpl implements SurveyService {
 
     @Override
     public ResponseSurveyDto getSurveyById(UUID surveyId) {
-        Survey survey = findSurveyById(surveyId);
+        Survey survey = surveyRepository.findById(surveyId)
+                .orElseThrow(() -> new NoSuchElementException("Survey not found with id: " + surveyId));
+
         return modelMapper.map(survey, ResponseSurveyDto.class);
     }
 
     @Override
-    public List<ResponseSurveyWithTimeSlotsDto> getAllSurveysWithTimeSlots(){
+    public List<ResponseSurveyWithTimeSlotsDto> getallSurveysWithTimeSlots(){
         List<Survey> surveys = entityManager.createQuery(
                 "SELECT DISTINCT s FROM Survey s LEFT JOIN FETCH s.policies p WHERE EXISTS " +
-                        "(SELECT ts FROM SurveyParticipationTimeSlot ts WHERE ts.surveySendingPolicy = p AND ts.finish > CURRENT_TIMESTAMP AND ts.isDeleted = false)",
+                        "(SELECT ts FROM SurveyParticipationTimeSlot ts WHERE ts.surveySendingPolicy = p AND ts.finish > CURRENT_TIMESTAMP)",
                 Survey.class).getResultList();
 
-        TypedQuery<SurveyParticipationTimeSlot> timeSlotsQuery = entityManager.createQuery(
-                "SELECT ts FROM SurveyParticipationTimeSlot ts " +
-                        "WHERE ts.finish > CURRENT_TIMESTAMP " +
-                        "AND NOT EXISTS (" +
-                        "SELECT 1 FROM SurveyParticipation p " +
-                        "WHERE p.date >= ts.start " +
-                        "AND p.date <= ts.finish " +
-                        "AND p.identityUser.id = :identityUserId" +
-                        ")",
-                SurveyParticipationTimeSlot.class
-        );
-        timeSlotsQuery.setParameter("identityUserId", claimsPrincipalService.findIdentityUser().getId());
-        List<SurveyParticipationTimeSlot> timeSlots = timeSlotsQuery.getResultList();
+        List<SurveyParticipationTimeSlot> timeSlots = entityManager.createQuery(
+                "SELECT ts FROM SurveyParticipationTimeSlot ts WHERE ts.finish > CURRENT_TIMESTAMP" +
+                        "WHERE NOT EXISTS (SELECT 1 FROM SurveyParticipation p WHERE p.date >= ts.start AND p.date <= ts.finish)",
+                SurveyParticipationTimeSlot.class).getResultList();
 
         return surveys.stream()
                 .map(survey -> {
                     ResponseSurveyDto surveyDto = modelMapper.map(survey, ResponseSurveyDto.class);
 
-                    List<SurveySendingPolicyTimesDto> timeSlotDtoList = timeSlots.stream()
+                    List<SurveySendingPolicyTimesDto> timeSlotDtos = timeSlots.stream()
                             .filter(slot -> survey.getPolicies().contains(slot.getSurveySendingPolicy()))
                             .map(slot -> modelMapper.map(slot, SurveySendingPolicyTimesDto.class))
                             .collect(Collectors.toList());
 
                     ResponseSurveyWithTimeSlotsDto responseDto = new ResponseSurveyWithTimeSlotsDto();
                     responseDto.setSurvey(surveyDto);
-                    responseDto.setSurveySendingPolicyTimes(timeSlotDtoList);
+                    responseDto.setSurveySendingPolicyTimes(timeSlotDtos);
 
                     return responseDto;
                 })
                 .collect(Collectors.toList());
     }
 
-    @Override
-    public void publishSurvey(UUID surveyId) {
-        Survey survey = findSurveyById(surveyId);
 
-        if (isSurveyPublished(surveyId)) {
-            throw new IllegalStateException("Survey is already published.");
-        }
-        survey.setState(SurveyState.published);
-        surveyRepository.saveAndFlush(survey);
-    }
-
-    @Override
-    public void deleteSurvey(UUID surveyId) {
-        if (isSurveyPublished(surveyId)){
-            throw new IllegalStateException("Cannot delete published survey.");
-        }
-
-        surveyRepository.delete(findSurveyById(surveyId));
-    }
-
-    private boolean isSurveyPublished(UUID surveyId){
-        return findSurveyById(surveyId).getState() == SurveyState.published;
-    }
-
-
-    private Survey findSurveyById(UUID surveyId){
-        return surveyRepository.findById(surveyId)
-                .orElseThrow(() -> new NoSuchElementException("Survey not found with id: " + surveyId));
-    }
-
-    private Survey mapToSurvey(CreateSurveyDto createSurveyDto, List<MultipartFile> files){
+    private Survey mapToSurvey(CreateSurveyDto createSurveyDto){
         Survey survey = new Survey();
+
         survey.setName(createSurveyDto.getName());
-        survey.setState(SurveyState.created);
         survey.setSections(createSurveyDto.getSections().stream()
-                .map(sectionDto -> mapToSurveySection(sectionDto, survey, files))
+                .map(sectionDto -> mapToSurveySection(sectionDto, survey))
                 .collect(Collectors.toList()));
         return survey;
     }
 
-    private SurveySection mapToSurveySection(CreateSurveySectionDto sectionDto, Survey surveyEntity, List<MultipartFile> files){
+    private SurveySection mapToSurveySection(CreateSurveySectionDto sectionDto, Survey surveyEntity){
         SurveySection surveySection = modelMapper.map(sectionDto, SurveySection.class);
         surveySection.setId(null);
         surveySection.setSurvey(surveyEntity);
 
         SectionToUserGroup sectionToUserGroup = getSectionToUserGroup(sectionDto, surveySection);
+
         surveySection.setSectionToUserGroups(sectionToUserGroup != null ? List.of(sectionToUserGroup) : null);
         surveySection.setQuestions(sectionDto.getQuestions().stream()
-                .map(questionDto -> mapToQuestion(questionDto, surveySection, surveyEntity.getName(), files))
+                .map(questionDto -> mapToQuestion(questionDto, surveySection))
                 .collect(Collectors.toList())
         );
 
         return surveySection;
     }
 
-    private Question mapToQuestion(CreateQuestionDto questionDto, SurveySection surveySection, String surveyId, List<MultipartFile> files){
+    private Question mapToQuestion(CreateQuestionDto questionDto, SurveySection surveySection){
         Question question = modelMapper.map(questionDto, Question.class);
         question.setSection(surveySection);
 
@@ -263,14 +223,6 @@ public class SurveyServiceImpl implements SurveyService {
             question.setOptions(null);
         }
 
-        if (question.getQuestionType().equals(QuestionType.image_choice)) {
-            if (questionDto.getOptions() == null){
-                throw new IllegalArgumentException("Question type set as image_choice - must include a list of options in dto.");
-            }
-            question.setNumberRange(null);
-            question.setOptions(mapOptionsWithFiles(questionDto.getOptions(), question, surveySection.getOrder().toString(), surveyId, files));
-        }
-
         return question;
     }
 
@@ -284,26 +236,6 @@ public class SurveyServiceImpl implements SurveyService {
         Option option = modelMapper.map(optionDto, Option.class);
         option.setQuestion(question);
         return option;
-    }
-
-    private List<Option> mapOptionsWithFiles(List<CreateOptionDto> optionDtoList, Question question, String surveySectionOrder, String surveyName, List<MultipartFile> files) {
-        return optionDtoList.stream()
-                .map(optionDto -> {
-                    Option option = mapToOption(optionDto, question);
-                    int optionIndex = optionDto.getOrder() - 1;
-                    if (optionIndex < files.size()) {
-                        MultipartFile file = files.get(optionIndex);
-                        String imagePath;
-                        try {
-                            imagePath = storageService.store(file, surveyName, surveySectionOrder, question.getOrder().toString(), option.getOrder().toString());
-                        } catch (IOException e) {
-                            throw new RuntimeException("Failed to store file for option: " + option.getLabel(), e);
-                        }
-                        option.setImagePath(imagePath);
-                    }
-                    return option;
-                })
-                .collect(Collectors.toList());
     }
 
     private SectionToUserGroup getSectionToUserGroup(CreateSurveySectionDto createSurveySectionDto, SurveySection surveySectionEntity){
