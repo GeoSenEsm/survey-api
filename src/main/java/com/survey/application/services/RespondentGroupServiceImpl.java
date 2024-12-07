@@ -26,12 +26,12 @@ public class RespondentGroupServiceImpl implements RespondentGroupService {
     }
 
     @Override
-    public List<RespondentGroupDto> getRespondentGroups(UUID respondentId) {
-        if (respondentId != null) {
-            if(respondentDataRepository.existsByIdentityUserId(respondentId)){
+    public List<RespondentGroupDto> getRespondentGroups(UUID identityUserId) {
+        if (identityUserId != null) {
+            if(!respondentDataRepository.existsByIdentityUserId(identityUserId)){
                 throw new IllegalArgumentException("Invalid respondent ID - respondent doesn't exist");
             }
-            return respondentToGroupRepository.findGroupsByIdentityUserId(respondentId)
+            return respondentToGroupRepository.findGroupsByIdentityUserId(identityUserId)
                     .stream()
                     .map(group -> modelMapper.map(group.getRespondentGroup(), RespondentGroupDto.class))
                     .collect(Collectors.toList());
