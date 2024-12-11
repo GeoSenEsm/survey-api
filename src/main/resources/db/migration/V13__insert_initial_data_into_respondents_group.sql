@@ -1,1 +1,1 @@
-INSERT INTO respondents_group (id, name) VALUES (NEWID(), 'All');
+INSERT INTO respondents_group (id, name) VALUES (NEWID(), 'Wszyscy');
