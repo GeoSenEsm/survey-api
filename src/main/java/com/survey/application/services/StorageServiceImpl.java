@@ -4,16 +4,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
+import java.util.Comparator;
 
 @Service
 public class StorageServiceImpl implements StorageService {
+    private static final String BASE_DIRECTORY = "/uploads";
+
     @Override
     public String store(MultipartFile file, String surveyName, String sectionOrder, String questionOrder, String optionOrder) throws IOException {
-        String baseDirectory = "/uploads";
-        Path directoryPath = Paths.get(baseDirectory, formatSurveyName(surveyName), "sections", sectionOrder, "questions", questionOrder, "options");
+        Path directoryPath = Paths.get(BASE_DIRECTORY, formatSurveyName(surveyName), "sections", sectionOrder, "questions", questionOrder, "options");
 
         Files.createDirectories(directoryPath);
 
@@ -24,6 +24,33 @@ public class StorageServiceImpl implements StorageService {
 
         return filePath.toString();
     }
+
+    @Override
+    public void deleteSurveyImages(String surveyName) {
+        Path surveyDirectory = Paths.get(BASE_DIRECTORY, formatSurveyName(surveyName));
+
+        if (!Files.exists(surveyDirectory)) {
+            return;
+        }
+
+        if (!Files.isDirectory(surveyDirectory)) {
+            throw new IllegalStateException("Path is not a directory: " + surveyDirectory);
+        }
+
+        try (var paths = Files.walk(surveyDirectory)) {
+            paths.sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.delete(path);
+                        } catch (IOException e) {
+                            throw new IllegalStateException("Failed to delete path: " + path, e);
+                        }
+                    });
+        } catch (IOException e) {
+            throw new IllegalStateException("Error while deleting survey directory: " + surveyDirectory, e);
+        }
+    }
+
 
     private String formatSurveyName(String name) {
         return name.trim().replaceAll(" ", "_");

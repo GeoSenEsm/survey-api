@@ -204,19 +204,22 @@ public class SurveyServiceImpl implements SurveyService {
             throw new IllegalStateException("Cannot delete published survey.");
         }
 
+        storageService.deleteSurveyImages(getSurveyNameById(surveyId));
         surveyRepository.delete(findSurveyById(surveyId));
+    }
+
+    private String getSurveyNameById(UUID surveyId){
+        return surveyRepository.findSurveyNameBySurveyId(surveyId);
     }
 
     private boolean isSurveyPublished(UUID surveyId){
         return findSurveyById(surveyId).getState() == SurveyState.published;
     }
 
-
     private Survey findSurveyById(UUID surveyId){
         return surveyRepository.findById(surveyId)
                 .orElseThrow(() -> new NoSuchElementException("Survey not found with id: " + surveyId));
     }
-
 
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto, List<MultipartFile> files){
         Survey survey = new Survey();
