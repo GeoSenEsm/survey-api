@@ -17,8 +17,10 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.BodyInserters;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 
 
@@ -30,7 +32,6 @@ public class SurveyControllerTest {
     @Mock
     private ObjectMapper objectMapper;
     private WebTestClient webTestClient;
-
     private CreateSurveyDto createSurveyDto;
     private static final String SURVEY_NAME = "Survey1";
     private static final String SECTION_NAME = "Section1";
@@ -39,7 +40,7 @@ public class SurveyControllerTest {
     private static final int SECTION_ORDER = 1;
     private static final int QUESTION_ORDER = 1;
     private static final int OPTION_ORDER = 1;
-
+    private static final UUID SURVEY_ID = UUID.randomUUID();
 
 
     @BeforeEach
@@ -76,6 +77,46 @@ public class SurveyControllerTest {
         Assertions.assertThat(response.getName()).isEqualTo(SURVEY_NAME);
         Assertions.assertThat(response.getSections().get(0).getQuestions().get(0).getContent()).isEqualTo(QUESTION_CONTENT);
         Assertions.assertThat(response.getSections().get(0).getQuestions().get(0).getOptions().get(0).getLabel()).isEqualTo(OPTION_LABEL);
+    }
+    @Test
+    void deleteSurvey_ShouldReturnOk() {
+        doNothing().when(surveyService).deleteSurvey(SURVEY_ID);
+
+        webTestClient.delete()
+                .uri("/api/surveys/" + SURVEY_ID)
+                .exchange()
+                .expectStatus().isOk();
+    }
+
+    @Test
+    void updateSurvey_ShouldReturnUpdatedSurvey() throws Exception {
+        String jsonSurveyDto = new ObjectMapper().writeValueAsString(createSurveyDto);
+        ResponseSurveyDto responseSurveyDto = createMockResponseSurveyDto();
+        when(surveyService.updateSurvey(eq(SURVEY_ID), any(), any())).thenReturn(responseSurveyDto);
+
+        ResponseSurveyDto response = webTestClient.put()
+                .uri("/api/surveys/" + SURVEY_ID)
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .body(BodyInserters.fromMultipartData("json", jsonSurveyDto))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(ResponseSurveyDto.class)
+                .returnResult()
+                .getResponseBody();
+
+        Assertions.assertThat(response).isNotNull();
+        Assertions.assertThat(response.getName()).isEqualTo(SURVEY_NAME);
+        Assertions.assertThat(response.getSections().get(0).getQuestions().get(0).getContent()).isEqualTo(QUESTION_CONTENT);
+        Assertions.assertThat(response.getSections().get(0).getQuestions().get(0).getOptions().get(0).getLabel()).isEqualTo(OPTION_LABEL);
+    }
+    @Test
+    void publishSurvey_ShouldReturnNoContent() {
+        doNothing().when(surveyService).publishSurvey(SURVEY_ID);
+
+        webTestClient.patch()
+                .uri(uriBuilder -> uriBuilder.path("/api/surveys/publish").queryParam("surveyId", SURVEY_ID).build())
+                .exchange()
+                .expectStatus().isNoContent();
     }
 
     private CreateSurveyDto createMockCreateSurveyDto() {
