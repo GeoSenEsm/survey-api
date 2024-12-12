@@ -2,7 +2,7 @@ package com.survey.application.services;
 
 import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.domain.models.*;
-import com.survey.domain.models.enums.InitialSurveyState;
+import com.survey.domain.models.enums.SurveyState;
 import com.survey.domain.repository.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -271,7 +271,7 @@ class RespondentDataServiceTest {
         surveyQuestion.setOptions(List.of(option));
 
         initialSurvey.setQuestions(List.of(surveyQuestion));
-        initialSurvey.setState(InitialSurveyState.published);
+        initialSurvey.setState(SurveyState.published);
         return initialSurvey;
     }
 }

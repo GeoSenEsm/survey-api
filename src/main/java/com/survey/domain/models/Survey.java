@@ -1,5 +1,7 @@
 package com.survey.domain.models;
 
+import com.survey.domain.models.enums.SurveyState;
+import com.survey.domain.models.enums.SurveyStateConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -22,7 +24,11 @@ public class Survey {
     @Column(nullable = false, unique = true)
     private String name;
 
-    @Column(name = "row_version", insertable = false)
+    @Column(nullable = false)
+    @Convert(converter = SurveyStateConverter.class)
+    private SurveyState state;
+
+    @Column(name = "row_version", insertable = false, updatable = false)
     private byte[] rowVersion;
 
     @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)

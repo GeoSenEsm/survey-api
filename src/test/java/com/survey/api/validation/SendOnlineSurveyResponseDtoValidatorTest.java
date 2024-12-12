@@ -200,6 +200,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                         surveyId,
                         "name",
                         null,
+                        null,
                         Collections.singletonList(
                                 new SurveySection(
                                         UUID.randomUUID(),

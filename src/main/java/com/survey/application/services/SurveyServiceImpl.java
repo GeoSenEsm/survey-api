@@ -4,6 +4,7 @@ import com.survey.application.dtos.SurveySendingPolicyTimesDto;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.QuestionType;
+import com.survey.domain.models.enums.SurveyState;
 import com.survey.domain.models.enums.Visibility;
 import com.survey.domain.repository.*;
 import jakarta.persistence.EntityManager;
@@ -146,9 +147,13 @@ public class SurveyServiceImpl implements SurveyService {
     @Override
     public List<ResponseSurveyWithTimeSlotsDto> getAllSurveysWithTimeSlots(){
         List<Survey> surveys = entityManager.createQuery(
-                "SELECT DISTINCT s FROM Survey s LEFT JOIN FETCH s.policies p WHERE EXISTS " +
-                        "(SELECT ts FROM SurveyParticipationTimeSlot ts WHERE ts.surveySendingPolicy = p AND ts.finish > CURRENT_TIMESTAMP AND ts.isDeleted = false)",
-                Survey.class).getResultList();
+                "SELECT DISTINCT s FROM Survey s LEFT JOIN FETCH s.policies p " +
+                        "WHERE s.state = :state AND EXISTS (" +
+                        "SELECT ts FROM SurveyParticipationTimeSlot ts " +
+                        "WHERE ts.surveySendingPolicy = p " +
+                        "AND ts.finish > CURRENT_TIMESTAMP " +
+                        "AND ts.isDeleted = false)",
+                Survey.class).setParameter("state", SurveyState.published).getResultList();
 
         TypedQuery<SurveyParticipationTimeSlot> timeSlotsQuery = entityManager.createQuery(
                 "SELECT ts FROM SurveyParticipationTimeSlot ts " +
@@ -182,10 +187,44 @@ public class SurveyServiceImpl implements SurveyService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public void publishSurvey(UUID surveyId) {
+        Survey survey = findSurveyById(surveyId);
+
+        if (isSurveyPublished(surveyId)) {
+            throw new IllegalStateException("Survey is already published.");
+        }
+        survey.setState(SurveyState.published);
+        surveyRepository.saveAndFlush(survey);
+    }
+
+    @Override
+    public void deleteSurvey(UUID surveyId) {
+        if (isSurveyPublished(surveyId)){
+            throw new IllegalStateException("Cannot delete published survey.");
+        }
+
+        storageService.deleteSurveyImages(getSurveyNameById(surveyId));
+        surveyRepository.delete(findSurveyById(surveyId));
+    }
+
+    private String getSurveyNameById(UUID surveyId){
+        return surveyRepository.findSurveyNameBySurveyId(surveyId);
+    }
+
+    private boolean isSurveyPublished(UUID surveyId){
+        return findSurveyById(surveyId).getState() == SurveyState.published;
+    }
+
+    private Survey findSurveyById(UUID surveyId){
+        return surveyRepository.findById(surveyId)
+                .orElseThrow(() -> new NoSuchElementException("Survey not found with id: " + surveyId));
+    }
 
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto, List<MultipartFile> files){
         Survey survey = new Survey();
         survey.setName(createSurveyDto.getName());
+        survey.setState(SurveyState.created);
         survey.setSections(createSurveyDto.getSections().stream()
                 .map(sectionDto -> mapToSurveySection(sectionDto, survey, files))
                 .collect(Collectors.toList()));

@@ -6,16 +6,16 @@ import lombok.Getter;
 import java.util.Arrays;
 
 @Getter
-public enum InitialSurveyState {
+public enum SurveyState {
     created(0),
     published(1);
 
     private final int value;
 
-    InitialSurveyState(int value) {this.value = value;}
+    SurveyState(int value) {this.value = value;}
 
-    public static InitialSurveyState fromValue(int value){
-        return Arrays.stream(InitialSurveyState.values())
+    public static SurveyState fromValue(int value){
+        return Arrays.stream(SurveyState.values())
                 .filter(initialSurveyState -> initialSurveyState.value == value)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Unknown enum value: " + value));
