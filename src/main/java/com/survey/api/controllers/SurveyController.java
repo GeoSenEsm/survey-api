@@ -84,7 +84,10 @@ public class SurveyController {
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
-
-
-
+    @PutMapping("/{surveyId}")
+    public ResponseEntity<ResponseSurveyDto> updateSurvey(@PathVariable UUID surveyId, @RequestPart("json") @Validated String createSurveyDto, @RequestPart(value = "files", required = false) List<MultipartFile> files) throws JsonProcessingException {
+        CreateSurveyDto surveyDto = objectMapper.readValue(createSurveyDto, CreateSurveyDto.class);
+        ResponseSurveyDto responseSurveyDto = surveyService.updateSurvey(surveyId, surveyDto, files);
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body(responseSurveyDto);
+    }
 }

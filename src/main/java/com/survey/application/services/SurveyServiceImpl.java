@@ -21,10 +21,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,6 +38,7 @@ public class SurveyServiceImpl implements SurveyService {
     private final SurveyValidationService surveyValidationService;
     private final ClaimsPrincipalService claimsPrincipalService;
     private final StorageService storageService;
+    private final SurveySendingPolicyRepository surveySendingPolicyRepository;
 
 
     @Autowired
@@ -49,7 +47,7 @@ public class SurveyServiceImpl implements SurveyService {
                              EntityManager entityManager,
                              SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository,
                              SurveyValidationService surveyValidationService,
-                             ClaimsPrincipalService claimsPrincipalService, StorageService storageService) {
+                             ClaimsPrincipalService claimsPrincipalService, StorageService storageService, SurveySendingPolicyRepository surveySendingPolicyRepository) {
         this.surveyRepository = surveyRepository;
         this.modelMapper = modelMapper;
         this.respondentGroupRepository = respondentGroupRepository;
@@ -58,6 +56,7 @@ public class SurveyServiceImpl implements SurveyService {
         this.surveyValidationService = surveyValidationService;
         this.claimsPrincipalService = claimsPrincipalService;
         this.storageService = storageService;
+        this.surveySendingPolicyRepository = surveySendingPolicyRepository;
     }
 
     @Override
@@ -206,6 +205,31 @@ public class SurveyServiceImpl implements SurveyService {
 
         storageService.deleteSurveyImages(getSurveyNameById(surveyId));
         surveyRepository.delete(findSurveyById(surveyId));
+    }
+
+    @Override
+    @Transactional
+    public ResponseSurveyDto updateSurvey(UUID surveyId, CreateSurveyDto createSurveyDto, List<MultipartFile> files) {
+        if (isSurveyPublished(surveyId)){
+            throw new IllegalStateException("Cannot update published survey.");
+        }
+        List<SurveySendingPolicy> policies = surveySendingPolicyRepository.findAllBySurveyId(surveyId);
+
+        deleteSurvey(surveyId);
+
+        surveyValidationService.validateImageChoiceFiles(createSurveyDto, files);
+        Survey surveyEntity = mapToSurvey(createSurveyDto, files);
+        surveyEntity.setId(surveyId);
+        surveyValidationService.validateShowSections(surveyEntity);
+
+        Survey dbSurvey = surveyRepository.saveAndFlush(surveyEntity);
+        entityManager.refresh(dbSurvey);
+
+        if (!policies.isEmpty()) {
+            surveySendingPolicyRepository.saveAllAndFlush(policies);
+        }
+
+        return modelMapper.map(dbSurvey, ResponseSurveyDto.class);
     }
 
     private String getSurveyNameById(UUID surveyId){
