@@ -21,10 +21,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -144,46 +141,36 @@ public class SurveyServiceImpl implements SurveyService {
         return modelMapper.map(survey, ResponseSurveyDto.class);
     }
 
+//    TODO make this more efficient
     @Override
-    public List<ResponseSurveyWithTimeSlotsDto> getAllSurveysWithTimeSlots(){
+    public List<ResponseSurveyWithTimeSlotsDto> getAllSurveysWithTimeSlots() {
         List<Survey> surveys = entityManager.createQuery(
-                "SELECT DISTINCT s FROM Survey s LEFT JOIN FETCH s.policies p " +
-                        "WHERE s.state = :state AND EXISTS (" +
-                        "SELECT ts FROM SurveyParticipationTimeSlot ts " +
-                        "WHERE ts.surveySendingPolicy = p " +
-                        "AND ts.finish > CURRENT_TIMESTAMP " +
-                        "AND ts.isDeleted = false)",
-                Survey.class).setParameter("state", SurveyState.published).getResultList();
+                        "SELECT DISTINCT s FROM Survey s WHERE s.state = :state",
+                        Survey.class)
+                .setParameter("state", SurveyState.published)
+                .getResultList();
 
-        TypedQuery<SurveyParticipationTimeSlot> timeSlotsQuery = entityManager.createQuery(
-                "SELECT ts FROM SurveyParticipationTimeSlot ts " +
-                        "WHERE ts.finish > CURRENT_TIMESTAMP " +
-                        "AND NOT EXISTS (" +
-                        "SELECT 1 FROM SurveyParticipation p " +
-                        "WHERE p.date >= ts.start " +
-                        "AND p.date <= ts.finish " +
-                        "AND p.identityUser.id = :identityUserId" +
-                        ")",
-                SurveyParticipationTimeSlot.class
-        );
-        timeSlotsQuery.setParameter("identityUserId", claimsPrincipalService.findIdentityUser().getId());
-        List<SurveyParticipationTimeSlot> timeSlots = timeSlotsQuery.getResultList();
+        UUID identityUserId = claimsPrincipalService.findIdentityUser().getId();
 
         return surveys.stream()
                 .map(survey -> {
                     ResponseSurveyDto surveyDto = modelMapper.map(survey, ResponseSurveyDto.class);
 
-                    List<SurveySendingPolicyTimesDto> timeSlotDtoList = timeSlots.stream()
-                            .filter(slot -> survey.getPolicies().contains(slot.getSurveySendingPolicy()))
+                    List<SurveySendingPolicyTimesDto> validTimeSlots = survey.getPolicies().stream()
+                            .flatMap(policy -> policy.getTimeSlots().stream())
+                            .filter(slot -> isValidTimeSlot(slot, identityUserId))
                             .map(slot -> modelMapper.map(slot, SurveySendingPolicyTimesDto.class))
                             .collect(Collectors.toList());
 
-                    ResponseSurveyWithTimeSlotsDto responseDto = new ResponseSurveyWithTimeSlotsDto();
-                    responseDto.setSurvey(surveyDto);
-                    responseDto.setSurveySendingPolicyTimes(timeSlotDtoList);
-
-                    return responseDto;
+                    if (!validTimeSlots.isEmpty()) {
+                        ResponseSurveyWithTimeSlotsDto responseDto = new ResponseSurveyWithTimeSlotsDto();
+                        responseDto.setSurvey(surveyDto);
+                        responseDto.setSurveySendingPolicyTimes(validTimeSlots);
+                        return responseDto;
+                    }
+                    return null;
                 })
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
@@ -219,6 +206,23 @@ public class SurveyServiceImpl implements SurveyService {
     private Survey findSurveyById(UUID surveyId){
         return surveyRepository.findById(surveyId)
                 .orElseThrow(() -> new NoSuchElementException("Survey not found with id: " + surveyId));
+    }
+
+    private boolean isValidTimeSlot(SurveyParticipationTimeSlot slot, UUID currentUserId) {
+        if (slot.isDeleted() || slot.getFinish().isBefore(OffsetDateTime.now())) {
+            return false;
+        }
+
+        Long surveyParticipationCount = entityManager.createQuery(
+                        "SELECT COUNT(p) FROM SurveyParticipation p " +
+                                "WHERE p.date BETWEEN :start AND :finish " +
+                                "AND p.identityUser.id = :userId", Long.class)
+                .setParameter("start", slot.getStart())
+                .setParameter("finish", slot.getFinish())
+                .setParameter("userId", currentUserId)
+                .getSingleResult();
+
+        return surveyParticipationCount == 0;
     }
 
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto, List<MultipartFile> files){
