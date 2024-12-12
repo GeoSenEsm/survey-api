@@ -17,6 +17,7 @@ import javax.management.InvalidAttributeValueException;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/respondents")
@@ -49,8 +50,16 @@ public class RespondentDataController {
     }
 
     @GetMapping
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<Map<String, Object>> getFromUserContext(){
         Map<String, Object> response = respondentDataService.getFromUserContext();
         return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    @PutMapping
+    public ResponseEntity<Map<String, Object>> updateRespondent(@Validated @RequestBody List<CreateRespondentDataDto> dto,
+                                                                    @RequestParam("respondentId") UUID identityUserId){
+        Map<String, Object> response = respondentDataService.updateRespondent(dto, identityUserId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
