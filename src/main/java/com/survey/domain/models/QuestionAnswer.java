@@ -1,8 +1,10 @@
 package com.survey.domain.models;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 
 import java.util.List;
 import java.util.UUID;
@@ -11,6 +13,9 @@ import java.util.ArrayList;
 @Entity
 @Data
 @NoArgsConstructor
+@AllArgsConstructor
+@Table(name = "question_answer")
+@Accessors(chain = true)
 public class QuestionAnswer {
     @Id
     @GeneratedValue(strategy =  GenerationType.UUID)
@@ -31,7 +36,7 @@ public class QuestionAnswer {
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;
 
-    @ManyToMany(mappedBy = "questionAnswer", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "questionAnswer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OptionSelection> optionSelections = new ArrayList<>();
 
     @Column(name = "yes_no_answer")
