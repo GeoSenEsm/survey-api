@@ -1,1 +1,0 @@
-ALTER TABLE survey_participation_time_slot ADD is_deleted BIT NOT NULL

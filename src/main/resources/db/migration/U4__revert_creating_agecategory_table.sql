@@ -1,1 +1,0 @@
-DROP TABLE age_category;

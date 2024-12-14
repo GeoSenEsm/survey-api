@@ -1,1 +1,0 @@
-ALTER TABLE research_area ADD [order] INT;
