@@ -19,7 +19,6 @@ import java.util.*;
 @Accessors(chain = true)
 public class Survey {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @Column(nullable = false, unique = true)
@@ -37,4 +36,11 @@ public class Survey {
 
     @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SurveySendingPolicy> policies = new ArrayList<>();
+
+    @PrePersist
+    public void generateUUID() {
+        if (id == null) {
+            id = UUID.randomUUID();
+        }
+    }
 }

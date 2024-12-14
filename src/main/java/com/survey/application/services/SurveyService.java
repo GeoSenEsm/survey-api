@@ -17,4 +17,5 @@ public interface SurveyService {
     List<ResponseSurveyWithTimeSlotsDto> getAllSurveysWithTimeSlots();
     void publishSurvey(UUID surveyId);
     void deleteSurvey(UUID surveyId);
+    ResponseSurveyDto updateSurvey(UUID surveyId, CreateSurveyDto createSurveyDto, List<MultipartFile> files);
 }
