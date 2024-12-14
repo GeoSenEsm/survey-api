@@ -161,7 +161,7 @@ public class RespondentDataControllerIntegrationTest {
     }
 
     @Test
-    void getAll_WithFilterOptionSkippedSurvey_ShouldReturnOk() throws JsonProcessingException {
+    void getAll_WithFilterOptionSkippedSurvey_ShouldReturnOk() {
         IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
         String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
 
@@ -197,7 +197,7 @@ public class RespondentDataControllerIntegrationTest {
     }
 
     @Test
-    void getAll_WithFilterOptionSkippedSurvey_ForGroupSpecificSurveySection_ShouldReturnOk() throws JsonProcessingException {
+    void getAll_WithFilterOptionSkippedSurvey_ForGroupSpecificSurveySection_ShouldReturnOk(){
         IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
         String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
 
