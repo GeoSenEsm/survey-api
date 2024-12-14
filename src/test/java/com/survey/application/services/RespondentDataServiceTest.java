@@ -96,7 +96,7 @@ class RespondentDataServiceTest {
 
         when(respondentDataRepository.save(any(RespondentData.class))).thenReturn(respondentData);
 
-        Map<String, Object> response = respondentDataService.createRespondent(List.of(respondentDataDto), "testToken");
+        Map<String, Object> response = respondentDataService.createRespondent(List.of(respondentDataDto));
 
         verify(respondentDataRepository).save(any(RespondentData.class));
         assertNotNull(response);
@@ -113,7 +113,7 @@ class RespondentDataServiceTest {
         when(respondentDataRepository.existsByIdentityUserId(MOCK_USER_ID)).thenReturn(true);
 
         assertThrows(NullPointerException.class,
-                () -> respondentDataService.createRespondent(List.of(respondentDataDto), "testToken"));
+                () -> respondentDataService.createRespondent(List.of(respondentDataDto)));
     }
 
     @Test
