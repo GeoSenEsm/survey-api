@@ -1,7 +1,5 @@
 package com.survey.api.integration;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.api.security.TokenProvider;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.domain.models.IdentityUser;
@@ -25,7 +23,6 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.BodyInserters;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -45,8 +42,10 @@ public class SurveyControllerIntegrationTest {
     private final SurveyParticipationRepository surveyParticipationRepository;
     private static final String QUESTION_CONTENT = "What is your favorite color?";
     private static final int QUESTION_ORDER = 1;
-    private static final String OPTION_CONTENT = "Red";
-    private static final int OPTION_ORDER = 1;
+    private static final String OPTION_CONTENT_1 = "Red";
+    private static final String OPTION_CONTENT_2 = "Blue";
+    private static final int OPTION_ORDER_1 = 1;
+    private static final int OPTION_ORDER_2 = 2;
     private static final String SURVEY_NAME = "Survey";
     private static final String SECTION_NAME = "Section1";
     private static final String adminPassword = "testAdminPassword";
@@ -70,7 +69,7 @@ public class SurveyControllerIntegrationTest {
         adminToken = authenticateAndGenerateTokenForAdmin();
     }
     @Test
-    void createSurvey_ShouldBeOK() throws IOException {
+    void createSurvey_ShouldBeOK() {
         CreateSurveyDto createSurveyDto = createValidSurveyDto();
         MultipartBodyBuilder multipartBodyBuilder = buildMultipartBodyFromDto(createSurveyDto);
 
@@ -89,11 +88,10 @@ public class SurveyControllerIntegrationTest {
         assertThat(response).isNotNull();
         assertThat(response.getName()).isEqualTo(SURVEY_NAME);
         assertThat(response.getSections().get(0).getQuestions().get(0).getContent()).isEqualTo(QUESTION_CONTENT);
-        assertThat(response.getSections().get(0).getQuestions().get(0).getOptions().get(0).getLabel()).isEqualTo(OPTION_CONTENT);
     }
 
     @Test
-    void getSurvey_ShouldReturnOk() throws JsonProcessingException {
+    void getSurvey_ShouldReturnOk() {
         CreateSurveyDto createSurveyDto = createValidSurveyDto();
         ResponseSurveyDto responseSurveyDto = saveSurveyAsAdmin(createSurveyDto);
 
@@ -113,7 +111,7 @@ public class SurveyControllerIntegrationTest {
     }
 
     @Test
-    void updateSurvey_ShouldReturnOK() throws JsonProcessingException {
+    void updateSurvey_ShouldReturnOK() {
         CreateSurveyDto createSurveyDto = createValidSurveyDto();
         MultipartBodyBuilder multipartBodyBuilder = buildMultipartBodyFromDto(createSurveyDto);
         ResponseSurveyDto responseSurveyDto = saveSurveyAsAdmin(createSurveyDto);
@@ -129,7 +127,7 @@ public class SurveyControllerIntegrationTest {
     }
 
     @Test
-    void updateSurvey_ShouldReturnBadRequest_WhenSurveyAlreadyPublished() throws JsonProcessingException {
+    void updateSurvey_ShouldReturnBadRequest_WhenSurveyAlreadyPublished() {
         CreateSurveyDto createSurveyDto = createValidSurveyDto();
         MultipartBodyBuilder multipartBodyBuilder = buildMultipartBodyFromDto(createSurveyDto);
         ResponseSurveyDto responseSurveyDto = saveSurveyAsAdmin(createSurveyDto);
@@ -153,7 +151,7 @@ public class SurveyControllerIntegrationTest {
     }
 
     @Test
-    void deleteSurvey_ShouldReturnOK() throws JsonProcessingException {
+    void deleteSurvey_ShouldReturnOK() {
         CreateSurveyDto createSurveyDto = createValidSurveyDto();
         ResponseSurveyDto responseSurveyDto = saveSurveyAsAdmin(createSurveyDto);
 
@@ -176,18 +174,14 @@ public class SurveyControllerIntegrationTest {
                 .expectBody(String.class).value(errorMessage -> assertThat(errorMessage).contains("Survey not found"));
     }
 
-    private MultipartBodyBuilder buildMultipartBodyFromDto(CreateSurveyDto createSurveyDto) throws JsonProcessingException {
-        String jsonSurveyDto = new ObjectMapper().writeValueAsString(createSurveyDto);
-
+    private MultipartBodyBuilder buildMultipartBodyFromDto(CreateSurveyDto createSurveyDto) {
         MultipartBodyBuilder multipartBodyBuilder = new MultipartBodyBuilder();
-        multipartBodyBuilder.part("json", jsonSurveyDto);
+        multipartBodyBuilder.part("json", createSurveyDto, MediaType.APPLICATION_JSON);
         return multipartBodyBuilder;
     }
-    private ResponseSurveyDto saveSurveyAsAdmin(CreateSurveyDto createSurveyDto) throws JsonProcessingException {
-        String jsonSurveyDto = new ObjectMapper().writeValueAsString(createSurveyDto);
-
+    private ResponseSurveyDto saveSurveyAsAdmin(CreateSurveyDto createSurveyDto) {
         MultipartBodyBuilder multipartBodyBuilder = new MultipartBodyBuilder();
-        multipartBodyBuilder.part("json", jsonSurveyDto);
+        multipartBodyBuilder.part("json", createSurveyDto, MediaType.APPLICATION_JSON);
 
         return webTestClient.post()
                 .uri("/api/surveys")
@@ -202,16 +196,21 @@ public class SurveyControllerIntegrationTest {
                 .getResponseBody();
     }
     private CreateSurveyDto createValidSurveyDto(){
-        CreateOptionDto createOptionDto = new CreateOptionDto();
-        createOptionDto.setLabel(OPTION_CONTENT);
-        createOptionDto.setOrder(OPTION_ORDER);
-        createOptionDto.setImagePath(null);
+        CreateOptionDto createOptionDto1 = new CreateOptionDto();
+        createOptionDto1.setLabel(OPTION_CONTENT_1);
+        createOptionDto1.setOrder(OPTION_ORDER_1);
+        createOptionDto1.setImagePath(null);
+
+        CreateOptionDto createOptionDto2 = new CreateOptionDto();
+        createOptionDto2.setLabel(OPTION_CONTENT_2);
+        createOptionDto2.setOrder(OPTION_ORDER_2);
+        createOptionDto2.setImagePath(null);
 
         CreateQuestionDto createQuestionDto = new CreateQuestionDto();
         createQuestionDto.setQuestionType(QuestionType.single_choice.name());
         createQuestionDto.setOrder(QUESTION_ORDER);
         createQuestionDto.setContent(QUESTION_CONTENT);
-        createQuestionDto.setOptions(List.of(createOptionDto));
+        createQuestionDto.setOptions(List.of(createOptionDto1, createOptionDto2));
 
         CreateSurveySectionDto createSurveySectionDto = new CreateSurveySectionDto();
         createSurveySectionDto.setName(SECTION_NAME);

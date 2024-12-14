@@ -1,7 +1,5 @@
 package com.survey.api.controllers;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.application.services.SurveyService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -23,18 +21,15 @@ import java.util.UUID;
 @CrossOrigin
 public class SurveyController {
     private final SurveyService surveyService;
-    private final ObjectMapper objectMapper;
 
     @Autowired
-    public SurveyController(SurveyService surveyService, ObjectMapper objectMapper) {
+    public SurveyController(SurveyService surveyService) {
         this.surveyService = surveyService;
-        this.objectMapper = objectMapper;
     }
 
-    @PostMapping
-    public ResponseEntity<ResponseSurveyDto> createSurvey(@RequestPart("json") @Validated String createSurveyDto, @RequestPart(value = "files", required = false) List<MultipartFile> files) throws JsonProcessingException {
-        CreateSurveyDto surveyDto = objectMapper.readValue(createSurveyDto, CreateSurveyDto.class);
-        ResponseSurveyDto responseDto = surveyService.createSurvey(surveyDto, files);
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ResponseSurveyDto> createSurvey(@RequestPart("json") @Validated CreateSurveyDto createSurveyDto, @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+        ResponseSurveyDto responseDto = surveyService.createSurvey(createSurveyDto, files);
         return ResponseEntity.status(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body(responseDto);
     }
 
@@ -84,10 +79,9 @@ public class SurveyController {
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
-    @PutMapping("/{surveyId}")
-    public ResponseEntity<ResponseSurveyDto> updateSurvey(@PathVariable UUID surveyId, @RequestPart("json") @Validated String createSurveyDto, @RequestPart(value = "files", required = false) List<MultipartFile> files) throws JsonProcessingException {
-        CreateSurveyDto surveyDto = objectMapper.readValue(createSurveyDto, CreateSurveyDto.class);
-        ResponseSurveyDto responseSurveyDto = surveyService.updateSurvey(surveyId, surveyDto, files);
+    @PutMapping(value = "/{surveyId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ResponseSurveyDto> updateSurvey(@PathVariable UUID surveyId, @RequestPart("json") @Validated CreateSurveyDto createSurveyDto, @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+        ResponseSurveyDto responseSurveyDto = surveyService.updateSurvey(surveyId, createSurveyDto, files);
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body(responseSurveyDto);
     }
 }
