@@ -158,7 +158,7 @@ public class SurveyServiceImpl implements SurveyService {
 
                     List<SurveySendingPolicyTimesDto> validTimeSlots = survey.getPolicies().stream()
                             .flatMap(policy -> policy.getTimeSlots().stream())
-                            .filter(slot -> isValidTimeSlot(slot, identityUserId))
+                            .filter(slot -> isValidTimeSlot(slot, identityUserId, survey.getId()))
                             .map(slot -> modelMapper.map(slot, SurveySendingPolicyTimesDto.class))
                             .collect(Collectors.toList());
 
@@ -208,7 +208,7 @@ public class SurveyServiceImpl implements SurveyService {
                 .orElseThrow(() -> new NoSuchElementException("Survey not found with id: " + surveyId));
     }
 
-    private boolean isValidTimeSlot(SurveyParticipationTimeSlot slot, UUID currentUserId) {
+    private boolean isValidTimeSlot(SurveyParticipationTimeSlot slot, UUID currentUserId, UUID surveyId) {
         if (slot.isDeleted() || slot.getFinish().isBefore(OffsetDateTime.now())) {
             return false;
         }
@@ -216,10 +216,12 @@ public class SurveyServiceImpl implements SurveyService {
         Long surveyParticipationCount = entityManager.createQuery(
                         "SELECT COUNT(p) FROM SurveyParticipation p " +
                                 "WHERE p.date BETWEEN :start AND :finish " +
-                                "AND p.identityUser.id = :userId", Long.class)
+                                "AND p.identityUser.id = :userId " +
+                                "AND p.survey.id = :surveyId", Long.class)
                 .setParameter("start", slot.getStart())
                 .setParameter("finish", slot.getFinish())
                 .setParameter("userId", currentUserId)
+                .setParameter("surveyId", surveyId)
                 .getSingleResult();
 
         return surveyParticipationCount == 0;
