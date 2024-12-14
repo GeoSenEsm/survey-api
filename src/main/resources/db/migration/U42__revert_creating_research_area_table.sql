@@ -1,1 +1,0 @@
-DROP TABLE research_area;

@@ -1,4 +1,0 @@
-CREATE TABLE initial_survey (
-    id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    row_version TIMESTAMP NOT NULL
-);

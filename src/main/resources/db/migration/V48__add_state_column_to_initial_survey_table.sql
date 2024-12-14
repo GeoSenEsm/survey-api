@@ -1,1 +1,0 @@
-ALTER TABLE initial_survey ADD state INT NOT NULL;
