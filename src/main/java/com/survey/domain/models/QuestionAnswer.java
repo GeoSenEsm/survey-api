@@ -36,7 +36,7 @@ public class QuestionAnswer {
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;
 
-    @OneToMany(mappedBy = "questionAnswer", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ManyToMany(mappedBy = "questionAnswer", cascade = CascadeType.ALL)
     private List<OptionSelection> optionSelections = new ArrayList<>();
 
     @Column(name = "yes_no_answer")
