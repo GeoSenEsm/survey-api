@@ -82,6 +82,7 @@ public class SurveyServiceImpl implements SurveyService {
         List<Survey> surveys = timeSlots.stream()
                 .map(slot -> slot.getSurveySendingPolicy().getSurvey())
                 .distinct()
+                .sorted(Comparator.comparing(Survey::getCreationDate).reversed())
                 .toList();
 
         return surveys.stream()
@@ -92,6 +93,7 @@ public class SurveyServiceImpl implements SurveyService {
     @Override
     public List<ResponseSurveyShortDto> getSurveysShort() {
         return surveyRepository.findAll().stream()
+                .sorted(Comparator.comparing(Survey::getCreationDate).reversed())
                 .map(survey -> modelMapper.map(survey, ResponseSurveyShortDto.class))
                 .collect(Collectors.toList());
     }
@@ -122,6 +124,7 @@ public class SurveyServiceImpl implements SurveyService {
         }
 
         return surveyRepository.findAll().stream()
+                .sorted(Comparator.comparing(Survey::getCreationDate).reversed())
                 .map(survey -> {
                     List<SurveySendingPolicyTimesDto> timeSlotDtoList = survey.getPolicies().stream()
                             .flatMap(policy -> policy.getTimeSlots().stream())
@@ -149,7 +152,7 @@ public class SurveyServiceImpl implements SurveyService {
     @Override
     public List<ResponseSurveyWithTimeSlotsDto> getAllSurveysWithTimeSlots() {
         List<Survey> surveys = entityManager.createQuery(
-                        "SELECT DISTINCT s FROM Survey s WHERE s.state = :state",
+                        "SELECT DISTINCT s FROM Survey s WHERE s.state = :state ORDER BY s.creationDate DESC",
                         Survey.class)
                 .setParameter("state", SurveyState.published)
                 .getResultList();
@@ -206,12 +209,14 @@ public class SurveyServiceImpl implements SurveyService {
             throw new IllegalStateException("Cannot update published survey.");
         }
         List<SurveySendingPolicy> policies = surveySendingPolicyRepository.findAllBySurveyId(surveyId);
+        OffsetDateTime originalSurveyCreationDateTime = findSurveyById(surveyId).getCreationDate();
 
         deleteSurvey(surveyId);
 
         surveyValidationService.validateImageChoiceFiles(createSurveyDto, files);
         Survey surveyEntity = mapToSurvey(createSurveyDto, files);
         surveyEntity.setId(surveyId);
+        surveyEntity.setCreationDate(originalSurveyCreationDateTime);
         surveyValidationService.validateShowSections(surveyEntity);
 
         Survey dbSurvey = surveyRepository.saveAndFlush(surveyEntity);
@@ -249,6 +254,7 @@ public class SurveyServiceImpl implements SurveyService {
         Survey survey = new Survey();
         survey.setName(createSurveyDto.getName());
         survey.setState(SurveyState.created);
+        survey.setCreationDate(OffsetDateTime.now(ZoneOffset.UTC));
         survey.setSections(createSurveyDto.getSections().stream()
                 .map(sectionDto -> mapToSurveySection(sectionDto, survey, files))
                 .collect(Collectors.toList()));

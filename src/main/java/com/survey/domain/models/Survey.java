@@ -7,8 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
-import org.hibernate.annotations.BatchSize;
 
+import java.time.OffsetDateTime;
 import java.util.*;
 
 @Entity
@@ -36,6 +36,9 @@ public class Survey {
 
     @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SurveySendingPolicy> policies = new ArrayList<>();
+
+    @Column(name = "creation_date", nullable = false, updatable = false)
+    private OffsetDateTime creationDate;
 
     @PrePersist
     public void generateUUID() {
