@@ -26,6 +26,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -216,7 +217,8 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                         null
                                 )
                         ),
-                        null
+                        null,
+                        OffsetDateTime.now(ZoneOffset.UTC)
                 ),
                 new SendOnlineSurveyResponseDto(
                         surveyId,
