@@ -1,12 +1,13 @@
 package com.survey.api.integration;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.api.security.TokenProvider;
 import com.survey.application.dtos.*;
 import com.survey.application.dtos.initialSurvey.InitialSurveyQuestionResponseDto;
 import com.survey.application.dtos.surveyDtos.*;
-import com.survey.domain.models.*;
+import com.survey.domain.models.IdentityUser;
+import com.survey.domain.models.InitialSurveyOption;
+import com.survey.domain.models.InitialSurveyQuestion;
+import com.survey.domain.models.RespondentGroup;
 import com.survey.domain.models.enums.QuestionType;
 import com.survey.domain.models.enums.RespondentFilterOption;
 import com.survey.domain.models.enums.Visibility;
@@ -58,7 +59,8 @@ public class RespondentDataControllerIntegrationTest {
     private static final int QUESTION_ORDER = 1;
     private static final String OPTION_CONTENT_1 = "Red";
     private static final String OPTION_CONTENT_2 = "Blue";
-    private static final int OPTION_ORDER = 1;
+    private static final int OPTION_ORDER_1 = 1;
+    private static final int OPTION_ORDER_2 = 2;
     private static final String SECTION_NAME = "Section1";
     private static final String adminPassword = "testAdminPassword";
 
@@ -158,7 +160,7 @@ public class RespondentDataControllerIntegrationTest {
     }
 
     @Test
-    void getAll_WithFilterOptionSkippedSurvey_ShouldReturnOk() throws JsonProcessingException {
+    void getAll_WithFilterOptionSkippedSurvey_ShouldReturnOk() {
         String adminToken = generateTokenForAdmin();
         IdentityUser validRespondent = createIdentityUserForRespondent("respondent1");
         String validRespondentToken = generateTokenForRespondent(validRespondent);
@@ -191,7 +193,7 @@ public class RespondentDataControllerIntegrationTest {
     }
 
     @Test
-    void getAll_WithFilterOptionSkippedSurvey_ForGroupSpecificSurveySection_ShouldReturnOk() throws JsonProcessingException {
+    void getAll_WithFilterOptionSkippedSurvey_ForGroupSpecificSurveySection_ShouldReturnOk() {
         String adminToken = generateTokenForAdmin();
         IdentityUser validRespondent = createIdentityUserForRespondent("respondent1");
         String validRespondentToken = generateTokenForRespondent(validRespondent);
@@ -368,11 +370,9 @@ public class RespondentDataControllerIntegrationTest {
                 .exchange()
                 .expectStatus().isCreated();
     }
-    private ResponseSurveyDto saveSurvey(CreateSurveyDto createSurveyDto) throws JsonProcessingException {
-        String jsonSurveyDto = new ObjectMapper().writeValueAsString(createSurveyDto);
-
+    private ResponseSurveyDto saveSurvey(CreateSurveyDto createSurveyDto) {
         MultipartBodyBuilder multipartBodyBuilder = new MultipartBodyBuilder();
-        multipartBodyBuilder.part("json", jsonSurveyDto);
+        multipartBodyBuilder.part("json", createSurveyDto, MediaType.APPLICATION_JSON);
 
         return webTestClient.post()
                 .uri("/api/surveys")
@@ -430,16 +430,21 @@ public class RespondentDataControllerIntegrationTest {
                 .getResponseBody();
     }
     private CreateSurveyDto createSurveyDto(){
-        CreateOptionDto createOptionDto = new CreateOptionDto();
-        createOptionDto.setLabel(OPTION_CONTENT_1);
-        createOptionDto.setOrder(OPTION_ORDER);
-        createOptionDto.setImagePath(null);
+        CreateOptionDto createOptionDto1 = new CreateOptionDto();
+        createOptionDto1.setLabel(OPTION_CONTENT_1);
+        createOptionDto1.setOrder(OPTION_ORDER_1);
+        createOptionDto1.setImagePath(null);
+
+        CreateOptionDto createOptionDto2 = new CreateOptionDto();
+        createOptionDto2.setLabel(OPTION_CONTENT_2);
+        createOptionDto2.setOrder(OPTION_ORDER_2);
+        createOptionDto2.setImagePath(null);
 
         CreateQuestionDto createQuestionDto = new CreateQuestionDto();
         createQuestionDto.setQuestionType(QuestionType.single_choice.name());
         createQuestionDto.setOrder(QUESTION_ORDER);
         createQuestionDto.setContent(QUESTION_CONTENT);
-        createQuestionDto.setOptions(List.of(createOptionDto));
+        createQuestionDto.setOptions(List.of(createOptionDto1, createOptionDto2));
 
         CreateSurveySectionDto createSurveySectionDto = new CreateSurveySectionDto();
         createSurveySectionDto.setName(SECTION_NAME);
@@ -454,16 +459,21 @@ public class RespondentDataControllerIntegrationTest {
         return createSurveyDto;
     }
     private CreateSurveyDto createSurveyGroupSpecificDto(String groupId){
-        CreateOptionDto createOptionDto = new CreateOptionDto();
-        createOptionDto.setLabel(OPTION_CONTENT_1);
-        createOptionDto.setOrder(OPTION_ORDER);
-        createOptionDto.setImagePath(null);
+        CreateOptionDto createOptionDto1 = new CreateOptionDto();
+        createOptionDto1.setLabel(OPTION_CONTENT_1);
+        createOptionDto1.setOrder(OPTION_ORDER_1);
+        createOptionDto1.setImagePath(null);
+
+        CreateOptionDto createOptionDto2 = new CreateOptionDto();
+        createOptionDto2.setLabel(OPTION_CONTENT_2);
+        createOptionDto2.setOrder(OPTION_ORDER_2);
+        createOptionDto2.setImagePath(null);
 
         CreateQuestionDto createQuestionDto = new CreateQuestionDto();
         createQuestionDto.setQuestionType(QuestionType.single_choice.name());
         createQuestionDto.setOrder(QUESTION_ORDER);
         createQuestionDto.setContent(QUESTION_CONTENT);
-        createQuestionDto.setOptions(List.of(createOptionDto));
+        createQuestionDto.setOptions(List.of(createOptionDto1, createOptionDto2));
 
         CreateSurveySectionDto createSurveySectionDto = new CreateSurveySectionDto();
         createSurveySectionDto.setName(SECTION_NAME);
