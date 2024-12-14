@@ -104,7 +104,7 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
             query.setParameter("toDate", to);
         }
         if (identityUserId != null) {
-            query.setParameter("respondentId", identityUserId);
+            query.setParameter("identityUserId", identityUserId);
         }
         if (surveyId != null) {
             query.setParameter("surveyId", surveyId);
