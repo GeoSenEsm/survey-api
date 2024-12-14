@@ -3,6 +3,7 @@ package com.survey.application.services;
 import com.survey.application.dtos.CreateRespondentDataDto;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.RespondentFilterOption;
+import com.survey.domain.models.enums.SurveyState;
 import com.survey.domain.models.enums.Visibility;
 import com.survey.domain.repository.*;
 import jakarta.persistence.EntityManager;
@@ -32,12 +33,13 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     private final InitialSurveyOptionRepository initialSurveyOptionRepository;
     private final RespondentGroupRepository respondentGroupRepository;
     private final RespondentToGroupRepository respondentToGroupRepository;
+    private final IdentityUserRepository identityUserRepository;
 
 
 
     @Autowired
     public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository,
-                                     ClaimsPrincipalService claimsPrincipalService, EntityManager entityManager, InitialSurveyRepository initialSurveyRepository, InitialSurveyQuestionRepository initialSurveyQuestionRepository, InitialSurveyOptionRepository initialSurveyOptionRepository, RespondentGroupRepository respondentGroupRepository, RespondentToGroupRepository respondentToGroupRepository) {
+                                     ClaimsPrincipalService claimsPrincipalService, EntityManager entityManager, InitialSurveyRepository initialSurveyRepository, InitialSurveyQuestionRepository initialSurveyQuestionRepository, InitialSurveyOptionRepository initialSurveyOptionRepository, RespondentGroupRepository respondentGroupRepository, RespondentToGroupRepository respondentToGroupRepository, IdentityUserRepository identityUserRepository) {
         this.respondentDataRepository = respondentDataRepository;
         this.claimsPrincipalService = claimsPrincipalService;
         this.entityManager = entityManager;
@@ -46,16 +48,18 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         this.initialSurveyOptionRepository = initialSurveyOptionRepository;
         this.respondentGroupRepository = respondentGroupRepository;
         this.respondentToGroupRepository = respondentToGroupRepository;
+        this.identityUserRepository = identityUserRepository;
     }
 
     @Override
     @Transactional
-    public Map<String, Object> createRespondent(List<CreateRespondentDataDto> dtoList, String tokenWithPrefix)
+    public Map<String, Object> createRespondent(List<CreateRespondentDataDto> dtoList)
             throws BadCredentialsException, InvalidAttributeValueException, InstanceAlreadyExistsException, BadRequestException {
         IdentityUser identityUser = claimsPrincipalService.findIdentityUser();
         checkIfRespondentDataExists(identityUser.getId());
+        validateCreateRespondentDataDtoList(dtoList);
 
-        RespondentData respondentData = initializeRespondentData(identityUser.getId());
+        RespondentData respondentData = initializeRespondentData(identityUser);
         respondentData.setRespondentDataQuestions(createRespondentDataQuestions(dtoList, respondentData));
         RespondentData savedRespondentData = respondentDataRepository.save(respondentData);
 
@@ -104,6 +108,48 @@ public class RespondentDataServiceImpl implements RespondentDataService{
                 .orElseThrow(NoSuchElementException::new);
 
         return mapRespondentDataToResponse(dbRespondentData);
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> updateRespondent(List<CreateRespondentDataDto> dtoList, UUID identityUserId) {
+        IdentityUser identityUser = identityUserRepository.findById(identityUserId)
+                .orElseThrow(() -> new IllegalArgumentException("Respondent with given identity user id not found"));
+
+        RespondentData respondentData = respondentDataRepository.findByIdentityUserId(identityUserId);
+
+        validateCreateRespondentDataDtoList(dtoList);
+
+        if (respondentData != null) {
+            clearExistingRespondentData(respondentData);
+        }
+        respondentData = initializeRespondentData(identityUser);
+
+        respondentData.setRespondentDataQuestions(createRespondentDataQuestions(dtoList, respondentData));
+
+        RespondentData savedRespondentData = respondentDataRepository.save(respondentData);
+        saveRespondentToGroupEntities(dtoList, savedRespondentData);
+
+        return mapRespondentDataToResponse(savedRespondentData);
+    }
+
+    private void validateCreateRespondentDataDtoList(List<CreateRespondentDataDto> dtoList) {
+        InitialSurvey initialSurvey = initialSurveyRepository.findTopByRowVersionDesc()
+                .orElseThrow(() -> new IllegalStateException("Initial survey does not exist yet."));
+
+        if (initialSurvey.getState() != SurveyState.published) {
+            throw new IllegalStateException("Initial survey is not published yet.");
+        }
+
+        if (initialSurvey.getQuestions().size() != dtoList.size()) {
+            throw new IllegalArgumentException("The number of questions in the initial survey does not match the number of provided DTOs.");
+        }
+    }
+
+    private void clearExistingRespondentData(RespondentData respondentData){
+        UUID respondentDataId = respondentData.getId();
+        respondentToGroupRepository.deleteAllByRespondentDataId(respondentDataId);
+        respondentDataRepository.deleteById(respondentDataId);
     }
 
     private Predicate buildFilterPredicate(CriteriaBuilder cb, CriteriaQuery<IdentityUser> cq, Root<IdentityUser> identityUserRoot, RespondentFilterOption filterOption, Integer amount, OffsetDateTime from, OffsetDateTime to) {
@@ -236,10 +282,10 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         respondentToGroupRepository.saveAllAndFlush(respondentToGroupList);
     }
 
-    private RespondentData initializeRespondentData(UUID userId) {
+    private RespondentData initializeRespondentData(IdentityUser identityUser) {
         RespondentData respondentData = new RespondentData();
-        respondentData.setIdentityUserId(userId);
-        respondentData.setIdentityUser(claimsPrincipalService.findIdentityUser());
+        respondentData.setIdentityUserId(identityUser.getId());
+        respondentData.setIdentityUser(identityUser);
         respondentData.setInitialSurvey(getOrCreateInitialSurvey());
         return respondentData;
     }

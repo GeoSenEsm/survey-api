@@ -34,7 +34,7 @@ public class SensorDataServiceImpl implements SensorDataService {
     }
 
     @Override
-    public List<ResponseSensorDataDto> saveSensorData(String token, List<SensorDataDto> temperatureDataDtoList) {
+    public List<ResponseSensorDataDto> saveSensorData(List<SensorDataDto> temperatureDataDtoList) {
         if (temperatureDataDtoList == null || temperatureDataDtoList.isEmpty()){
             throw new IllegalArgumentException("Temperature data list cannot be empty.");
         }
@@ -64,13 +64,13 @@ public class SensorDataServiceImpl implements SensorDataService {
     }
 
     @Override
-    public LastSensorEntryDateDto getDateOfLastSensorDataForRespondent(UUID respondentId) {
-        if (!identityUserRepository.existsById(respondentId)){
+    public LastSensorEntryDateDto getDateOfLastSensorDataForRespondent(UUID identityUserId) {
+        if (!identityUserRepository.existsById(identityUserId)){
             throw new IllegalArgumentException("Invalid respondent ID - respondent doesn't exist");
         }
 
         OffsetDateTime lastSensorData = sensorDataRepository
-                .findDateOfLastEntryForRespondent(respondentId)
+                .findDateOfLastEntryForRespondent(identityUserId)
                 .orElseThrow(() -> new NoSuchElementException("No sensor data available for the specified respondent"));
 
         return new LastSensorEntryDateDto(lastSensorData);

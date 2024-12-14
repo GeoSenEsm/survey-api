@@ -32,10 +32,9 @@ public class LocalizationDataController {
     @CrossOrigin
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<List<ResponseLocalizationDto>> saveLocalizationData(
-            @Valid @RequestBody List<LocalizationDataDto> localizationDataDtos,
-            @RequestHeader(value = "Authorization", required = false) String token){
+            @Valid @RequestBody List<LocalizationDataDto> localizationDataDtos){
 
-        List<ResponseLocalizationDto> saveLocalizationData = localizationDataService.saveLocalizationData(localizationDataDtos, token);
+        List<ResponseLocalizationDto> saveLocalizationData = localizationDataService.saveLocalizationData(localizationDataDtos);
         return ResponseEntity.status(HttpStatus.CREATED).body(saveLocalizationData);
     }
 
@@ -44,11 +43,11 @@ public class LocalizationDataController {
     public ResponseEntity<List<ResponseLocalizationDto>> getLocalizationData(
             @RequestParam(value = "from", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime from,
             @RequestParam(value = "to", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to,
-            @RequestParam(value = "respondentId", required = false) UUID respondentId,
+            @RequestParam(value = "respondentId", required = false) UUID identityUserId,
             @RequestParam(value = "surveyId", required = false) UUID surveyId,
             @RequestParam(value = "outsideResearchArea", required = false) boolean outsideResearchArea){
 
-        List<ResponseLocalizationDto> dtoList = localizationDataService.getLocalizationData(from, to, respondentId, surveyId, outsideResearchArea);
+        List<ResponseLocalizationDto> dtoList = localizationDataService.getLocalizationData(from, to, identityUserId, surveyId, outsideResearchArea);
         return ResponseEntity.status(HttpStatus.OK).body(dtoList);
     }
 

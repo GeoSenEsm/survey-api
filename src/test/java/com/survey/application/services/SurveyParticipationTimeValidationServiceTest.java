@@ -61,7 +61,7 @@ public class SurveyParticipationTimeValidationServiceTest {
 
         when(surveySendingPolicyRepository.findAllBySurveyId(eq(surveyId)))
                 .thenReturn(List.of(policy));
-        when(surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(
+        when(surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(
                 eq(surveyId), eq(identityUserId), any(), any()))
                 .thenReturn(false);
 
@@ -72,7 +72,7 @@ public class SurveyParticipationTimeValidationServiceTest {
         assertEquals(surveyFinishDate, result);
 
         verify(surveySendingPolicyRepository).findAllBySurveyId(eq(surveyId));
-        verify(surveyParticipationRepository).existsBySurveyIdAndRespondentIdAndDateBetween(
+        verify(surveyParticipationRepository).existsBySurveyIdAndIdentityUserIdAndDateBetween(
                 eq(surveyId), eq(identityUserId), eq(timeSlot.getStart()), eq(timeSlot.getFinish()));
     }
 
@@ -91,7 +91,7 @@ public class SurveyParticipationTimeValidationServiceTest {
 
         when(surveySendingPolicyRepository.findAllBySurveyId(eq(surveyId)))
                 .thenReturn(List.of(policy));
-        when(surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(
+        when(surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(
                 eq(surveyId), eq(identityUserId), any(), any()))
                 .thenReturn(false);
 
@@ -102,7 +102,7 @@ public class SurveyParticipationTimeValidationServiceTest {
         assertEquals(surveyStartDate, result);
 
         verify(surveySendingPolicyRepository).findAllBySurveyId(eq(surveyId));
-        verify(surveyParticipationRepository).existsBySurveyIdAndRespondentIdAndDateBetween(
+        verify(surveyParticipationRepository).existsBySurveyIdAndIdentityUserIdAndDateBetween(
                 eq(surveyId), eq(identityUserId), eq(timeSlot.getStart()), eq(timeSlot.getFinish()));
     }
 
@@ -112,7 +112,7 @@ public class SurveyParticipationTimeValidationServiceTest {
         OffsetDateTime surveyFinishDate = nowUTC;
 
         when(surveySendingPolicyRepository.findAllBySurveyId(surveyId)).thenReturn(List.of());
-        when(surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(any(), any(), any(), any()))
+        when(surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(any(), any(), any(), any()))
                 .thenReturn(false);
 
         Exception exception = assertThrows(IllegalArgumentException.class, () ->
@@ -146,7 +146,7 @@ public class SurveyParticipationTimeValidationServiceTest {
         policy.setTimeSlots(timeSlots);
 
         when(surveySendingPolicyRepository.findAllBySurveyId(surveyId)).thenReturn(List.of(policy));
-        when(surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(any(), any(), any(), any()))
+        when(surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(any(), any(), any(), any()))
                 .thenReturn(false);
 
         Exception exception = assertThrows(IllegalArgumentException.class, () ->
@@ -180,7 +180,7 @@ public class SurveyParticipationTimeValidationServiceTest {
         policy.setTimeSlots(timeSlots);
 
         when(surveySendingPolicyRepository.findAllBySurveyId(surveyId)).thenReturn(List.of(policy));
-        when(surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(any(), any(), any(), any()))
+        when(surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(any(), any(), any(), any()))
                 .thenReturn(false);
 
         Exception exception = assertThrows(IllegalArgumentException.class, () ->
@@ -214,7 +214,7 @@ public class SurveyParticipationTimeValidationServiceTest {
         policy.setTimeSlots(timeSlots);
 
         when(surveySendingPolicyRepository.findAllBySurveyId(surveyId)).thenReturn(List.of(policy));
-        when(surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(any(), any(), any(), any()))
+        when(surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(any(), any(), any(), any()))
                 .thenReturn(false);
 
         Exception exception = assertThrows(IllegalArgumentException.class, () ->
@@ -238,7 +238,7 @@ public class SurveyParticipationTimeValidationServiceTest {
         policy.setTimeSlots(List.of(timeSlot));
 
         when(surveySendingPolicyRepository.findAllBySurveyId(surveyId)).thenReturn(List.of(policy));
-        when(surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(any(), any(), any(), any()))
+        when(surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(any(), any(), any(), any()))
                 .thenReturn(false);
 
         Exception exception = assertThrows(IllegalArgumentException.class, () ->
@@ -263,7 +263,7 @@ public class SurveyParticipationTimeValidationServiceTest {
 
         when(surveySendingPolicyRepository.findAllBySurveyId(eq(surveyId)))
                 .thenReturn(List.of(policy));
-        when(surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(
+        when(surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(
                 eq(surveyId), eq(identityUserId), any(), any()))
                 .thenReturn(true);
 
@@ -274,7 +274,7 @@ public class SurveyParticipationTimeValidationServiceTest {
         assertTrue(exception.getMessage().contains("Respondent already participated in this survey in this time slot."));
 
         verify(surveySendingPolicyRepository).findAllBySurveyId(eq(surveyId));
-        verify(surveyParticipationRepository).existsBySurveyIdAndRespondentIdAndDateBetween(
+        verify(surveyParticipationRepository).existsBySurveyIdAndIdentityUserIdAndDateBetween(
                 eq(surveyId), eq(identityUserId), eq(timeSlot.getStart()), eq(timeSlot.getFinish()));
     }
 
@@ -295,7 +295,7 @@ public class SurveyParticipationTimeValidationServiceTest {
 
         when(surveySendingPolicyRepository.findAllBySurveyId(eq(surveyId)))
                 .thenReturn(List.of(policy));
-        when(surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(
+        when(surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(
                 eq(surveyId), eq(identityUserId), any(), any()))
                 .thenReturn(false);
 
@@ -306,7 +306,7 @@ public class SurveyParticipationTimeValidationServiceTest {
         assertEquals(surveyStartDate, result);
 
         verify(surveySendingPolicyRepository).findAllBySurveyId(eq(surveyId));
-        verify(surveyParticipationRepository).existsBySurveyIdAndRespondentIdAndDateBetween(
+        verify(surveyParticipationRepository).existsBySurveyIdAndIdentityUserIdAndDateBetween(
                 eq(surveyId), eq(identityUserId), eq(timeSlot.getStart()), eq(timeSlot.getFinish()));
     }
 
@@ -324,7 +324,7 @@ public class SurveyParticipationTimeValidationServiceTest {
         policy.setTimeSlots(List.of(timeSlot));
 
         when(surveySendingPolicyRepository.findAllBySurveyId(eq(surveyId))).thenReturn(List.of(policy));
-        when(surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(
+        when(surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(
                 eq(surveyId), eq(identityUserId), any(), any()))
                 .thenReturn(false);
 
@@ -335,7 +335,7 @@ public class SurveyParticipationTimeValidationServiceTest {
         assertEquals(surveyFinishDate, result);
 
         verify(surveySendingPolicyRepository).findAllBySurveyId(eq(surveyId));
-        verify(surveyParticipationRepository).existsBySurveyIdAndRespondentIdAndDateBetween(
+        verify(surveyParticipationRepository).existsBySurveyIdAndIdentityUserIdAndDateBetween(
                 eq(surveyId), eq(identityUserId), eq(timeSlot.getStart()), eq(timeSlot.getFinish()));
     }
 
@@ -414,7 +414,7 @@ public class SurveyParticipationTimeValidationServiceTest {
         policy.setTimeSlots(List.of(timeSlot));
 
         when(surveySendingPolicyRepository.findAllBySurveyId(eq(surveyId))).thenReturn(List.of(policy));
-        when(surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(
+        when(surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(
                 eq(surveyId), eq(identityUserId), any(), any()))
                 .thenReturn(true);
 
@@ -423,7 +423,7 @@ public class SurveyParticipationTimeValidationServiceTest {
 
         assertNull(result);
         verify(surveySendingPolicyRepository).findAllBySurveyId(eq(surveyId));
-        verify(surveyParticipationRepository).existsBySurveyIdAndRespondentIdAndDateBetween(
+        verify(surveyParticipationRepository).existsBySurveyIdAndIdentityUserIdAndDateBetween(
                 eq(surveyId), eq(identityUserId), eq(timeSlot.getStart()), eq(timeSlot.getFinish()));
     }
 }

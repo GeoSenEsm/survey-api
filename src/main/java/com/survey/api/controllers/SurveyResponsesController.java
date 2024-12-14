@@ -34,8 +34,8 @@ public class SurveyResponsesController {
     @CrossOrigin
     @PostMapping
     @SecurityRequirement(name = "bearerAuth")
-    public ResponseEntity<SurveyParticipationDto> saveSurveyResponseOnline(@Validated @RequestBody SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto, @RequestHeader(value="Authorization", required = false) String token) throws InvalidAttributeValueException {
-        SurveyParticipationDto surveyParticipationDto = surveyResponsesService.saveSurveyResponseOnline(sendOnlineSurveyResponseDto, token);
+    public ResponseEntity<SurveyParticipationDto> saveSurveyResponseOnline(@Validated @RequestBody SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto) throws InvalidAttributeValueException {
+        SurveyParticipationDto surveyParticipationDto = surveyResponsesService.saveSurveyResponseOnline(sendOnlineSurveyResponseDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(surveyParticipationDto);
     }
 

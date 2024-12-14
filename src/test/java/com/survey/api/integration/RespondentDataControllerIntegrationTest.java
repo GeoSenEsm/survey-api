@@ -62,7 +62,7 @@ public class RespondentDataControllerIntegrationTest {
     private static final int OPTION_ORDER_1 = 1;
     private static final int OPTION_ORDER_2 = 2;
     private static final String SECTION_NAME = "Section1";
-    private static final String adminPassword = "testAdminPassword";
+    private static final String USER_PASSWORD = "testUserPassword";
 
     @Autowired
     public RespondentDataControllerIntegrationTest(WebTestClient webTestClient, IdentityUserRepository userRepository, RespondentToGroupRepository respondentToGroupRepository, InitialSurveyRepository initialSurveyRepository, SurveyRepository surveyRepository, RespondentGroupRepository respondentGroupRepository, PasswordEncoder passwordEncoder,
@@ -92,15 +92,15 @@ public class RespondentDataControllerIntegrationTest {
     }
     @Test
     void createRespondent_ShouldReturnCreatedResponse() {
-        IdentityUser validRespondent = createIdentityUserForRespondent("respondent");
-        String validRespondentToken = generateTokenForRespondent(validRespondent);
+        IdentityUser respondent = createUserWithRole("Respondent", USER_PASSWORD);
+        String respondentToken = authenticateAndGenerateToken(respondent, USER_PASSWORD);
 
-        List<InitialSurveyQuestionResponseDto> initialSurvey = saveInitialSurvey();
+        List<InitialSurveyQuestionResponseDto> initialSurvey = saveAndPublishInitialSurvey();
         CreateRespondentDataDto createRespondentDataDto = createRespondentDataDto(initialSurvey, 0);
 
         Map<String, Object> bodyRespondent = webTestClient.post()
                 .uri("/api/respondents")
-                .header("Authorization", "Bearer " + validRespondentToken)
+                .header("Authorization", "Bearer " + respondentToken)
                 .bodyValue(Collections.singletonList(createRespondentDataDto))
                 .exchange()
                 .expectStatus()
@@ -110,18 +110,18 @@ public class RespondentDataControllerIntegrationTest {
                 .getResponseBody();
 
         assertThat(bodyRespondent).isNotNull();
-        assertThat(bodyRespondent).containsEntry("id", validRespondent.getId().toString());
-        assertThat(bodyRespondent).containsEntry("username", validRespondent.getUsername());
+        assertThat(bodyRespondent).containsEntry("id", respondent.getId().toString());
+        assertThat(bodyRespondent).containsEntry("username", respondent.getUsername());
         assertThat(bodyRespondent).containsEntry(QUESTION_CONTENT, initialSurvey.get(0).getOptions().get(0).getId().toString());
     }
 
     @Test
     void getFromUserContext_ShouldGiveNotFound_WhenTheRespondentDataWasNotCreatedYet(){
-        IdentityUser respondent = createIdentityUserForRespondent("respondent");
-        String token = generateTokenForRespondent(respondent);
+        IdentityUser respondent = createUserWithRole("Respondent", USER_PASSWORD);
+        String respondentToken = authenticateAndGenerateToken(respondent, USER_PASSWORD);
 
         webTestClient.get().uri("/api/respondents")
-                .header("Authorization", "Bearer " + token)
+                .header("Authorization", "Bearer " + respondentToken)
                 .exchange()
                 .expectStatus()
                 .isNotFound();
@@ -129,7 +129,8 @@ public class RespondentDataControllerIntegrationTest {
 
     @Test
     void getAllForAdminShouldBeOk(){
-        String adminToken = generateTokenForAdmin();
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
 
         webTestClient.get().uri("/api/respondents/all")
                 .header("Authorization", "Bearer " + adminToken)
@@ -140,14 +141,14 @@ public class RespondentDataControllerIntegrationTest {
 
     @Test
     void getFromUserContext_ShouldReturnUserRespondentData_WhenDataExists() {
-        IdentityUser respondent = createIdentityUserForRespondent("respondent");
-        String token = generateTokenForRespondent(respondent);
+        IdentityUser respondent = createUserWithRole("Respondent", USER_PASSWORD);
+        String respondentToken = authenticateAndGenerateToken(respondent, USER_PASSWORD);
 
-        List<InitialSurveyQuestionResponseDto> initialSurvey = saveInitialSurvey();
-        saveInitialSurveyResponse(initialSurvey, 0, token);
+        List<InitialSurveyQuestionResponseDto> initialSurvey = saveAndPublishInitialSurvey();
+        saveInitialSurveyResponse(initialSurvey, 0, respondentToken);
 
         Map<String, Object> response = webTestClient.get().uri("/api/respondents")
-                .header("Authorization", "Bearer " + token)
+                .header("Authorization", "Bearer " + respondentToken)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(new ParameterizedTypeReference<Map<String, Object>>() {})
@@ -161,10 +162,13 @@ public class RespondentDataControllerIntegrationTest {
 
     @Test
     void getAll_WithFilterOptionSkippedSurvey_ShouldReturnOk() {
-        String adminToken = generateTokenForAdmin();
-        IdentityUser validRespondent = createIdentityUserForRespondent("respondent1");
-        String validRespondentToken = generateTokenForRespondent(validRespondent);
-        IdentityUser invalidRespondent = createIdentityUserForRespondent("respondent2");
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
+
+        IdentityUser validRespondent = createUserWithRole("Respondent", USER_PASSWORD);
+        String validRespondentToken = authenticateAndGenerateToken(validRespondent, USER_PASSWORD);
+
+        IdentityUser invalidRespondent = createUserWithRole("Respondent", USER_PASSWORD);
 
         ResponseSurveyDto survey = saveSurvey(createSurveyDto());
         saveSurveySendingPolicy(survey.getId());
@@ -193,14 +197,18 @@ public class RespondentDataControllerIntegrationTest {
     }
 
     @Test
-    void getAll_WithFilterOptionSkippedSurvey_ForGroupSpecificSurveySection_ShouldReturnOk() {
-        String adminToken = generateTokenForAdmin();
-        IdentityUser validRespondent = createIdentityUserForRespondent("respondent1");
-        String validRespondentToken = generateTokenForRespondent(validRespondent);
-        IdentityUser invalidRespondent = createIdentityUserForRespondent("respondent2");
-        String invalidRespondentToken = generateTokenForRespondent(invalidRespondent);
+    void getAll_WithFilterOptionSkippedSurvey_ForGroupSpecificSurveySection_ShouldReturnOk(){
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
 
-        List<InitialSurveyQuestionResponseDto> initialSurvey = saveInitialSurvey();
+        IdentityUser validRespondent = createUserWithRole("Respondent", USER_PASSWORD);
+        String validRespondentToken = authenticateAndGenerateToken(validRespondent, USER_PASSWORD);
+
+        IdentityUser invalidRespondent = createUserWithRole("Respondent", USER_PASSWORD);
+        String invalidRespondentToken = authenticateAndGenerateToken(invalidRespondent, USER_PASSWORD);
+
+
+        List<InitialSurveyQuestionResponseDto> initialSurvey = saveAndPublishInitialSurvey();
         saveInitialSurveyResponse(initialSurvey, 0, validRespondentToken);
         saveInitialSurveyResponse(initialSurvey, 1, invalidRespondentToken);
 
@@ -233,10 +241,13 @@ public class RespondentDataControllerIntegrationTest {
 
     @Test
     void getAll_WithFilterOptionLocationNotSent_ShouldReturnOk() {
-        String adminToken = generateTokenForAdmin();
-        IdentityUser validRespondent = createIdentityUserForRespondent("respondent1");
-        String validRespondentToken = generateTokenForRespondent(validRespondent);
-        IdentityUser invalidRespondent = createIdentityUserForRespondent("respondent2");
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
+
+        IdentityUser validRespondent = createUserWithRole("Respondent", USER_PASSWORD);
+        String validRespondentToken = authenticateAndGenerateToken(validRespondent, USER_PASSWORD);
+
+        IdentityUser invalidRespondent = createUserWithRole("Respondent", USER_PASSWORD);
 
         saveLocalizationDataForRespondent(validRespondentToken, OffsetDateTime.now());
         saveLocalizationDataForRespondent(validRespondentToken, OffsetDateTime.now().minusDays(1));
@@ -265,10 +276,13 @@ public class RespondentDataControllerIntegrationTest {
 
     @Test
     void getAll_WithFilterOptionSensorDataNotSent_ShouldReturnOk() {
-        String adminToken = generateTokenForAdmin();
-        IdentityUser validRespondent = createIdentityUserForRespondent("respondent1");
-        String validRespondentToken = generateTokenForRespondent(validRespondent);
-        IdentityUser invalidRespondent = createIdentityUserForRespondent("respondent2");
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
+
+        IdentityUser validRespondent = createUserWithRole("Respondent", USER_PASSWORD);
+        String validRespondentToken = authenticateAndGenerateToken(validRespondent, USER_PASSWORD);
+
+        IdentityUser invalidRespondent = createUserWithRole("Respondent", USER_PASSWORD);
 
         saveSensorDataForRespondent(validRespondentToken, OffsetDateTime.now());
         saveSensorDataForRespondent(validRespondentToken, OffsetDateTime.now().minusDays(2));
@@ -295,6 +309,203 @@ public class RespondentDataControllerIntegrationTest {
         assertThat(response.get(0)).containsEntry("username", invalidRespondent.getUsername());
     }
 
+    @Test
+    void updateRespondent_ShouldReturnOkStatus_WhenRespondentDidNotFillInitialSurveyYet(){
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
+
+        IdentityUser respondent = createUserWithRole("Respondent", USER_PASSWORD);
+
+        List<InitialSurveyQuestionResponseDto> initialSurvey = saveAndPublishInitialSurvey();
+
+        CreateRespondentDataDto createRespondentDataDto = createRespondentDataDto(initialSurvey, 0);
+
+        Map<String, Object> updatedRespondentResponse = webTestClient.put()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/respondents")
+                        .queryParam("respondentId", respondent.getId().toString())
+                        .build())
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(BodyInserters.fromValue(Collections.singletonList(createRespondentDataDto)))
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .returnResult()
+                .getResponseBody();
+
+        assertThat(updatedRespondentResponse).isNotNull();
+        assertThat(updatedRespondentResponse).containsEntry("id", respondent.getId().toString());
+        assertThat(updatedRespondentResponse).containsEntry("username", respondent.getUsername());
+        assertThat(updatedRespondentResponse).containsEntry(QUESTION_CONTENT, initialSurvey.get(0).getOptions().get(0).getId().toString());
+    }
+
+    @Test
+    void updateRespondent_ShouldReturnOkStatus_WhenRespondentFilledInitialSurveyAlready(){
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
+
+        IdentityUser respondent = createUserWithRole("Respondent", USER_PASSWORD);
+        String respondentToken = authenticateAndGenerateToken(respondent, USER_PASSWORD);
+
+        List<InitialSurveyQuestionResponseDto> initialSurvey = saveAndPublishInitialSurvey();
+        saveInitialSurveyResponse(initialSurvey, 0, respondentToken);
+
+        CreateRespondentDataDto createRespondentDataDtoForUpdate = createRespondentDataDto(initialSurvey, 1);
+
+        Map<String, Object> updatedRespondentResponse = webTestClient.put()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/respondents")
+                        .queryParam("respondentId", respondent.getId().toString())
+                        .build())
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(BodyInserters.fromValue(Collections.singletonList(createRespondentDataDtoForUpdate)))
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .returnResult()
+                .getResponseBody();
+
+        assertThat(updatedRespondentResponse).isNotNull();
+        assertThat(updatedRespondentResponse).containsEntry("id", respondent.getId().toString());
+        assertThat(updatedRespondentResponse).containsEntry("username", respondent.getUsername());
+        assertThat(updatedRespondentResponse).containsEntry(QUESTION_CONTENT, initialSurvey.get(0).getOptions().get(1).getId().toString());
+    }
+
+    @Test
+    void updateRespondent_ShouldReturnBadRequest_WhenNoDTOsProvided() {
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
+
+        IdentityUser respondent = createUserWithRole("Respondent", USER_PASSWORD);
+
+        webTestClient.put()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/respondents")
+                        .queryParam("respondentId", respondent.getId().toString())
+                        .build())
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(BodyInserters.fromValue(Collections.emptyList()))
+                .exchange()
+                .expectStatus().isBadRequest();
+    }
+
+    @Test
+    void updateRespondent_ShouldReturnBadRequest_WhenDTOContainsInvalidUUIDs() {
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
+
+        IdentityUser respondent = createUserWithRole("Respondent", USER_PASSWORD);
+
+        saveAndPublishInitialSurvey();
+
+        CreateRespondentDataDto invalidDto = new CreateRespondentDataDto();
+        invalidDto.setQuestionId(UUID.randomUUID());
+        invalidDto.setOptionId(UUID.randomUUID());
+
+        webTestClient.put()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/respondents")
+                        .queryParam("respondentId", respondent.getId().toString())
+                        .build())
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(BodyInserters.fromValue(Collections.singletonList(invalidDto)))
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody(String.class)
+                .consumeWith(response -> {
+                    String responseBody = response.getResponseBody();
+                    assertThat(responseBody).contains("Invalid question or option ID");
+                });
+    }
+
+    @Test
+    void updateRespondent_ShouldReturnNotFound_WhenRespondentIdIsInvalid() {
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
+
+        UUID randomIdentityUserId = UUID.randomUUID();
+
+        List<InitialSurveyQuestionResponseDto> initialSurvey = saveAndPublishInitialSurvey();
+        CreateRespondentDataDto createRespondentDataDto = createRespondentDataDto(initialSurvey, 0);
+
+        webTestClient.put()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/respondents")
+                        .queryParam("respondentId", randomIdentityUserId.toString())
+                        .build())
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(BodyInserters.fromValue(Collections.singletonList(createRespondentDataDto)))
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody(String.class)
+                .consumeWith(response -> {
+                    String responseBody = response.getResponseBody();
+                    assertThat(responseBody).contains("Respondent with given identity user id not found");
+                });
+    }
+
+    @Test
+    void updateRespondent_ShouldThrowException_WhenSurveyDoesNotExist() {
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
+
+        IdentityUser respondent = createUserWithRole("Respondent", USER_PASSWORD);
+
+        CreateRespondentDataDto validDto = new CreateRespondentDataDto();
+        validDto.setQuestionId(UUID.randomUUID());
+        validDto.setOptionId(UUID.randomUUID());
+
+        webTestClient.put()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/respondents")
+                        .queryParam("respondentId", respondent.getId().toString())
+                        .build())
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(BodyInserters.fromValue(Collections.singletonList(validDto)))
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody(String.class)
+                .consumeWith(response -> {
+                    String responseBody = response.getResponseBody();
+                    assertThat(responseBody).contains("Initial survey does not exist yet.");
+                });
+    }
+
+    @Test
+    void updateRespondent_ShouldThrowException_WhenSurveyNotPublished() {
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
+
+        IdentityUser respondent = createUserWithRole("Respondent", USER_PASSWORD);
+
+        List<InitialSurveyQuestionResponseDto> savedInitialSurvey = saveButNotPublishInitialSurvey();
+
+        CreateRespondentDataDto createRespondentDataDto = createRespondentDataDto(savedInitialSurvey, 0);
+
+        webTestClient.put()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/respondents")
+                        .queryParam("respondentId", respondent.getId().toString())
+                        .build())
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(BodyInserters.fromValue(Collections.singletonList(createRespondentDataDto)))
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody(String.class)
+                .consumeWith(response -> {
+                    String responseBody = response.getResponseBody();
+                    assertThat(responseBody).contains("Initial survey is not published yet.");
+                });
+    }
+
+
     private void saveSensorDataForRespondent(String token, OffsetDateTime time) {
         SensorDataDto entryDto = new SensorDataDto();
         entryDto.setDateTime(time);
@@ -309,6 +520,7 @@ public class RespondentDataControllerIntegrationTest {
                 .exchange()
                 .expectStatus().isCreated();
     }
+
     private void saveLocalizationDataForRespondent(String token, OffsetDateTime time){
         LocalizationDataDto localizationDataDto = new LocalizationDataDto();
         localizationDataDto.setLatitude(new BigDecimal("52.237049"));
@@ -324,7 +536,10 @@ public class RespondentDataControllerIntegrationTest {
                 .expectStatus().isCreated();
     }
 
-    private List<InitialSurveyQuestionResponseDto> saveInitialSurvey() {
+    private List<InitialSurveyQuestionResponseDto> saveAndPublishInitialSurvey() {
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
+
         InitialSurveyOption option1 = new InitialSurveyOption();
         option1.setContent(OPTION_CONTENT_1);
         option1.setOrder(1);
@@ -340,6 +555,7 @@ public class RespondentDataControllerIntegrationTest {
 
         List<InitialSurveyQuestionResponseDto> initialSurvey =  webTestClient.post()
                 .uri("/api/initialsurvey")
+                .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(Collections.singletonList(question))
                 .exchange()
@@ -350,21 +566,53 @@ public class RespondentDataControllerIntegrationTest {
 
         webTestClient.patch()
                 .uri("/api/initialsurvey/publish")
+                .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isNoContent();
 
         return initialSurvey;
     }
+
+    private List<InitialSurveyQuestionResponseDto> saveButNotPublishInitialSurvey() {
+        IdentityUser admin = createUserWithRole("Admin", USER_PASSWORD);
+        String adminToken = authenticateAndGenerateToken(admin, USER_PASSWORD);
+
+        InitialSurveyOption option1 = new InitialSurveyOption();
+        option1.setContent(OPTION_CONTENT_1);
+        option1.setOrder(1);
+
+        InitialSurveyOption option2 = new InitialSurveyOption();
+        option2.setContent(OPTION_CONTENT_2);
+        option2.setOrder(2);
+
+        InitialSurveyQuestion question = new InitialSurveyQuestion();
+        question.setContent(QUESTION_CONTENT);
+        question.setOrder(QUESTION_ORDER);
+        question.setOptions(List.of(option1, option2));
+
+        return webTestClient.post()
+                .uri("/api/initialsurvey")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Collections.singletonList(question))
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBodyList(InitialSurveyQuestionResponseDto.class)
+                .returnResult()
+                .getResponseBody();
+    }
+
     private CreateRespondentDataDto createRespondentDataDto(List<InitialSurveyQuestionResponseDto> initialSurvey, Integer optionId){
         CreateRespondentDataDto createRespondentDataDto = new CreateRespondentDataDto();
         createRespondentDataDto.setQuestionId(initialSurvey.get(0).getId());
         createRespondentDataDto.setOptionId(initialSurvey.get(0).getOptions().get(optionId).getId());
         return createRespondentDataDto;
     }
-    private void saveInitialSurveyResponse(List<InitialSurveyQuestionResponseDto> initialSurvey, Integer optionId, String token){
+
+    private void saveInitialSurveyResponse(List<InitialSurveyQuestionResponseDto> initialSurvey, Integer optionId, String respondentToken){
         webTestClient.post()
                 .uri("/api/respondents")
-                .header("Authorization", "Bearer " + token)
+                .header("Authorization", "Bearer " + respondentToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(Collections.singletonList(createRespondentDataDto(initialSurvey, optionId)))
                 .exchange()
@@ -385,6 +633,7 @@ public class RespondentDataControllerIntegrationTest {
                 .returnResult()
                 .getResponseBody();
     }
+
     private void saveSurveySendingPolicy(UUID surveyId) {
         SurveyParticipationTimeStartFinishDto participationTimeSlot = new SurveyParticipationTimeStartFinishDto();
         participationTimeSlot.setStart(OffsetDateTime.now(UTC).minusMonths(1));
@@ -429,6 +678,7 @@ public class RespondentDataControllerIntegrationTest {
                 .returnResult()
                 .getResponseBody();
     }
+
     private CreateSurveyDto createSurveyDto(){
         CreateOptionDto createOptionDto1 = new CreateOptionDto();
         createOptionDto1.setLabel(OPTION_CONTENT_1);
@@ -458,6 +708,7 @@ public class RespondentDataControllerIntegrationTest {
         createSurveyDto.setSections(List.of(createSurveySectionDto));
         return createSurveyDto;
     }
+
     private CreateSurveyDto createSurveyGroupSpecificDto(String groupId){
         CreateOptionDto createOptionDto1 = new CreateOptionDto();
         createOptionDto1.setLabel(OPTION_CONTENT_1);
@@ -488,35 +739,20 @@ public class RespondentDataControllerIntegrationTest {
         createSurveyDto.setSections(List.of(createSurveySectionDto));
         return createSurveyDto;
     }
-    private String generateTokenForAdmin() {
-        IdentityUser identityUser = new IdentityUser()
+
+    private IdentityUser createUserWithRole(String role, String password) {
+        IdentityUser user = new IdentityUser()
                 .setId(UUID.randomUUID())
-                .setRole("ADMIN")
+                .setRole(role)
                 .setUsername(UUID.randomUUID().toString())
-                .setPasswordHash(passwordEncoder.encode(adminPassword));
+                .setPasswordHash(passwordEncoder.encode(password));
 
-        identityUser = userRepository.saveAndFlush(identityUser);
-
-        Authentication authentication = authenticationManager
-                .authenticate(new UsernamePasswordAuthenticationToken(identityUser.getUsername(),
-                        adminPassword));
-
-        return tokenProvider.generateToken(authentication);
+        return userRepository.saveAndFlush(user);
     }
-    private IdentityUser createIdentityUserForRespondent(String username){
-        IdentityUser identityUser = new IdentityUser()
-                .setRole("Respondent")
-                .setUsername(username)
-                .setPasswordHash(passwordEncoder.encode("password"));
 
-        identityUser = userRepository.saveAndFlush(identityUser);
-        return identityUser;
-    }
-    private String generateTokenForRespondent(IdentityUser identityUser) {
-        Authentication authentication = authenticationManager
-                .authenticate(new UsernamePasswordAuthenticationToken(identityUser.getUsername(),
-                        "password"));
-
+    private String authenticateAndGenerateToken(IdentityUser user, String password) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(user.getUsername(), password));
         return tokenProvider.generateToken(authentication);
     }
 }

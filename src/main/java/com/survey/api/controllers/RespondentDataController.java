@@ -17,6 +17,7 @@ import javax.management.InvalidAttributeValueException;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/respondents")
@@ -31,9 +32,8 @@ public class RespondentDataController {
 
     @PostMapping
     @SecurityRequirement(name = "bearerAuth")
-    public ResponseEntity<Map<String, Object>> createRespondent(@Validated @RequestBody List<CreateRespondentDataDto> dto,
-                                                                @RequestHeader(value="Authorization", required = false) String token) throws BadRequestException, InvalidAttributeValueException, InstanceAlreadyExistsException {
-        Map<String, Object> response = respondentDataService.createRespondent(dto, token);
+    public ResponseEntity<Map<String, Object>> createRespondent(@Validated @RequestBody List<CreateRespondentDataDto> dto) throws BadRequestException, InvalidAttributeValueException, InstanceAlreadyExistsException {
+        Map<String, Object> response = respondentDataService.createRespondent(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -49,8 +49,16 @@ public class RespondentDataController {
     }
 
     @GetMapping
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<Map<String, Object>> getFromUserContext(){
         Map<String, Object> response = respondentDataService.getFromUserContext();
         return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    @PutMapping
+    public ResponseEntity<Map<String, Object>> updateRespondent(@Validated @RequestBody List<CreateRespondentDataDto> dto,
+                                                                    @RequestParam("respondentId") UUID identityUserId){
+        Map<String, Object> response = respondentDataService.updateRespondent(dto, identityUserId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

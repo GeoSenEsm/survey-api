@@ -104,7 +104,7 @@ public class SurveyParticipationTimeValidationServiceImpl implements SurveyParti
     }
 
     private boolean hasRespondentParticipatedInSurveyInSpecifiedTimeSlot(UUID surveyId, UUID respondentId, SurveyParticipationTimeSlot timeSlot){
-        return surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(surveyId, respondentId, timeSlot.getStart(), timeSlot.getFinish());
+        return surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(surveyId, respondentId, timeSlot.getStart(), timeSlot.getFinish());
     }
 
     private OffsetDateTime getFinalSurveyParticipationDate(SurveyParticipationTimeSlot timeSlot, OffsetDateTime surveyStartDate, OffsetDateTime surveyFinishDate){
