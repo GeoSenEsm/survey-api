@@ -32,10 +32,10 @@ public class RespondentGroupServiceImpl implements RespondentGroupService {
     public List<RespondentGroupDto> getRespondentGroups(UUID identityUserId) {
         if (identityUserId != null) {
             if (!identityUserRepository.existsById(identityUserId)){
-                throw new IllegalArgumentException("Respondent with given identity user id does not exist.");
+                throw new IllegalArgumentException("Respondent with given identity user ID does not exist.");
             }
             if(!respondentDataRepository.existsByIdentityUserId(identityUserId)){
-                throw new IllegalArgumentException("Respondent with given identity user id exists, but does not have a record in respondent_data table. They probably did not fill the initial survey.");
+                throw new IllegalArgumentException("Respondent with the provided identity user ID exists but probably did not fill the initial survey yet.");
             }
             return respondentToGroupRepository.findGroupsByIdentityUserId(identityUserId)
                     .stream()
