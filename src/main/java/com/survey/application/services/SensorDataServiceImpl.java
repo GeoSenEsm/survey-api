@@ -34,7 +34,7 @@ public class SensorDataServiceImpl implements SensorDataService {
     }
 
     @Override
-    public List<ResponseSensorDataDto> saveSensorData(String token, List<SensorDataDto> temperatureDataDtoList) {
+    public List<ResponseSensorDataDto> saveSensorData(List<SensorDataDto> temperatureDataDtoList) {
         if (temperatureDataDtoList == null || temperatureDataDtoList.isEmpty()){
             throw new IllegalArgumentException("Temperature data list cannot be empty.");
         }

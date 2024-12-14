@@ -32,10 +32,9 @@ public class LocalizationDataController {
     @CrossOrigin
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<List<ResponseLocalizationDto>> saveLocalizationData(
-            @Valid @RequestBody List<LocalizationDataDto> localizationDataDtos,
-            @RequestHeader(value = "Authorization", required = false) String token){
+            @Valid @RequestBody List<LocalizationDataDto> localizationDataDtos){
 
-        List<ResponseLocalizationDto> saveLocalizationData = localizationDataService.saveLocalizationData(localizationDataDtos, token);
+        List<ResponseLocalizationDto> saveLocalizationData = localizationDataService.saveLocalizationData(localizationDataDtos);
         return ResponseEntity.status(HttpStatus.CREATED).body(saveLocalizationData);
     }
 

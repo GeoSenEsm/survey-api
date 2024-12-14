@@ -34,10 +34,9 @@ public class SensorDataController {
     @CrossOrigin
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<List<ResponseSensorDataDto>> saveSensorData(
-            @Valid @RequestBody List<SensorDataDto> temperatureDataDtoList,
-            @RequestHeader(value = "Authorization", required = false) String token){
+            @Valid @RequestBody List<SensorDataDto> temperatureDataDtoList){
 
-        List<ResponseSensorDataDto> savedTemperatureData = sensorDataService.saveSensorData(token, temperatureDataDtoList);
+        List<ResponseSensorDataDto> savedTemperatureData = sensorDataService.saveSensorData(temperatureDataDtoList);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedTemperatureData);
     }
 

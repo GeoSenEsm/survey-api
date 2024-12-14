@@ -42,7 +42,7 @@ class RespondentDataControllerTest {
         CreateRespondentDataDto dto = new CreateRespondentDataDto();
 
         Map<String, Object> responseMap = createResponseMap();
-        when(respondentDataService.createRespondent(anyList(), anyString()))
+        when(respondentDataService.createRespondent(anyList()))
                 .thenReturn(responseMap);
 
         webTestClient.post()
@@ -60,7 +60,7 @@ class RespondentDataControllerTest {
                     assert body.get("id").equals(1);
                 });
 
-        verify(respondentDataService, times(1)).createRespondent(anyList(), anyString());
+        verify(respondentDataService, times(1)).createRespondent(anyList());
     }
     @Test
     void getAll_ShouldReturnOkResponse() {

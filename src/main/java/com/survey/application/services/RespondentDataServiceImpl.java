@@ -53,7 +53,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
     @Override
     @Transactional
-    public Map<String, Object> createRespondent(List<CreateRespondentDataDto> dtoList, String tokenWithPrefix)
+    public Map<String, Object> createRespondent(List<CreateRespondentDataDto> dtoList)
             throws BadCredentialsException, InvalidAttributeValueException, InstanceAlreadyExistsException, BadRequestException {
         IdentityUser identityUser = claimsPrincipalService.findIdentityUser();
         checkIfRespondentDataExists(identityUser.getId());

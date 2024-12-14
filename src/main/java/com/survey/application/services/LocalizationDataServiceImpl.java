@@ -37,7 +37,7 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
 
     @Override
     @Transactional
-    public List<ResponseLocalizationDto> saveLocalizationData(List<LocalizationDataDto> localizationDataDtoList, String token) {
+    public List<ResponseLocalizationDto> saveLocalizationData(List<LocalizationDataDto> localizationDataDtoList) {
 
         List<LocalizationData> entities = localizationDataDtoList.stream()
                 .map(this::mapToEntity)

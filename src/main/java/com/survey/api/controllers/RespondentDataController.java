@@ -32,9 +32,8 @@ public class RespondentDataController {
 
     @PostMapping
     @SecurityRequirement(name = "bearerAuth")
-    public ResponseEntity<Map<String, Object>> createRespondent(@Validated @RequestBody List<CreateRespondentDataDto> dto,
-                                                                @RequestHeader(value="Authorization", required = false) String token) throws BadRequestException, InvalidAttributeValueException, InstanceAlreadyExistsException {
-        Map<String, Object> response = respondentDataService.createRespondent(dto, token);
+    public ResponseEntity<Map<String, Object>> createRespondent(@Validated @RequestBody List<CreateRespondentDataDto> dto) throws BadRequestException, InvalidAttributeValueException, InstanceAlreadyExistsException {
+        Map<String, Object> response = respondentDataService.createRespondent(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

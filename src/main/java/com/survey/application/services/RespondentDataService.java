@@ -14,7 +14,7 @@ import java.util.UUID;
 
 public interface RespondentDataService {
 
-    Map<String, Object> createRespondent(List<CreateRespondentDataDto> dto, String tokenBearerPrefix) throws BadCredentialsException, InvalidAttributeValueException, InstanceAlreadyExistsException, BadRequestException;
+    Map<String, Object> createRespondent(List<CreateRespondentDataDto> dto) throws BadCredentialsException, InvalidAttributeValueException, InstanceAlreadyExistsException, BadRequestException;
     List<Map<String, Object>> getAll(RespondentFilterOption filterOption, Integer amount, OffsetDateTime from, OffsetDateTime to);
     Map<String, Object> getFromUserContext();
     Map<String, Object> updateRespondent(List<CreateRespondentDataDto> dto, UUID identityUserId);
