@@ -11,5 +11,5 @@ import java.util.UUID;
 public interface SensorDataService {
     List<ResponseSensorDataDto> saveSensorData(List<SensorDataDto> temperatureDataDtoList);
     List<ResponseSensorDataDto> getSensorData(OffsetDateTime from, OffsetDateTime to);
-    LastSensorEntryDateDto getDateOfLastSensorDataForRespondent(UUID respondentId);
+    LastSensorEntryDateDto getDateOfLastSensorDataForRespondent(UUID identityUserId);
 }

@@ -215,7 +215,7 @@ public class SurveyServiceImpl implements SurveyService {
             return false;
         }
 
-        return !surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(surveyId, identityUserId, slot.getStart(), slot.getFinish());
+        return !surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(surveyId, identityUserId, slot.getStart(), slot.getFinish());
     }
 
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto, List<MultipartFile> files){

@@ -24,6 +24,6 @@ public class SurveyParticipationValidator implements ConstraintValidator<ValidSu
     }
 
     private boolean validateSurveyParticipationId(UUID surveyParticipationId, UUID respondentId){
-        return surveyParticipationRepository.findByIdAndRespondentId(surveyParticipationId, respondentId).isPresent();
+        return surveyParticipationRepository.findByIdAndIdentityUserId(surveyParticipationId, respondentId).isPresent();
     }
 }

@@ -52,8 +52,8 @@ public class SensorDataController {
 
     @GetMapping("/last")
     @CrossOrigin
-    public ResponseEntity<LastSensorEntryDateDto> getDateOfLastSensorDataForRespondent(@RequestParam("respondentId") UUID respondentId){
-        LastSensorEntryDateDto dto = sensorDataService.getDateOfLastSensorDataForRespondent(respondentId);
+    public ResponseEntity<LastSensorEntryDateDto> getDateOfLastSensorDataForRespondent(@RequestParam("respondentId") UUID identityUserId){
+        LastSensorEntryDateDto dto = sensorDataService.getDateOfLastSensorDataForRespondent(identityUserId);
         return ResponseEntity.status(HttpStatus.OK).body(dto);
     }
 

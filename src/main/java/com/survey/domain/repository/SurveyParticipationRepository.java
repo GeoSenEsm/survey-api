@@ -14,13 +14,13 @@ public interface SurveyParticipationRepository extends JpaRepository<SurveyParti
 
     List<SurveyParticipation> findAllBySurveyIdAndDate(UUID surveyId, Date date);
 
-    @Query("SELECT sp FROM SurveyParticipation sp WHERE sp.id = :surveyParticipationId AND sp.identityUser.id = :respondentId")
-    Optional<SurveyParticipation> findByIdAndRespondentId(UUID surveyParticipationId, UUID respondentId);
+    @Query("SELECT sp FROM SurveyParticipation sp WHERE sp.id = :surveyParticipationId AND sp.identityUser.id = :identityUserId")
+    Optional<SurveyParticipation> findByIdAndIdentityUserId(UUID surveyParticipationId, UUID identityUserId);
 
     @Query("SELECT COUNT(sp) > 0 FROM SurveyParticipation sp " +
             "WHERE sp.survey.id = :surveyId " +
-            "AND sp.identityUser.id = :respondentId " +
+            "AND sp.identityUser.id = :identityUserId " +
             "AND sp.date BETWEEN :startDate AND :endDate")
-    boolean existsBySurveyIdAndRespondentIdAndDateBetween(UUID surveyId, UUID respondentId, OffsetDateTime startDate, OffsetDateTime endDate);
+    boolean existsBySurveyIdAndIdentityUserIdAndDateBetween(UUID surveyId, UUID identityUserId, OffsetDateTime startDate, OffsetDateTime endDate);
 
 }

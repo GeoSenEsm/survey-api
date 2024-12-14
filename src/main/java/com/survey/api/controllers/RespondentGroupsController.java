@@ -21,8 +21,8 @@ public class RespondentGroupsController {
     }
     @GetMapping
     @CrossOrigin
-    public ResponseEntity<List<RespondentGroupDto>> getRespondentGroups(@Validated @RequestParam(name = "respondentId", required = false) UUID respondentId) {
-        List<RespondentGroupDto> respondentGroupDtos = respondentGroupService.getRespondentGroups(respondentId);
+    public ResponseEntity<List<RespondentGroupDto>> getRespondentGroups(@Validated @RequestParam(name = "respondentId", required = false) UUID identityUserId) {
+        List<RespondentGroupDto> respondentGroupDtos = respondentGroupService.getRespondentGroups(identityUserId);
         return ResponseEntity.ok(respondentGroupDtos);
 
     }

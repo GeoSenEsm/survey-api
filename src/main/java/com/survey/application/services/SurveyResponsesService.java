@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface SurveyResponsesService {
-    SurveyParticipationDto saveSurveyResponseOnline(SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto, String token) throws InvalidAttributeValueException;
+    SurveyParticipationDto saveSurveyResponseOnline(SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto) throws InvalidAttributeValueException;
     List<SurveyParticipationDto> saveSurveyResponsesOffline(List<SendOfflineSurveyResponseDto> sendOfflineSurveyResponseDtoList);
     List<SurveyResultDto> getSurveyResults(UUID surveyId, OffsetDateTime dateFrom, OffsetDateTime dateTo);
 }

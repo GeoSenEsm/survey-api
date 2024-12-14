@@ -53,7 +53,7 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
     }
 
     @Override
-    public List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime from, OffsetDateTime to, UUID respondentId, UUID surveyId, boolean outsideResearchArea) {
+    public List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime from, OffsetDateTime to, UUID identityUserId, UUID surveyId, boolean outsideResearchArea) {
         if (from != null && to != null && from.isAfter(to)) {
             throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
         }
@@ -67,8 +67,8 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
         if (to != null) {
             jpql.append("AND ld.date_time <= :toDate ");
         }
-        if (respondentId != null) {
-            jpql.append("AND ld.respondent_id = :respondentId ");
+        if (identityUserId != null) {
+            jpql.append("AND ld.respondent_id = :identityUserId ");
         }
         if (surveyId != null) {
             jpql.append("AND ld.participation_id IS NOT NULL ");
@@ -103,8 +103,8 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
         if (to != null) {
             query.setParameter("toDate", to);
         }
-        if (respondentId != null) {
-            query.setParameter("respondentId", respondentId);
+        if (identityUserId != null) {
+            query.setParameter("respondentId", identityUserId);
         }
         if (surveyId != null) {
             query.setParameter("surveyId", surveyId);

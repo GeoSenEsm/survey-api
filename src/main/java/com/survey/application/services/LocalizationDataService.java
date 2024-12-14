@@ -9,5 +9,5 @@ import java.util.UUID;
 
 public interface LocalizationDataService {
     List<ResponseLocalizationDto> saveLocalizationData(List<LocalizationDataDto> localizationDataDtoList);
-    List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime from, OffsetDateTime to, UUID respondentId, UUID surveyId, boolean outsideResearchArea);
+    List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime from, OffsetDateTime to, UUID identityUserId, UUID surveyId, boolean outsideResearchArea);
 }
