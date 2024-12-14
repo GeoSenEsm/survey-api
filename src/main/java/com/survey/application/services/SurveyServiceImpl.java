@@ -38,6 +38,7 @@ public class SurveyServiceImpl implements SurveyService {
     private final SurveyValidationService surveyValidationService;
     private final ClaimsPrincipalService claimsPrincipalService;
     private final StorageService storageService;
+    private final SurveyParticipationRepository surveyParticipationRepository;
 
 
     @Autowired
@@ -46,7 +47,7 @@ public class SurveyServiceImpl implements SurveyService {
                              EntityManager entityManager,
                              SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository,
                              SurveyValidationService surveyValidationService,
-                             ClaimsPrincipalService claimsPrincipalService, StorageService storageService) {
+                             ClaimsPrincipalService claimsPrincipalService, StorageService storageService, SurveyParticipationRepository surveyParticipationRepository) {
         this.surveyRepository = surveyRepository;
         this.modelMapper = modelMapper;
         this.respondentGroupRepository = respondentGroupRepository;
@@ -55,6 +56,7 @@ public class SurveyServiceImpl implements SurveyService {
         this.surveyValidationService = surveyValidationService;
         this.claimsPrincipalService = claimsPrincipalService;
         this.storageService = storageService;
+        this.surveyParticipationRepository = surveyParticipationRepository;
     }
 
     @Override
@@ -208,23 +210,12 @@ public class SurveyServiceImpl implements SurveyService {
                 .orElseThrow(() -> new NoSuchElementException("Survey not found with id: " + surveyId));
     }
 
-    private boolean isValidTimeSlot(SurveyParticipationTimeSlot slot, UUID currentUserId, UUID surveyId) {
+    private boolean isValidTimeSlot(SurveyParticipationTimeSlot slot, UUID identityUserId, UUID surveyId) {
         if (slot.isDeleted() || slot.getFinish().isBefore(OffsetDateTime.now())) {
             return false;
         }
 
-        Long surveyParticipationCount = entityManager.createQuery(
-                        "SELECT COUNT(p) FROM SurveyParticipation p " +
-                                "WHERE p.date BETWEEN :start AND :finish " +
-                                "AND p.identityUser.id = :userId " +
-                                "AND p.survey.id = :surveyId", Long.class)
-                .setParameter("start", slot.getStart())
-                .setParameter("finish", slot.getFinish())
-                .setParameter("userId", currentUserId)
-                .setParameter("surveyId", surveyId)
-                .getSingleResult();
-
-        return surveyParticipationCount == 0;
+        return !surveyParticipationRepository.existsBySurveyIdAndRespondentIdAndDateBetween(surveyId, identityUserId, slot.getStart(), slot.getFinish());
     }
 
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto, List<MultipartFile> files){
