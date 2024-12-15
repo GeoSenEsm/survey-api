@@ -1,5 +1,6 @@
 package com.survey.application.services;
 
+import com.survey.api.security.Role;
 import com.survey.api.security.TokenProvider;
 import com.survey.application.dtos.CreateRespondentsAccountsDto;
 import com.survey.application.dtos.LoginDto;
@@ -7,6 +8,7 @@ import com.survey.domain.models.IdentityUser;
 import com.survey.domain.repository.IdentityUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -37,13 +39,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     @Override
-    public String getJwtToken(LoginDto dto) {
-        Authentication authentication = authenticationManager
-                .authenticate(new UsernamePasswordAuthenticationToken(dto.getUsername(),
-                        dto.getPassword()));
+    public String getJwtTokenAsRespondent(LoginDto dto) {
+        return authenticateAndGenerateToken(dto, Role.RESPONDENT);
+    }
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        return tokenProvider.generateToken(authentication);
+    @Override
+    public String getJwtTokenAsAdmin(LoginDto dto) {
+        return authenticateAndGenerateToken(dto, Role.ADMIN);
     }
 
     @Override
@@ -62,7 +64,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         List<IdentityUser> userList = loginDtos
                 .stream().map(loginDto -> {
                     IdentityUser respondentIdentityUser = new IdentityUser();
-                    respondentIdentityUser.setRole("Respondent");
+                    respondentIdentityUser.setRole(Role.RESPONDENT.getRoleName());
                     respondentIdentityUser.setUsername(loginDto.getUsername());
                     String passwordHash = passwordEncoder.encode(loginDto.getPassword());
                     respondentIdentityUser.setPasswordHash(passwordHash);
@@ -74,5 +76,20 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     private String getUsernameFromNumber(int i) {
         return String.format("%05d", i);
+    }
+
+    private String authenticateAndGenerateToken(LoginDto dto, Role expectedRole) {
+        IdentityUser identityUser = identityUserRepository.findByUsername(dto.getUsername())
+                .orElseThrow(() -> new BadCredentialsException("Bad credentials"));
+
+        if (!expectedRole.getRoleName().equalsIgnoreCase(identityUser.getRole())) {
+            throw new BadCredentialsException("Bad credentials");
+        }
+
+        Authentication authentication = authenticationManager
+                .authenticate(new UsernamePasswordAuthenticationToken(dto.getUsername(), dto.getPassword()));
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        return tokenProvider.generateToken(authentication);
     }
 }
