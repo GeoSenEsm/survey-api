@@ -45,7 +45,6 @@ public class SurveyControllerIntegrationTest {
     private static final String SURVEY_NAME = "Survey";
     private static final String SECTION_NAME = "Section1";
     private static final String ADMIN_PASSWORD = "testAdminPassword";
-    private static final String RESPONDENT_PASSWORD = "testRespondentPassword";
 
     @Autowired
     public SurveyControllerIntegrationTest(WebTestClient webTestClient,

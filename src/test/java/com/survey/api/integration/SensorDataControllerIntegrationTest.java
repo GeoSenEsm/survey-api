@@ -143,8 +143,6 @@ public class SensorDataControllerIntegrationTest {
 
     @Test
     void getSensorData_InvalidRange_ShouldReturnBadRequest() {
-        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
-
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
