@@ -1,6 +1,7 @@
 package com.survey.api.integration;
 
-import com.survey.api.security.TokenProvider;
+import com.survey.api.TestUtils;
+import com.survey.api.security.Role;
 import com.survey.application.dtos.initialSurvey.CreateInitialSurveyOptionDto;
 import com.survey.application.dtos.initialSurvey.CreateInitialSurveyQuestionDto;
 import com.survey.application.dtos.initialSurvey.InitialSurveyQuestionResponseDto;
@@ -14,15 +15,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,29 +27,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 @TestPropertySource(properties = "ADMIN_USER_PASSWORD=testAdminPassword")
 @AutoConfigureWebTestClient
 public class InitialSurveyControllerIntegrationTest {
-    private static final String adminPassword = "testAdminPassword";
-    private static final String respondentPassword = "testRespondentPassword";
+    private static final String ADMIN_PASSWORD = "testAdminPassword";
+    private static final String RESPONDENT_PASSWORD = "testRespondentPassword";
     private static final String QUESTION_1 = "Gender";
     private static final String OPTION_1_1 = "male";
     private static final String OPTION_1_2 = "female";
     private static final String QUESTION_2 = "Student";
     private static final String OPTION_2_1 = "yes";
     private static final String OPTION_2_2 = "no";
+
     private final IdentityUserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
-    private final TokenProvider tokenProvider;
     private final InitialSurveyRepository initialSurveyRepository;
     private final WebTestClient webTestClient;
+    private final TestUtils testUtils;
 
     @Autowired
-    public InitialSurveyControllerIntegrationTest(IdentityUserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, TokenProvider tokenProvider, InitialSurveyRepository initialSurveyRepository, WebTestClient webTestClient) {
+    public InitialSurveyControllerIntegrationTest(IdentityUserRepository userRepository, InitialSurveyRepository initialSurveyRepository, WebTestClient webTestClient, TestUtils testUtils) {
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
-        this.tokenProvider = tokenProvider;
         this.initialSurveyRepository = initialSurveyRepository;
         this.webTestClient = webTestClient;
+        this.testUtils = testUtils;
     }
 
     @BeforeEach
@@ -64,8 +57,8 @@ public class InitialSurveyControllerIntegrationTest {
 
     @Test
     void createInitialSurveyAsAdmin_ShouldReturnCreatedStatus_WhenInitialSurveyIsNotPublished(){
-        IdentityUser admin = createUserWithRole("Admin", adminPassword);
-        String adminToken = authenticateAndGenerateToken(admin, adminPassword);
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
         List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto = generateValidInitialSurveyCreateDto();
 
@@ -94,8 +87,8 @@ public class InitialSurveyControllerIntegrationTest {
 
     @Test
     void createInitialSurveyAsAdmin_ShouldReturnBadRequest_WhenInitialSurveyIsAlreadyPublished(){
-        IdentityUser admin = createUserWithRole("Admin", adminPassword);
-        String adminToken = authenticateAndGenerateToken(admin, adminPassword);
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
         List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto = generateValidInitialSurveyCreateDto();
         saveInitialSurveyAsAdmin(initialSurveyCreateDto);
@@ -117,8 +110,8 @@ public class InitialSurveyControllerIntegrationTest {
 
     @Test
     void publishInitialSurveyAsAdmin_ShouldReturnBadRequest_WhenInitialSurveyIsAlreadyPublished(){
-        IdentityUser admin = createUserWithRole("Admin", adminPassword);
-        String adminToken = authenticateAndGenerateToken(admin, adminPassword);
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
         List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto = generateValidInitialSurveyCreateDto();
         saveInitialSurveyAsAdmin(initialSurveyCreateDto);
@@ -138,8 +131,8 @@ public class InitialSurveyControllerIntegrationTest {
 
     @Test
     void getInitialSurveyAsRespondent_ShouldReturnNotFound_WhenInitialSurveyExistsButIsNotPublished(){
-        IdentityUser respondent = createUserWithRole("Respondent", respondentPassword);
-        String respondentToken = authenticateAndGenerateToken(respondent, respondentPassword);
+        IdentityUser respondent = testUtils.createUserWithRole("Respondent", RESPONDENT_PASSWORD);
+        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
         List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto = generateValidInitialSurveyCreateDto();
         saveInitialSurveyAsAdmin(initialSurveyCreateDto);
@@ -156,16 +149,16 @@ public class InitialSurveyControllerIntegrationTest {
         List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto = generateValidInitialSurveyCreateDto();
         saveInitialSurveyAsAdmin(initialSurveyCreateDto);
 
-        IdentityUser admin = createUserWithRole("Admin", adminPassword);
-        String adminToken = authenticateAndGenerateToken(admin, adminPassword);
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
         webTestClient.patch()
                 .uri("/api/initialsurvey/publish")
                 .header("Authorization", "Bearer " + adminToken)
                 .exchange();
 
-        IdentityUser respondent = createUserWithRole("Respondent", respondentPassword);
-        String respondentToken = authenticateAndGenerateToken(respondent, respondentPassword);
+        IdentityUser respondent = testUtils.createUserWithRole("Respondent", RESPONDENT_PASSWORD);
+        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
         var response = webTestClient.get()
                 .uri("/api/initialsurvey")
@@ -193,8 +186,8 @@ public class InitialSurveyControllerIntegrationTest {
         List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto = generateValidInitialSurveyCreateDto();
         saveInitialSurveyAsAdmin(initialSurveyCreateDto);
 
-        IdentityUser admin = createUserWithRole("Admin", adminPassword);
-        String adminToken = authenticateAndGenerateToken(admin, adminPassword);
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
         webTestClient.patch()
                 .uri("/api/initialsurvey/publish")
@@ -225,8 +218,8 @@ public class InitialSurveyControllerIntegrationTest {
 
 
     private void saveInitialSurveyAsAdmin(List<CreateInitialSurveyQuestionDto> initialSurveyCreateDto){
-        IdentityUser admin = createUserWithRole("Admin", adminPassword);
-        String adminToken = authenticateAndGenerateToken(admin, adminPassword);
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
         webTestClient.post()
                 .uri("/api/initialsurvey")
@@ -249,21 +242,5 @@ public class InitialSurveyControllerIntegrationTest {
         CreateInitialSurveyQuestionDto questionDto2 = new CreateInitialSurveyQuestionDto(1, QUESTION_2, List.of(optionDto2_1, optionDto2_2));
 
         return List.of(questionDto1, questionDto2);
-    }
-
-    private IdentityUser createUserWithRole(String role, String password) {
-        IdentityUser user = new IdentityUser()
-                .setId(UUID.randomUUID())
-                .setRole(role)
-                .setUsername(UUID.randomUUID().toString())
-                .setPasswordHash(passwordEncoder.encode(password));
-
-        return userRepository.saveAndFlush(user);
-    }
-
-    private String authenticateAndGenerateToken(IdentityUser user, String password) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(user.getUsername(), password));
-        return tokenProvider.generateToken(authentication);
     }
 }

@@ -1,9 +1,10 @@
 package com.survey.api.controllers;
 
+import com.survey.api.security.Role;
 import com.survey.application.dtos.CreateRespondentDataDto;
+import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.RespondentDataService;
 import com.survey.domain.models.enums.RespondentFilterOption;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -24,15 +25,17 @@ import java.util.UUID;
 public class RespondentDataController {
 
     private final RespondentDataService respondentDataService;
+    private final ClaimsPrincipalService claimsPrincipalService;
 
     @Autowired
-    public RespondentDataController(RespondentDataService respondentDataService){
+    public RespondentDataController(RespondentDataService respondentDataService, ClaimsPrincipalService claimsPrincipalService){
             this.respondentDataService = respondentDataService;
+        this.claimsPrincipalService = claimsPrincipalService;
     }
 
     @PostMapping
-    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<Map<String, Object>> createRespondent(@Validated @RequestBody List<CreateRespondentDataDto> dto) throws BadRequestException, InvalidAttributeValueException, InstanceAlreadyExistsException {
+        claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
         Map<String, Object> response = respondentDataService.createRespondent(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -44,13 +47,14 @@ public class RespondentDataController {
             @RequestParam(value = "from", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime from,
             @RequestParam(value = "to", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to
     ){
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         List<Map<String, Object>> response = respondentDataService.getAll(filterOption, amount, from, to);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @GetMapping
-    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<Map<String, Object>> getFromUserContext(){
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
         Map<String, Object> response = respondentDataService.getFromUserContext();
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
@@ -58,6 +62,7 @@ public class RespondentDataController {
     @PutMapping
     public ResponseEntity<Map<String, Object>> updateRespondent(@Validated @RequestBody List<CreateRespondentDataDto> dto,
                                                                     @RequestParam("respondentId") UUID identityUserId){
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         Map<String, Object> response = respondentDataService.updateRespondent(dto, identityUserId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

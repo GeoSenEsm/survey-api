@@ -1,8 +1,13 @@
 package com.survey.api.controllers;
 
+import com.survey.api.security.Role;
+import com.survey.api.security.TokenProvider;
 import com.survey.application.dtos.ResearchAreaDto;
 import com.survey.application.dtos.ResponseResearchAreaDto;
+import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.ResearchAreaService;
+import com.survey.domain.models.IdentityUser;
+import com.survey.domain.repository.IdentityUserRepository;
 import org.apache.coyote.BadRequestException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,10 +15,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,12 +36,27 @@ class ResearchAreaControllerTest {
     private ResearchAreaController researchAreaController;
     @Mock
     private ResearchAreaService researchAreaService;
+    @Mock
+    private IdentityUserRepository identityUserRepository;
+    @Mock
+    private AuthenticationManager authenticationManager;
+    @Mock
+    private TokenProvider tokenProvider;
+    @Mock
+    private ClaimsPrincipalService claimsPrincipalService;
+
     private WebTestClient webTestClient;
+
+    private static final String ADMIN_PASSWORD = "testAdminPassword";
+    private String adminToken;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
         webTestClient = WebTestClient.bindToController(researchAreaController).build();
+
+        IdentityUser admin = createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        adminToken = "Bearer " + authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
     }
 
     @Test
@@ -56,6 +81,7 @@ class ResearchAreaControllerTest {
 
         webTestClient.post()
                 .uri("/api/researcharea")
+                .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(List.of(researchAreaDto1, researchAreaDto2))
                 .exchange()
@@ -79,6 +105,7 @@ class ResearchAreaControllerTest {
 
         webTestClient.get()
                 .uri("/api/researcharea")
+                .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBodyList(ResponseResearchAreaDto.class)
@@ -94,6 +121,7 @@ class ResearchAreaControllerTest {
 
         webTestClient.get()
                 .uri("/api/researcharea")
+                .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isNotFound();
     }
@@ -104,6 +132,7 @@ class ResearchAreaControllerTest {
 
         webTestClient.delete()
                 .uri("/api/researcharea")
+                .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isOk();
     }
@@ -114,7 +143,28 @@ class ResearchAreaControllerTest {
 
         webTestClient.delete()
                 .uri("/api/researcharea")
+                .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isNotFound();
+    }
+
+    private IdentityUser createUserWithRole(String role, String password) {
+        IdentityUser user = new IdentityUser()
+                .setId(UUID.randomUUID())
+                .setRole(role)
+                .setUsername(UUID.randomUUID().toString())
+                .setPasswordHash(new BCryptPasswordEncoder().encode(password));
+
+        when(identityUserRepository.saveAndFlush(any(IdentityUser.class))).thenReturn(user);
+        return user;
+    }
+
+    private String authenticateAndGenerateToken(IdentityUser user, String password) {
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getUsername(), password);
+        when(authenticationManager.authenticate(any(Authentication.class))).thenReturn(authentication);
+
+        String token = UUID.randomUUID().toString();
+        when(tokenProvider.generateToken(authentication)).thenReturn(token);
+        return token;
     }
 }

@@ -1,9 +1,10 @@
 package com.survey.api.controllers;
 
+import com.survey.api.security.Role;
 import com.survey.application.dtos.LocalizationDataDto;
 import com.survey.application.dtos.ResponseLocalizationDto;
+import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.LocalizationDataService;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -22,17 +23,19 @@ import java.util.UUID;
 public class LocalizationDataController {
 
     private final LocalizationDataService localizationDataService;
+    private final ClaimsPrincipalService claimsPrincipalService;
 
     @Autowired
-    public LocalizationDataController(LocalizationDataService localizationDataService) {
+    public LocalizationDataController(LocalizationDataService localizationDataService, ClaimsPrincipalService claimsPrincipalService) {
         this.localizationDataService = localizationDataService;
+        this.claimsPrincipalService = claimsPrincipalService;
     }
 
     @PostMapping
     @CrossOrigin
-    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<List<ResponseLocalizationDto>> saveLocalizationData(
             @Valid @RequestBody List<LocalizationDataDto> localizationDataDtos){
+        claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
 
         List<ResponseLocalizationDto> saveLocalizationData = localizationDataService.saveLocalizationData(localizationDataDtos);
         return ResponseEntity.status(HttpStatus.CREATED).body(saveLocalizationData);
@@ -46,6 +49,8 @@ public class LocalizationDataController {
             @RequestParam(value = "respondentId", required = false) UUID identityUserId,
             @RequestParam(value = "surveyId", required = false) UUID surveyId,
             @RequestParam(value = "outsideResearchArea", required = false) boolean outsideResearchArea){
+
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
 
         List<ResponseLocalizationDto> dtoList = localizationDataService.getLocalizationData(from, to, identityUserId, surveyId, outsideResearchArea);
         return ResponseEntity.status(HttpStatus.OK).body(dtoList);
