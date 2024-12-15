@@ -25,8 +25,13 @@ public class AuthenticationController {
     }
 
     @PostMapping("/login")
-    public String login(@Validated @RequestBody LoginDto loginDto){
-        return authenticationService.getJwtToken(loginDto);
+    public String loginForRespondents(@Validated @RequestBody LoginDto loginDto){
+        return authenticationService.getJwtTokenAsRespondent(loginDto);
+    }
+
+    @PostMapping("/login/admin")
+    public String loginForAdmin(@Validated @RequestBody LoginDto loginDto){
+        return authenticationService.getJwtTokenAsAdmin(loginDto);
     }
 
     @PostMapping("/respondents")
