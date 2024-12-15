@@ -2,9 +2,13 @@ package com.survey.api.integration;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.survey.api.TestUtils;
+import com.survey.api.security.Role;
+import com.survey.application.dtos.CreateRespondentsAccountsDto;
 import com.survey.application.dtos.LoginDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.repository.IdentityUserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,22 +30,30 @@ public class AuthenticationControllerIntegrationTest {
     private final ObjectMapper objectMapper;
     private final IdentityUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private static final String adminPassword = "testAdminPassword";
+    private final TestUtils testUtils;
+    private static final String ADMIN_PASSWORD = "testAdminPassword";
+    private static final String RESPONDENT_PASSWORD = "testRespondentPassword";
 
 
     @Autowired
     public AuthenticationControllerIntegrationTest(WebTestClient webTestClient, ObjectMapper objectMapper,
                                                    IdentityUserRepository identityUserRepository,
-                                                   PasswordEncoder passwordEncoder){
+                                                   PasswordEncoder passwordEncoder, TestUtils testUtils){
 
         this.webTestClient = webTestClient;
         this.objectMapper = objectMapper;
         this.userRepository = identityUserRepository;
         this.passwordEncoder = passwordEncoder;
+        this.testUtils = testUtils;
+    }
+
+    @BeforeEach
+    void setUp(){
+        userRepository.deleteAll();
     }
 
     @Test
-    public void testLoginForNonExistingUser() throws JsonProcessingException {
+    public void testLoginForRespondentsForNonExistingUser() throws JsonProcessingException {
         LoginDto dto = LoginDto
                 .builder()
                 .withUsername("this user does not exist")
@@ -59,10 +71,9 @@ public class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    public void testLoginForExistingUserButWrongPassword() throws JsonProcessingException{
+    public void testLoginForRespondentsForExistingUserButWrongPassword() throws JsonProcessingException{
         String randomUsername = UUID.randomUUID().toString();
-        IdentityUser user = new IdentityUser(null, randomUsername, adminPassword, "ADMIN");
-        userRepository.save(user);
+        testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
 
         LoginDto dto = LoginDto
                 .builder()
@@ -81,16 +92,13 @@ public class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    public void testLoginWIthCorrectCredentials() throws JsonProcessingException{
-        String randomUsername = UUID.randomUUID().toString();
-        String passwordHash = passwordEncoder.encode(adminPassword);
-        IdentityUser user = new IdentityUser(null, randomUsername, passwordHash, "ADMIN");
-        userRepository.save(user);
+    public void testLoginForRespondentsWithCorrectCredentials() throws JsonProcessingException{
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
 
         LoginDto dto = LoginDto
                 .builder()
-                .withUsername(randomUsername)
-                .withPassword(adminPassword)
+                .withUsername(respondent.getUsername())
+                .withPassword(RESPONDENT_PASSWORD)
                 .build();
 
         String json = objectMapper.writeValueAsString(dto);
@@ -104,7 +112,7 @@ public class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    public void testLoginForEmptyUsernameAndPassword() throws JsonProcessingException{
+    public void testLoginForRespondentsForEmptyUsernameAndPassword() throws JsonProcessingException{
         LoginDto dto = LoginDto
                 .builder()
                 .build();
@@ -118,4 +126,90 @@ public class AuthenticationControllerIntegrationTest {
                 .expectStatus()
                 .isBadRequest();
     }
+
+    @Test
+    public void testCreateRespondentsAccountsWithValidAdminCredentials() throws JsonProcessingException {
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+
+        CreateRespondentsAccountsDto dto = new CreateRespondentsAccountsDto(3);
+
+        webTestClient.post().uri("/api/authentication/respondents")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(dto)
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(3);
+    }
+
+    @Test
+    public void testCreateRespondentsAccountsWithInvalidCredentials() throws JsonProcessingException {
+        CreateRespondentsAccountsDto dto = new CreateRespondentsAccountsDto(3);
+
+        webTestClient.post().uri("/api/authentication/respondents")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(dto)
+                .exchange()
+                .expectStatus()
+                .isUnauthorized();
+    }
+
+    @Test
+    public void testAdminLoginWithCorrectCredentials() throws JsonProcessingException {
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+
+        LoginDto dto = LoginDto
+                .builder()
+                .withUsername(admin.getUsername())
+                .withPassword(ADMIN_PASSWORD)
+                .build();
+
+        String json = objectMapper.writeValueAsString(dto);
+
+        webTestClient.post().uri("/api/authentication/login/admin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(json)
+                .exchange()
+                .expectStatus()
+                .isOk();
+    }
+
+    @Test
+    public void testAdminLoginWithInvalidCredentials() throws JsonProcessingException {
+        LoginDto dto = LoginDto
+                .builder()
+                .withUsername("admin")
+                .withPassword("wrongPassword")
+                .build();
+
+        String json = objectMapper.writeValueAsString(dto);
+
+        webTestClient.post().uri("/api/authentication/login/admin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(json)
+                .exchange()
+                .expectStatus()
+                .isUnauthorized();
+    }
+
+    @Test
+    public void testAdminLoginWithMissingCredentials() throws JsonProcessingException {
+        LoginDto dto = LoginDto
+                .builder()
+                .build();
+
+        String json = objectMapper.writeValueAsString(dto);
+
+        webTestClient.post().uri("/api/authentication/login/admin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(json)
+                .exchange()
+                .expectStatus()
+                .isBadRequest();
+    }
+
+
 }

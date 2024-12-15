@@ -4,10 +4,10 @@ import com.survey.application.dtos.CreateRespondentsAccountsDto;
 import com.survey.application.dtos.LoginDto;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 
 public interface AuthenticationService {
-    String getJwtToken(LoginDto dto);
+    String getJwtTokenAsRespondent(LoginDto dto);
+    String getJwtTokenAsAdmin(LoginDto dto);
     List<LoginDto> createRespondentsAccounts(CreateRespondentsAccountsDto dto);
 }
