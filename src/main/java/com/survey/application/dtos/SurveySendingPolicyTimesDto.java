@@ -13,4 +13,5 @@ public class SurveySendingPolicyTimesDto {
     private OffsetDateTime start;
     private OffsetDateTime finish;
     private boolean isDeleted;
+    private Long rowVersion;
 }

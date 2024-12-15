@@ -229,6 +229,29 @@ public class SurveyServiceImpl implements SurveyService {
         return modelMapper.map(dbSurvey, ResponseSurveyDto.class);
     }
 
+    @Override
+    public boolean doesNewerDataExistsInDB(Long maxRowVersionFromMobileApp) {
+        String sql = """
+            SELECT MAX(row_version) AS maxRowVersion FROM (
+                SELECT MAX(CAST(s.row_version AS bigint)) AS row_version FROM survey s
+                UNION ALL
+                SELECT MAX(CAST(ssp.row_version AS bigint)) FROM survey_sending_policy ssp
+                UNION ALL
+                SELECT MAX(CAST(ts.row_version AS bigint)) FROM survey_participation_time_slot ts
+                UNION ALL
+                SELECT MAX(CAST(sp.row_version AS bigint)) FROM survey_participation sp WHERE sp.respondent_id =: identityUserId
+            ) subquery
+            """;
+
+        UUID identityUserId = claimsPrincipalService.findIdentityUser().getId();
+        Long maxRowVersionFromDB = (Long) entityManager
+                .createNativeQuery(sql)
+                .setParameter("identityUserId", identityUserId)
+                .getSingleResult();
+
+        return maxRowVersionFromDB > maxRowVersionFromMobileApp;
+    }
+
     private String getSurveyNameById(UUID surveyId){
         return surveyRepository.findSurveyNameBySurveyId(surveyId);
     }
