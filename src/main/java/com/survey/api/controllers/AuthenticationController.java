@@ -25,11 +25,13 @@ public class AuthenticationController {
     }
 
     @PostMapping("/login")
+    @CrossOrigin
     public String loginForRespondents(@Validated @RequestBody LoginDto loginDto){
         return authenticationService.getJwtTokenAsRespondent(loginDto);
     }
 
     @PostMapping("/login/admin")
+    @CrossOrigin
     public String loginForAdmin(@Validated @RequestBody LoginDto loginDto){
         return authenticationService.getJwtTokenAsAdmin(loginDto);
     }
