@@ -1,9 +1,14 @@
 package com.survey.api.controllers;
 
+import com.survey.api.security.Role;
+import com.survey.api.security.TokenProvider;
 import com.survey.application.dtos.surveyDtos.*;
+import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.SurveyService;
+import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.enums.QuestionType;
 import com.survey.domain.models.enums.Visibility;
+import com.survey.domain.repository.IdentityUserRepository;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,6 +17,10 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.BodyInserters;
 
@@ -23,7 +32,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 
-
 public class SurveyControllerTest {
     @InjectMocks
     SurveyController surveyController;
@@ -31,6 +39,15 @@ public class SurveyControllerTest {
     private SurveyService surveyService;
     private WebTestClient webTestClient;
     private CreateSurveyDto createSurveyDto;
+    @Mock
+    private IdentityUserRepository identityUserRepository;
+    @Mock
+    private AuthenticationManager authenticationManager;
+    @Mock
+    private TokenProvider tokenProvider;
+    @Mock
+    private ClaimsPrincipalService claimsPrincipalService;
+
     private static final String SURVEY_NAME = "Survey1";
     private static final String SECTION_NAME = "Section1";
     private static final String QUESTION_CONTENT = "What is your favorite color?";
@@ -41,6 +58,8 @@ public class SurveyControllerTest {
     private static final int OPTION_ORDER_1 = 1;
     private static final int OPTION_ORDER_2 = 2;
     private static final UUID SURVEY_ID = UUID.randomUUID();
+    private static final String ADMIN_PASSWORD = "testAdminPassword";
+    private String adminToken;
 
 
     @BeforeEach
@@ -48,6 +67,9 @@ public class SurveyControllerTest {
         MockitoAnnotations.openMocks(this);
         webTestClient = WebTestClient.bindToController(surveyController).build();
         createSurveyDto = createMockCreateSurveyDto();
+
+        IdentityUser admin = createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        adminToken = "Bearer " + authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
     }
 
     @Test
@@ -61,6 +83,7 @@ public class SurveyControllerTest {
 
         ResponseSurveyDto response = webTestClient.post()
                 .uri("/api/surveys")
+                .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(BodyInserters.fromMultipartData(multipartBodyBuilder.build()))
                 .exchange()
@@ -81,6 +104,7 @@ public class SurveyControllerTest {
 
         webTestClient.delete()
                 .uri("/api/surveys/" + SURVEY_ID)
+                .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isOk();
     }
@@ -95,6 +119,7 @@ public class SurveyControllerTest {
 
         ResponseSurveyDto response = webTestClient.put()
                 .uri("/api/surveys/" + SURVEY_ID)
+                .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(BodyInserters.fromMultipartData(multipartBodyBuilder.build()))
                 .exchange()
@@ -114,6 +139,7 @@ public class SurveyControllerTest {
 
         webTestClient.patch()
                 .uri(uriBuilder -> uriBuilder.path("/api/surveys/publish").queryParam("surveyId", SURVEY_ID).build())
+                .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isNoContent();
     }
@@ -167,5 +193,25 @@ public class SurveyControllerTest {
         responseSurveyDto.setName(SURVEY_NAME);
         responseSurveyDto.setSections(List.of(responseSurveySectionDto));
         return responseSurveyDto;
+    }
+
+    private IdentityUser createUserWithRole(String role, String password) {
+        IdentityUser user = new IdentityUser()
+                .setId(UUID.randomUUID())
+                .setRole(role)
+                .setUsername(UUID.randomUUID().toString())
+                .setPasswordHash(new BCryptPasswordEncoder().encode(password));
+
+        when(identityUserRepository.saveAndFlush(any(IdentityUser.class))).thenReturn(user);
+        return user;
+    }
+
+    private String authenticateAndGenerateToken(IdentityUser user, String password) {
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getUsername(), password);
+        when(authenticationManager.authenticate(any(Authentication.class))).thenReturn(authentication);
+
+        String token = UUID.randomUUID().toString();
+        when(tokenProvider.generateToken(authentication)).thenReturn(token);
+        return token;
     }
 }

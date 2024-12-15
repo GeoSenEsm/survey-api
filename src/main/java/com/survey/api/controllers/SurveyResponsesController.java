@@ -1,11 +1,12 @@
 package com.survey.api.controllers;
 
+import com.survey.api.security.Role;
 import com.survey.application.dtos.SurveyResultDto;
 import com.survey.application.dtos.surveyDtos.SendOfflineSurveyResponseDto;
 import com.survey.application.dtos.surveyDtos.SendOnlineSurveyResponseDto;
 import com.survey.application.dtos.surveyDtos.SurveyParticipationDto;
+import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.SurveyResponsesService;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -25,24 +26,26 @@ import java.util.UUID;
 @RequestScope
 public class SurveyResponsesController {
     private final SurveyResponsesService surveyResponsesService;
+    private final ClaimsPrincipalService claimsPrincipalService;
 
     @Autowired
-    public SurveyResponsesController(SurveyResponsesService surveyResponsesService){
+    public SurveyResponsesController(SurveyResponsesService surveyResponsesService, ClaimsPrincipalService claimsPrincipalService){
         this.surveyResponsesService = surveyResponsesService;
+        this.claimsPrincipalService = claimsPrincipalService;
     }
 
     @CrossOrigin
     @PostMapping
-    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<SurveyParticipationDto> saveSurveyResponseOnline(@Validated @RequestBody SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto) throws InvalidAttributeValueException {
+        claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
         SurveyParticipationDto surveyParticipationDto = surveyResponsesService.saveSurveyResponseOnline(sendOnlineSurveyResponseDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(surveyParticipationDto);
     }
 
     @CrossOrigin
     @PostMapping("/offline")
-    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<List<SurveyParticipationDto>> saveSurveyResponseOffline(@RequestBody List<SendOfflineSurveyResponseDto> sendOfflineSurveyResponseDtoList){
+        claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
         List<SurveyParticipationDto> surveyParticipationDtoList = surveyResponsesService.saveSurveyResponsesOffline(sendOfflineSurveyResponseDtoList);
         return ResponseEntity.status(HttpStatus.CREATED).body(surveyParticipationDtoList);
     }
@@ -54,6 +57,7 @@ public class SurveyResponsesController {
             @RequestParam("dateFrom") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime dateFrom,
             @RequestParam("dateTo") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime dateTo) {
 
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         List<SurveyResultDto> results = surveyResponsesService.getSurveyResults(surveyId, dateFrom, dateTo);
         return ResponseEntity.status(HttpStatus.OK).body(results);
     }

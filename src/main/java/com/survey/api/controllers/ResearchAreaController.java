@@ -1,7 +1,9 @@
 package com.survey.api.controllers;
 
+import com.survey.api.security.Role;
 import com.survey.application.dtos.ResearchAreaDto;
 import com.survey.application.dtos.ResponseResearchAreaDto;
+import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.ResearchAreaService;
 import jakarta.validation.Valid;
 import org.apache.coyote.BadRequestException;
@@ -15,19 +17,23 @@ import java.util.List;
 @RequestMapping("/api/researcharea")
 public class ResearchAreaController {
     private final ResearchAreaService researchAreaService;
+    private final ClaimsPrincipalService claimsPrincipalService;
 
-    public ResearchAreaController(ResearchAreaService researchAreaService) {
+    public ResearchAreaController(ResearchAreaService researchAreaService, ClaimsPrincipalService claimsPrincipalService) {
         this.researchAreaService = researchAreaService;
+        this.claimsPrincipalService = claimsPrincipalService;
     }
 
     @PostMapping
     public ResponseEntity<List<ResponseResearchAreaDto>> saveResearchAreaData(@Valid @RequestBody List<ResearchAreaDto> researchAreaDtoList) throws BadRequestException {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         List<ResponseResearchAreaDto> responseResearchAreaDto = researchAreaService.saveResearchArea(researchAreaDtoList);
         return ResponseEntity.status(HttpStatus.CREATED).body(responseResearchAreaDto);
     }
 
     @GetMapping
     public ResponseEntity<List<ResponseResearchAreaDto>> getResearchArea() {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         List<ResponseResearchAreaDto> responseResearchAreaDtoList = researchAreaService.getResearchArea();
         if (responseResearchAreaDtoList != null) {
             return ResponseEntity.ok(responseResearchAreaDtoList);
@@ -37,6 +43,7 @@ public class ResearchAreaController {
 
     @DeleteMapping
     public ResponseEntity<Void> deleteResearchArea() {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         boolean isDeleted = researchAreaService.deleteResearchArea();
         if (isDeleted) {
             return ResponseEntity.status(HttpStatus.OK).build();

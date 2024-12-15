@@ -1,6 +1,7 @@
 package com.survey.api.integration;
 
-import com.survey.api.security.TokenProvider;
+import com.survey.api.TestUtils;
+import com.survey.api.security.Role;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.enums.QuestionType;
@@ -15,10 +16,6 @@ import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWeb
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.BodyInserters;
@@ -35,11 +32,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class SurveyControllerIntegrationTest {
     private final WebTestClient webTestClient;
     private final IdentityUserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final TokenProvider tokenProvider;
     private final SurveyRepository surveyRepository;
-    private final AuthenticationManager authenticationManager;
     private final SurveyParticipationRepository surveyParticipationRepository;
+    private final TestUtils testUtils;
+
     private static final String QUESTION_CONTENT = "What is your favorite color?";
     private static final int QUESTION_ORDER = 1;
     private static final String OPTION_CONTENT_1 = "Red";
@@ -48,28 +44,30 @@ public class SurveyControllerIntegrationTest {
     private static final int OPTION_ORDER_2 = 2;
     private static final String SURVEY_NAME = "Survey";
     private static final String SECTION_NAME = "Section1";
-    private static final String adminPassword = "testAdminPassword";
-    private String adminToken;
+    private static final String ADMIN_PASSWORD = "testAdminPassword";
 
     @Autowired
-    public SurveyControllerIntegrationTest(WebTestClient webTestClient, IdentityUserRepository userRepository, PasswordEncoder passwordEncoder, TokenProvider tokenProvider, SurveyRepository surveyRepository, AuthenticationManager authenticationManager, SurveyParticipationRepository surveyParticipationRepository) {
+    public SurveyControllerIntegrationTest(WebTestClient webTestClient,
+                                           IdentityUserRepository userRepository,
+                                           SurveyRepository surveyRepository,
+                                           SurveyParticipationRepository surveyParticipationRepository, TestUtils testUtils) {
         this.webTestClient = webTestClient;
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.tokenProvider = tokenProvider;
         this.surveyRepository = surveyRepository;
-        this.authenticationManager = authenticationManager;
         this.surveyParticipationRepository = surveyParticipationRepository;
+        this.testUtils = testUtils;
     }
     @BeforeEach
     void SetUp(){
         surveyParticipationRepository.deleteAll();
         userRepository.deleteAll();
         surveyRepository.deleteAll();
-        adminToken = authenticateAndGenerateTokenForAdmin();
     }
     @Test
     void createSurvey_ShouldBeOK() {
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+
         CreateSurveyDto createSurveyDto = createValidSurveyDto();
         MultipartBodyBuilder multipartBodyBuilder = buildMultipartBodyFromDto(createSurveyDto);
 
@@ -92,6 +90,9 @@ public class SurveyControllerIntegrationTest {
 
     @Test
     void getSurvey_ShouldReturnOk() {
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+
         CreateSurveyDto createSurveyDto = createValidSurveyDto();
         ResponseSurveyDto responseSurveyDto = saveSurveyAsAdmin(createSurveyDto);
 
@@ -112,6 +113,9 @@ public class SurveyControllerIntegrationTest {
 
     @Test
     void updateSurvey_ShouldReturnOK() {
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+
         CreateSurveyDto createSurveyDto = createValidSurveyDto();
         MultipartBodyBuilder multipartBodyBuilder = buildMultipartBodyFromDto(createSurveyDto);
         ResponseSurveyDto responseSurveyDto = saveSurveyAsAdmin(createSurveyDto);
@@ -128,6 +132,9 @@ public class SurveyControllerIntegrationTest {
 
     @Test
     void updateSurvey_ShouldReturnBadRequest_WhenSurveyAlreadyPublished() {
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+
         CreateSurveyDto createSurveyDto = createValidSurveyDto();
         MultipartBodyBuilder multipartBodyBuilder = buildMultipartBodyFromDto(createSurveyDto);
         ResponseSurveyDto responseSurveyDto = saveSurveyAsAdmin(createSurveyDto);
@@ -152,6 +159,9 @@ public class SurveyControllerIntegrationTest {
 
     @Test
     void deleteSurvey_ShouldReturnOK() {
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+
         CreateSurveyDto createSurveyDto = createValidSurveyDto();
         ResponseSurveyDto responseSurveyDto = saveSurveyAsAdmin(createSurveyDto);
 
@@ -165,6 +175,9 @@ public class SurveyControllerIntegrationTest {
 
     @Test
     void deleteSurvey_ShouldReturnNotFound_WhenNoSurveyWithThisId() {
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+
         webTestClient.delete()
                 .uri("/api/surveys/" + UUID.randomUUID())
                 .header("Authorization", "Bearer " + adminToken)
@@ -180,6 +193,9 @@ public class SurveyControllerIntegrationTest {
         return multipartBodyBuilder;
     }
     private ResponseSurveyDto saveSurveyAsAdmin(CreateSurveyDto createSurveyDto) {
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+
         MultipartBodyBuilder multipartBodyBuilder = new MultipartBodyBuilder();
         multipartBodyBuilder.part("json", createSurveyDto, MediaType.APPLICATION_JSON);
 
@@ -223,23 +239,5 @@ public class SurveyControllerIntegrationTest {
         createSurveyDto.setName(SURVEY_NAME);
         createSurveyDto.setSections(List.of(createSurveySectionDto));
         return createSurveyDto;
-    }
-    private String authenticateAndGenerateTokenForAdmin() {
-        IdentityUser admin = createUserWithRole("Admin", adminPassword);
-        return authenticateAndGenerateToken(admin, adminPassword);
-    }
-    private IdentityUser createUserWithRole(String role, String password) {
-        IdentityUser user = new IdentityUser()
-                .setId(UUID.randomUUID())
-                .setRole(role)
-                .setUsername(UUID.randomUUID().toString())
-                .setPasswordHash(passwordEncoder.encode(password));
-
-        return userRepository.saveAndFlush(user);
-    }
-    private String authenticateAndGenerateToken(IdentityUser user, String password) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(user.getUsername(), password));
-        return tokenProvider.generateToken(authentication);
     }
 }

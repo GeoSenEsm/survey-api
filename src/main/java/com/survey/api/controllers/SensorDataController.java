@@ -1,10 +1,11 @@
 package com.survey.api.controllers;
 
+import com.survey.api.security.Role;
 import com.survey.application.dtos.LastSensorEntryDateDto;
 import com.survey.application.dtos.ResponseSensorDataDto;
 import com.survey.application.dtos.SensorDataDto;
+import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.SensorDataService;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -24,17 +25,20 @@ import java.util.UUID;
 public class SensorDataController {
 
     private final SensorDataService sensorDataService;
+    private final ClaimsPrincipalService claimsPrincipalService;
 
     @Autowired
-    public SensorDataController(SensorDataService sensorDataService) {
+    public SensorDataController(SensorDataService sensorDataService, ClaimsPrincipalService claimsPrincipalService) {
         this.sensorDataService = sensorDataService;
+        this.claimsPrincipalService = claimsPrincipalService;
     }
 
     @PostMapping
     @CrossOrigin
-    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<List<ResponseSensorDataDto>> saveSensorData(
             @Valid @RequestBody List<SensorDataDto> temperatureDataDtoList){
+
+        claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
 
         List<ResponseSensorDataDto> savedTemperatureData = sensorDataService.saveSensorData(temperatureDataDtoList);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedTemperatureData);
@@ -46,6 +50,8 @@ public class SensorDataController {
             @RequestParam("from") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime from,
             @RequestParam("to") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to){
 
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+
         List<ResponseSensorDataDto> dtos = sensorDataService.getSensorData(from, to);
         return ResponseEntity.status(HttpStatus.OK).body(dtos);
     }
@@ -53,6 +59,7 @@ public class SensorDataController {
     @GetMapping("/last")
     @CrossOrigin
     public ResponseEntity<LastSensorEntryDateDto> getDateOfLastSensorDataForRespondent(@RequestParam("respondentId") UUID identityUserId){
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
         LastSensorEntryDateDto dto = sensorDataService.getDateOfLastSensorDataForRespondent(identityUserId);
         return ResponseEntity.status(HttpStatus.OK).body(dto);
     }
