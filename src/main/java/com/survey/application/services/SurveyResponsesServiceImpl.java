@@ -25,7 +25,6 @@ import java.util.stream.Stream;
 @RequestScope
 public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final SurveyParticipationRepository surveyParticipationRepository;
-    private final SurveySendingPolicyRepository surveySendingPolicyRepository;
     private final SurveyRepository surveyRepository;
     private final OptionRepository optionRepository;
     private final QuestionRepository questionRepository;
@@ -40,7 +39,6 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     @Autowired
     public SurveyResponsesServiceImpl(
             SurveyParticipationRepository surveyParticipationRepository,
-            SurveySendingPolicyRepository surveySendingPolicyRepository,
             SurveyRepository surveyRepository,
             OptionRepository optionRepository,
             QuestionRepository questionRepository,
@@ -48,7 +46,6 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             ModelMapper modelMapper,
             EntityManager entityManager, SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator, SurveyParticipationTimeValidationService surveyParticipationTimeValidationService) {
         this.surveyParticipationRepository = surveyParticipationRepository;
-        this.surveySendingPolicyRepository = surveySendingPolicyRepository;
         this.surveyRepository = surveyRepository;
         this.optionRepository = optionRepository;
         this.questionRepository = questionRepository;
@@ -122,7 +119,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                     questionAnswer.setSurveyParticipation(surveyParticipation);
                     questionAnswer.setQuestion(question);
 
-                    if (question.getQuestionType().equals(QuestionType.single_choice) || question.getQuestionType().equals(QuestionType.multiple_choice)) {
+                    if (question.getQuestionType().equals(QuestionType.single_choice) || question.getQuestionType().equals(QuestionType.multiple_choice) || question.getQuestionType().equals(QuestionType.image_choice)) {
                         List<OptionSelection> optionSelections = answerDto.getSelectedOptions().stream()
                                 .map(selectedOptionDto -> {
                                     Option option = optionsMap.get(selectedOptionDto.getOptionId());
