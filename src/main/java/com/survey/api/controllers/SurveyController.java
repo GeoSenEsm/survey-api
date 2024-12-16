@@ -69,10 +69,15 @@ public class SurveyController {
 
     @CrossOrigin
     @GetMapping("/allwithtimeslots")
-    public ResponseEntity<List<ResponseSurveyWithTimeSlotsDto>> getAllSurveysWithTimeSlots(){
+    public ResponseEntity<List<ResponseSurveyWithTimeSlotsDto>> getAllSurveysWithTimeSlots(@RequestParam(value = "maxRowVersion", required = false) Long maxRowVersionFromMobileApp){
         claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
+        if (maxRowVersionFromMobileApp != null && !surveyService.doesNewerDataExistsInDB(maxRowVersionFromMobileApp)){
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
+        }
+
         List<ResponseSurveyWithTimeSlotsDto> responseSurveyWithTimeSlotsDtoList = surveyService.getAllSurveysWithTimeSlots();
         return ResponseEntity.status(HttpStatus.OK).body(responseSurveyWithTimeSlotsDtoList);
+
     }
 
     @PatchMapping("/publish")
