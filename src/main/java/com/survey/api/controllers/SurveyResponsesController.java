@@ -34,7 +34,6 @@ public class SurveyResponsesController {
         this.claimsPrincipalService = claimsPrincipalService;
     }
 
-    @CrossOrigin
     @PostMapping
     public ResponseEntity<SurveyParticipationDto> saveSurveyResponseOnline(@Validated @RequestBody SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto) throws InvalidAttributeValueException {
         claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
@@ -42,7 +41,6 @@ public class SurveyResponsesController {
         return ResponseEntity.status(HttpStatus.CREATED).body(surveyParticipationDto);
     }
 
-    @CrossOrigin
     @PostMapping("/offline")
     public ResponseEntity<List<SurveyParticipationDto>> saveSurveyResponseOffline(@RequestBody List<SendOfflineSurveyResponseDto> sendOfflineSurveyResponseDtoList){
         claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
@@ -51,7 +49,6 @@ public class SurveyResponsesController {
     }
 
     @GetMapping("/results")
-    @CrossOrigin
     public ResponseEntity<List<SurveyResultDto>> getSurveyResults(
             @RequestParam("surveyId") UUID surveyId,
             @RequestParam("dateFrom") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime dateFrom,

@@ -78,8 +78,8 @@ public class SurveyParticipationTimeValidationServiceTest {
 
     @Test
     void online_ShouldReturnSurveyStartDate_WhenSurveyFinishDateIsLateButFitsInLateBuffer() {
-        OffsetDateTime surveyStartDate = nowUTC.minusMinutes(5);
-        OffsetDateTime surveyFinishDate = nowUTC;
+        OffsetDateTime surveyStartDate = nowUTC.minusMinutes(10);
+        OffsetDateTime surveyFinishDate = nowUTC.minusMinutes(2);
 
         SurveyParticipationTimeSlot timeSlot = new SurveyParticipationTimeSlot();
         timeSlot.setStart(nowUTC.minusHours(1));

@@ -19,7 +19,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/surveys")
-@CrossOrigin
 public class SurveyController {
     private final SurveyService surveyService;
     private final ClaimsPrincipalService claimsPrincipalService;
@@ -47,7 +46,7 @@ public class SurveyController {
 
     @GetMapping(params = "surveyId")
     public ResponseEntity<ResponseSurveyDto> getSurveyById(@RequestParam("surveyId") UUID surveyId){
-        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
         ResponseSurveyDto responseSurveyDto = surveyService.getSurveyById(surveyId);
         return ResponseEntity.ok(responseSurveyDto);
     }
@@ -60,14 +59,12 @@ public class SurveyController {
     }
 
     @GetMapping("/shortsummaries")
-    @CrossOrigin
     public ResponseEntity<List<ResponseSurveyShortSummariesDto>> getShortSurveysSummaries(){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
         List<ResponseSurveyShortSummariesDto> shortSummariesSurveys = surveyService.getSurveysShortSummaries();
         return ResponseEntity.status(HttpStatus.OK).body(shortSummariesSurveys);
     }
 
-    @CrossOrigin
     @GetMapping("/allwithtimeslots")
     public ResponseEntity<List<ResponseSurveyWithTimeSlotsDto>> getAllSurveysWithTimeSlots(@RequestParam(value = "maxRowVersion", required = false) Long maxRowVersionFromMobileApp){
         claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());

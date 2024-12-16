@@ -32,7 +32,6 @@ public class LocalizationDataController {
     }
 
     @PostMapping
-    @CrossOrigin
     public ResponseEntity<List<ResponseLocalizationDto>> saveLocalizationData(
             @Valid @RequestBody List<LocalizationDataDto> localizationDataDtos){
         claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
@@ -42,7 +41,6 @@ public class LocalizationDataController {
     }
 
     @GetMapping
-    @CrossOrigin
     public ResponseEntity<List<ResponseLocalizationDto>> getLocalizationData(
             @RequestParam(value = "from", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime from,
             @RequestParam(value = "to", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to,

@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@CrossOrigin
 @RequestMapping("/api/summaries")
 public class SummaryController {
     private final SummaryService summaryService;
