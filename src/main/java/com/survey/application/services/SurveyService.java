@@ -18,4 +18,6 @@ public interface SurveyService {
     void publishSurvey(UUID surveyId);
     void deleteSurvey(UUID surveyId);
     ResponseSurveyDto updateSurvey(UUID surveyId, CreateSurveyDto createSurveyDto, List<MultipartFile> files);
+    boolean doesNewerDataExistsInDB(Long maxRowVersionFromMobileApp);
+
 }
