@@ -26,7 +26,6 @@ public class RespondentGroupsController {
     }
 
     @GetMapping
-    @CrossOrigin
     public ResponseEntity<List<RespondentGroupDto>> getRespondentGroups(@Validated @RequestParam(name = "respondentId", required = false) UUID identityUserId) {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
         List<RespondentGroupDto> respondentGroupDtos = respondentGroupService.getRespondentGroups(identityUserId);

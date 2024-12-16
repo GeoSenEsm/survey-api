@@ -1,18 +1,13 @@
 package com.survey.api.validation;
 
-import com.survey.application.dtos.RespondentGroupDto;
 import com.survey.application.dtos.surveyDtos.AnswerDto;
 import com.survey.application.dtos.surveyDtos.SelectedOptionDto;
 import com.survey.application.dtos.surveyDtos.SendSurveyResponseDto;
-import com.survey.application.services.ClaimsPrincipalService;
-import com.survey.application.services.RespondentGroupService;
 import com.survey.domain.models.*;
-import com.survey.domain.repository.OptionRepository;
-import com.survey.domain.repository.RespondentDataRepository;
 import com.survey.domain.repository.SurveyRepository;
-import com.survey.domain.repository.SurveySendingPolicyRepository;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,30 +20,11 @@ public class SendSurveyResponseDtoValidator
 implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
 
     private final SurveyRepository surveyRepository;
-    private final SurveySendingPolicyRepository surveySendingPolicyRepository;
-    private final RespondentGroupService respondentGroupService;
-    private final ClaimsPrincipalService claimsPrincipalService;
-    private final RespondentDataRepository respondentDataRepository;
-    private final OptionRepository optionRepository;
 
-
-
-
-    public SendSurveyResponseDtoValidator(SurveyRepository surveyRepository,
-                                          SurveySendingPolicyRepository surveySendingPolicyRepository,
-                                          RespondentGroupService respondentGroupService,
-                                          ClaimsPrincipalService claimsPrincipalService,
-                                          RespondentDataRepository respondentDataRepository,
-                                          OptionRepository optionRepository){
-
+    @Autowired
+    public SendSurveyResponseDtoValidator(SurveyRepository surveyRepository){
         this.surveyRepository = surveyRepository;
-        this.surveySendingPolicyRepository = surveySendingPolicyRepository;
-        this.respondentGroupService = respondentGroupService;
-        this.claimsPrincipalService = claimsPrincipalService;
-        this.respondentDataRepository = respondentDataRepository;
-        this.optionRepository = optionRepository;
     }
-
 
     @Override
     @Transactional
@@ -74,10 +50,6 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         Survey survey = surveyOptional.get();
         boolean isValid = true;
 
-        if (!validateAllRequiredQuestionsAnswered(survey, sendSurveyResponseDto.getAnswers(), constraintValidatorContext)) {
-            return false;
-        }
-
         Map<UUID, Question> questionIdMappings =
                 survey
                         .getSections()
@@ -93,12 +65,13 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
                         .collect(Collectors.toMap(Question::getId, x -> false));
 
         for (AnswerDto answerDto : sendSurveyResponseDto.getAnswers()){
-            answerFoundMappings.put(answerDto.getQuestionId(), true);
             if (!questionIdMappings.containsKey(answerDto.getQuestionId())){
                 addConstraintViolation(constraintValidatorContext, "Each answer must match an existing question for specified survey", "answers");
                 isValid = false;
-                continue;
+                break;
             }
+
+            answerFoundMappings.put(answerDto.getQuestionId(), true);
 
             Question matchingQuestion = questionIdMappings.get(answerDto.getQuestionId());
             if (!validateAnswerWithQuestionType(answerDto, matchingQuestion, constraintValidatorContext)){
@@ -207,63 +180,6 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
             result = false;
         }
         return result;
-    }
-
-    private boolean isVisibleToParticipant(SurveySection section, List<AnswerDto> answers) {
-        return switch (section.getVisibility()) {
-            case always -> true;
-            case group_specific -> checkGroupSpecificVisibility(section);
-            case answer_triggered -> checkAnswerTriggeredVisibility(section, answers);
-        };
-    }
-
-    private boolean validateAllRequiredQuestionsAnswered(Survey survey, List<AnswerDto> answers, ConstraintValidatorContext ctx) {
-        Set<UUID> answeredQuestionIds = answers.stream()
-                .map(AnswerDto::getQuestionId)
-                .collect(Collectors.toSet());
-
-        boolean allRequiredQuestionsAnswered = survey.getSections().stream()
-                .flatMap(section -> section.getQuestions().stream()
-                        .filter(question -> question.getRequired() && isVisibleToParticipant(section, answers))
-                        .filter(question -> !answeredQuestionIds.contains(question.getId()))
-                ).findAny().isEmpty();
-
-        if (!allRequiredQuestionsAnswered) {
-            addConstraintViolation(ctx, "All required questions must be answered", "answers");
-        }
-
-        return allRequiredQuestionsAnswered;
-    }
-
-    private boolean checkGroupSpecificVisibility(SurveySection section) {
-        UUID identityUserId = claimsPrincipalService.findIdentityUser().getId();
-        UUID respondentId = respondentDataRepository.findByIdentityUserId(identityUserId).getId();
-        List<RespondentGroupDto> respondentGroups = respondentGroupService.getRespondentGroups(respondentId);
-
-        List<UUID> respondentGroupIds = respondentGroups.stream()
-                .map(RespondentGroupDto::getId)
-                .toList();
-
-        return section.getSectionToUserGroups().stream()
-                .anyMatch(group -> respondentGroupIds.contains(group.getGroup().getId()));
-    }
-
-    private boolean checkAnswerTriggeredVisibility(SurveySection section, List<AnswerDto> answers) {
-        List<UUID> selectedOptionIds = new ArrayList<>();
-        for (AnswerDto answer : answers) {
-            if (answer.getSelectedOptions() != null) {
-                for (SelectedOptionDto selectedOption : answer.getSelectedOptions()) {
-                    selectedOptionIds.add(selectedOption.getOptionId());
-                }
-            }
-        }
-        List<Option> options = optionRepository.findByIdIn(selectedOptionIds);
-        for (Option option : options) {
-            if (option.getShowSection() != null && option.getShowSection().equals(section.getOrder())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private void addConstraintViolation(ConstraintValidatorContext ctx, String message, String propertyNode) {
