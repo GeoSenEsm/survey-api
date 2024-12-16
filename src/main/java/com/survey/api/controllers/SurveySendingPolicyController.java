@@ -34,7 +34,6 @@ public class SurveySendingPolicyController {
     }
 
     @PostMapping
-    @CrossOrigin
     public ResponseEntity<SurveySendingPolicyDto> createSurveySendingPolicy(
             @Validated @RequestBody CreateSurveySendingPolicyDto createSurveySendingPolicy) throws  InstanceAlreadyExistsException, NoSuchElementException,  IllegalArgumentException, BadRequestException, BadAttributeValueExpException, InstanceNotFoundException, InvalidAttributeValueException {
 
@@ -44,7 +43,6 @@ public class SurveySendingPolicyController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdSendingPolicy);
     }
 
-    @CrossOrigin
     @GetMapping
     public ResponseEntity<List<SurveySendingPolicyDto>> getSurveySendingPolicyBySurveyId(
             @RequestParam("surveyId") UUID surveyId) {
@@ -54,7 +52,6 @@ public class SurveySendingPolicyController {
         return ResponseEntity.ok(surveysSendingPolicies);
     }
 
-    @CrossOrigin
     @DeleteMapping
     public ResponseEntity<List<SurveySendingPolicyTimesDto>> deleteTimeSlotsByIds(
             @Validated @RequestBody TimeSlotsToDeleteDto timeSlotsToDelete

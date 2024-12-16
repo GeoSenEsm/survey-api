@@ -34,7 +34,6 @@ public class SensorDataController {
     }
 
     @PostMapping
-    @CrossOrigin
     public ResponseEntity<List<ResponseSensorDataDto>> saveSensorData(
             @Valid @RequestBody List<SensorDataDto> temperatureDataDtoList){
 
@@ -45,7 +44,6 @@ public class SensorDataController {
     }
 
     @GetMapping
-    @CrossOrigin
     public ResponseEntity<List<ResponseSensorDataDto>> getSensorData(
             @RequestParam("from") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime from,
             @RequestParam("to") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to){
@@ -57,7 +55,6 @@ public class SensorDataController {
     }
 
     @GetMapping("/last")
-    @CrossOrigin
     public ResponseEntity<LastSensorEntryDateDto> getDateOfLastSensorDataForRespondent(@RequestParam("respondentId") UUID identityUserId){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
         LastSensorEntryDateDto dto = sensorDataService.getDateOfLastSensorDataForRespondent(identityUserId);

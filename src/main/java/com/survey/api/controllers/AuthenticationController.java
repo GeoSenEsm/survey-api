@@ -25,19 +25,16 @@ public class AuthenticationController {
     }
 
     @PostMapping("/login")
-    @CrossOrigin
     public String loginForRespondents(@Validated @RequestBody LoginDto loginDto){
         return authenticationService.getJwtTokenAsRespondent(loginDto);
     }
 
     @PostMapping("/login/admin")
-    @CrossOrigin
     public String loginForAdmin(@Validated @RequestBody LoginDto loginDto){
         return authenticationService.getJwtTokenAsAdmin(loginDto);
     }
 
     @PostMapping("/respondents")
-    @CrossOrigin
     public List<LoginDto> createRespondentsAccounts(@Validated @RequestBody CreateRespondentsAccountsDto dto){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         return authenticationService.createRespondentsAccounts(dto);
