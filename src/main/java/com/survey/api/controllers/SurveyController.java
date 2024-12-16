@@ -46,7 +46,7 @@ public class SurveyController {
 
     @GetMapping(params = "surveyId")
     public ResponseEntity<ResponseSurveyDto> getSurveyById(@RequestParam("surveyId") UUID surveyId){
-        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
         ResponseSurveyDto responseSurveyDto = surveyService.getSurveyById(surveyId);
         return ResponseEntity.ok(responseSurveyDto);
     }
