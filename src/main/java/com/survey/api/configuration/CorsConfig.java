@@ -16,7 +16,7 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
 
-        config.setAllowedOriginPatterns(List.of("https://*.urbeat.site", "http://localhost:4200"));
+        config.setAllowedOriginPatterns(List.of("https://*.urbeat.site", "http://localhost:*"));
 
         config.addAllowedMethod("GET");
         config.addAllowedMethod("POST");
