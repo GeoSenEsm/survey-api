@@ -44,9 +44,16 @@ public class AuthenticationController {
         return authenticationService.createRespondentsAccounts(dto);
     }
 
-    @PatchMapping("/{respondentId}/password")
-    public ResponseEntity<Void> updateUserPassword(@PathVariable("respondentId") UUID identityUserId, @Validated @RequestBody ChangePasswordDto changePasswordDto){
+    @PatchMapping("/password")
+    public ResponseEntity<Void> updateOwnPassword(@Validated @RequestBody ChangePasswordDto changePasswordDto){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
+        authenticationService.updateOwnPassword(changePasswordDto);
+        return ResponseEntity.status(HttpStatus.OK).build();
+    }
+
+    @PatchMapping("/admin/{respondentId}/password")
+    public ResponseEntity<Void> updateUserPassword(@PathVariable("respondentId") UUID identityUserId, @Validated @RequestBody ChangePasswordDto changePasswordDto){
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         authenticationService.updateUserPassword(identityUserId, changePasswordDto);
         return ResponseEntity.status(HttpStatus.OK).build();
     }

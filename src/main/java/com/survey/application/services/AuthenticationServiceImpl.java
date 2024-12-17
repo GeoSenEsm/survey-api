@@ -8,7 +8,6 @@ import com.survey.application.dtos.surveyDtos.ChangePasswordDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.repository.IdentityUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -84,20 +83,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     @Override
     public void updateUserPassword(UUID identityUserId, ChangePasswordDto changePasswordDto) {
-        IdentityUser currentIdentityUser = claimsPrincipalService.findIdentityUser();
-
-        String newPassword = changePasswordDto.getNewPassword();
-        passwordValidationService.validate(newPassword);
-
         IdentityUser targetUser = findIdentityUserById(identityUserId);
+        updatePassword(targetUser, changePasswordDto.getNewPassword());
+    }
 
-        if(currentIdentityUser.getId().equals(identityUserId)){
-            validateOldPassword(targetUser, changePasswordDto.getOldPassword());
-        } else if (!isAdmin(currentIdentityUser)) {
-            throw new AccessDeniedException("You do not have permission to update this user's password.");
-        }
-
-        updatePassword(targetUser, newPassword);
+    @Override
+    public void updateOwnPassword(ChangePasswordDto changePasswordDto) {
+        IdentityUser identityUser = claimsPrincipalService.findIdentityUser();
+        validateOldPassword(identityUser, changePasswordDto.getOldPassword());
+        updatePassword(identityUser, changePasswordDto.getNewPassword());
     }
 
     private String getUsernameFromNumber(int i) {
@@ -120,10 +114,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
     private void validateOldPassword(IdentityUser targetUser, String oldPassword) {
         passwordValidationService.validateOldPassword(targetUser.getPasswordHash(), oldPassword);
-    }
-
-    private boolean isAdmin(IdentityUser user) {
-        return Role.ADMIN.getRoleName().equals(user.getRole());
     }
     private void updatePassword(IdentityUser identityUser, String newPassword) {
         String hashedPassword = passwordEncoder.encode(newPassword);

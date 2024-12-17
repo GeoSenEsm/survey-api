@@ -13,4 +13,5 @@ public interface AuthenticationService {
     String getJwtTokenAsAdmin(LoginDto dto);
     List<LoginDto> createRespondentsAccounts(CreateRespondentsAccountsDto dto);
     void updateUserPassword(UUID identityUserId, ChangePasswordDto changePasswordDto);
+    void updateOwnPassword(ChangePasswordDto changePasswordDto);
 }

@@ -36,9 +36,8 @@ public class AuthenticationControllerIntegrationTest {
     private final PasswordEncoder passwordEncoder;
     private static final String ADMIN_PASSWORD = "testAdminPassword";
     private static final String RESPONDENT_PASSWORD = "testRespondentPassword!";
-    private static final String RESPONDENT2_PASSWORD = "testRespondent2Password!";
     private static final String NEW_VALID_RESPONDENT_PASSWORD = "!newTestRespondentPassword1";
-    private static final String NEW_INVALID_RESPONDENT_PASSWORD = "!newPassword";
+    private static final String NEW_INVALID_RESPONDENT_PASSWORD = "new";
 
 
     @Autowired
@@ -217,7 +216,7 @@ public class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    void editRespondentPassword_ShouldReturnOk_WhenAdminUpdatesRespondentPassword() {
+    void updateUserPassword_ShouldReturnOk_WhenAdminUpdatesRespondentPassword() {
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
@@ -226,7 +225,7 @@ public class AuthenticationControllerIntegrationTest {
         ChangePasswordDto changePasswordDto = createChangePasswordDto(null, NEW_VALID_RESPONDENT_PASSWORD);
 
         webTestClient.patch()
-                .uri("api/authentication/" + respondent.getId() + "/password")
+                .uri("api/authentication/admin/" + respondent.getId() + "/password")
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(changePasswordDto)
@@ -237,14 +236,14 @@ public class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    void editRespondentPassword_ShouldReturnOk_WhenAdminUpdatesOwnPassword() {
+    void updateOwnPassword_ShouldReturnOk_WhenAdminUpdatesOwnPassword() {
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
         ChangePasswordDto changePasswordDto = createChangePasswordDto(ADMIN_PASSWORD, NEW_VALID_RESPONDENT_PASSWORD);
 
         webTestClient.patch()
-                .uri("api/authentication/" + admin.getId() + "/password")
+                .uri("api/authentication/password")
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(changePasswordDto)
@@ -255,14 +254,14 @@ public class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    void updateRespondentPassword_ShouldReturnOk_WhenRespondentUpdatesOwnPassword() {
+    void updateOwnPassword_ShouldReturnOk_WhenRespondentUpdatesOwnPassword() {
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
         ChangePasswordDto changePasswordDto = createChangePasswordDto(RESPONDENT_PASSWORD, NEW_VALID_RESPONDENT_PASSWORD);
 
         webTestClient.patch()
-                .uri("api/authentication/" + respondent.getId() + "/password")
+                .uri("api/authentication/password")
                 .header("Authorization", "Bearer " + respondentToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(changePasswordDto)
@@ -273,14 +272,14 @@ public class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    void updateRespondentPassword_ShouldReturnBadRequest_WhenOldPasswordIsIncorrect() {
+    void updateOwnPassword_ShouldReturnBadRequest_WhenOldPasswordIsIncorrect() {
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
         ChangePasswordDto changePasswordDto = createChangePasswordDto("invalid_old_password", NEW_VALID_RESPONDENT_PASSWORD);
 
         webTestClient.patch()
-                .uri("api/authentication/" + respondent.getId() + "/password")
+                .uri("api/authentication/password")
                 .header("Authorization", "Bearer " + respondentToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(changePasswordDto)
@@ -289,32 +288,14 @@ public class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    void updateRespondentPassword_ShouldReturnForbidden_WhenRespondentTriesToUpdateAnotherRespondentsPassword() {
-        IdentityUser respondent1 = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
-        String respondent1Token = testUtils.authenticateAndGenerateToken(respondent1, RESPONDENT_PASSWORD);
-
-        IdentityUser respondent2 = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT2_PASSWORD);
-
-        ChangePasswordDto changePasswordDto = createChangePasswordDto(RESPONDENT2_PASSWORD, NEW_VALID_RESPONDENT_PASSWORD);
-
-        webTestClient.patch()
-                .uri("api/authentication/" + respondent2.getId() + "/password")
-                .header("Authorization", "Bearer " + respondent1Token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(changePasswordDto)
-                .exchange()
-                .expectStatus().isForbidden();
-    }
-
-    @Test
-    void updateRespondentPassword_ShouldReturnBadRequest_WhenNewPasswordDoesNotMeetComplexityRequirements() {
+    void updateOwnPassword_ShouldReturnBadRequest_WhenNewPasswordDoesNotMeetComplexityRequirements() {
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
         ChangePasswordDto changePasswordDto = createChangePasswordDto(RESPONDENT_PASSWORD, NEW_INVALID_RESPONDENT_PASSWORD);
 
         webTestClient.patch()
-                .uri("api/authentication/" + respondent.getId() + "/password")
+                .uri("api/authentication/password")
                 .header("Authorization", "Bearer " + respondentToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(changePasswordDto)
