@@ -54,7 +54,7 @@ public class SurveyParticipationTimeValidationServiceImpl implements SurveyParti
         SurveyParticipationTimeSlot timeSlot = findTimeSlotForSurveyStartDate(surveyId, surveyStartDate);
 
         if (timeSlot == null ||
-                !isTimeslotInThePast(timeSlot) ||
+                !isTimeslotStartInThePast(timeSlot) ||
                 !areSurveyStartAndFinishDatesWithinGivenTimeSlot(timeSlot, surveyStartDate, surveyFinishDate) ||
                 !isSurveyFinishDateBeforeCurrentTime(surveyFinishDate) ||
                 hasRespondentParticipatedInSurveyInSpecifiedTimeSlot(surveyId, identityUserId, timeSlot)) {
@@ -92,9 +92,8 @@ public class SurveyParticipationTimeValidationServiceImpl implements SurveyParti
                 .orElse(null);
     }
 
-    private boolean isTimeslotInThePast(SurveyParticipationTimeSlot timeSlot){
-        return timeSlot.getStart().isBefore(OffsetDateTime.now(ZoneOffset.UTC))
-                && timeSlot.getFinish().isBefore(OffsetDateTime.now(ZoneOffset.UTC));
+    private boolean isTimeslotStartInThePast(SurveyParticipationTimeSlot timeSlot){
+        return timeSlot.getStart().isBefore(OffsetDateTime.now(ZoneOffset.UTC));
     }
 
     private boolean areSurveyStartAndFinishDatesWithinGivenTimeSlot(SurveyParticipationTimeSlot timeSlot, OffsetDateTime surveyStartDate, OffsetDateTime surveyFinishDate){
