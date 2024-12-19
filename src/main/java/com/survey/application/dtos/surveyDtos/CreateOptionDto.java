@@ -14,7 +14,7 @@ public class CreateOptionDto {
     private Integer order;
 
     @NotBlank
-    @Size(min = 1, max = 50)
+    @Size(min = 1, max = 150)
     private String label;
 
     @Min(1)
