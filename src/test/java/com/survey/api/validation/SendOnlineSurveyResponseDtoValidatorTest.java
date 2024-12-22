@@ -131,7 +131,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 null,
                                 null
                         ),
-                        new AnswerDto(questionId, null, null, true)
+                        new AnswerDto(questionId, null, null, true, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -151,7 +151,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                         null, null
                                 )
                         ),
-                        new AnswerDto(questionId, null, 3, null)
+                        new AnswerDto(questionId, null, 3, null, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -175,7 +175,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 ).collect(Collectors.toList()),
                                 null
                         ),
-                        new AnswerDto(questionId, Stream.of(new SelectedOptionDto(optionId)).collect(Collectors.toList()), null, null)
+                        new AnswerDto(questionId, Stream.of(new SelectedOptionDto(optionId)).collect(Collectors.toList()), null, null, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -189,7 +189,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 null,
                                 null
                         ),
-                        new AnswerDto(questionId, null, new Random().nextInt(), null)
+                        new AnswerDto(questionId, null, new Random().nextInt(), null, null)
                 )
         );
     }
@@ -262,7 +262,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 null,
                                 null
                         ),
-                        new AnswerDto(questionId, null, null, null)
+                        new AnswerDto(questionId, null, null, null, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -276,7 +276,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 null,
                                 null
                         ),
-                        new AnswerDto(questionId, null, 1, null)
+                        new AnswerDto(questionId, null, 1, null, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -290,7 +290,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 null,
                                 null
                         ),
-                        new AnswerDto(questionId, optionList, 1, null)
+                        new AnswerDto(questionId, optionList, 1, null, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -310,7 +310,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                         null, null
                                 )
                         ),
-                        new AnswerDto(questionId, null, 6, null)
+                        new AnswerDto(questionId, null, 6, null, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -330,7 +330,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                         null, null
                                 )
                         ),
-                        new AnswerDto(questionId, null, 0, null)
+                        new AnswerDto(questionId, null, 0, null, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -350,7 +350,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                         null, null
                                 )
                         ),
-                        new AnswerDto(questionId, null, null, null)
+                        new AnswerDto(questionId, null, null, null, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -370,7 +370,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                         null, null
                                 )
                         ),
-                        new AnswerDto(questionId, optionList, null, null)
+                        new AnswerDto(questionId, optionList, null, null, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -390,7 +390,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                         null, null
                                 )
                         ),
-                        new AnswerDto(questionId, null, null, Boolean.FALSE)
+                        new AnswerDto(questionId, null, null, Boolean.FALSE, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -414,7 +414,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 ).collect(Collectors.toList()),
                                 null
                         ),
-                        new AnswerDto(questionId, optionList, null, null)
+                        new AnswerDto(questionId, optionList, null, null, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -438,7 +438,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 ).collect(Collectors.toList()),
                                 null
                         ),
-                        new AnswerDto(questionId, optionList, 1, null)
+                        new AnswerDto(questionId, optionList, 1, null, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -462,7 +462,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 ).collect(Collectors.toList()),
                                 null
                         ),
-                        new AnswerDto(questionId, optionList, null, Boolean.FALSE)
+                        new AnswerDto(questionId, optionList, null, Boolean.FALSE, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -486,7 +486,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 ).collect(Collectors.toList()),
                                 null
                         ),
-                        new AnswerDto(questionId, optionListOfMoreThanOneSelectedOptions, null, null)
+                        new AnswerDto(questionId, optionListOfMoreThanOneSelectedOptions, null, null, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -500,7 +500,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 null,
                                 null
                         ),
-                        new AnswerDto(questionId, null, null, true)
+                        new AnswerDto(questionId, null, null, true, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -514,7 +514,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 null,
                                 null
                         ),
-                        new AnswerDto(questionId, optionList, null, null)
+                        new AnswerDto(questionId, optionList, null, null, null)
                 ),
                 getArgumentsWithSingleQuestionSurvey(
                         new Question(
@@ -528,7 +528,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 null,
                                 null
                         ),
-                        new AnswerDto(questionId, null, null, null)
+                        new AnswerDto(questionId, null, null, null, null)
                 )
         );
     }
@@ -1003,5 +1003,150 @@ class SendOnlineSurveyResponseDtoValidatorTest {
         verify(context).buildConstraintViolationWithTemplate("Survey response data is invalid");
         verify(violationBuilder).addPropertyNode("surveyId");
     }
+
+    @Test
+    void shouldPassWhenAnswerMatchesTextInputQuestionType() {
+        UUID surveyId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+
+        Survey survey = new Survey()
+                .setId(surveyId)
+                .setSections(Stream.of(
+                        new SurveySection()
+                                .setVisibility(Visibility.always)
+                                .setQuestions(Stream.of(
+                                        new Question()
+                                                .setId(questionId)
+                                                .setQuestionType(QuestionType.text_input)
+                                                .setRequired(true)
+                                ).toList())
+                ).toList());
+
+        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
+
+        SendOnlineSurveyResponseDto response = new SendOnlineSurveyResponseDto()
+                .setSurveyId(surveyId)
+                .setStartDate(OffsetDateTime.now())
+                .setFinishDate(OffsetDateTime.now().plusMinutes(1))
+                .setAnswers(Stream.of(
+                        new AnswerDto()
+                                .setQuestionId(questionId)
+                                .setTextAnswer("Valid text answer")
+                ).toList());
+
+        boolean isValid = validator.isValid(response, context);
+        assertTrue(isValid);
+    }
+
+    @Test
+    void shouldFailWhenTextInputAnswerIsEmptyForRequiredQuestion() {
+        UUID surveyId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+
+        Survey survey = new Survey()
+                .setId(surveyId)
+                .setSections(Stream.of(
+                        new SurveySection()
+                                .setVisibility(Visibility.always)
+                                .setQuestions(Stream.of(
+                                        new Question()
+                                                .setId(questionId)
+                                                .setQuestionType(QuestionType.text_input)
+                                                .setRequired(true)
+                                ).toList())
+                ).toList());
+
+        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
+
+        SendOnlineSurveyResponseDto response = new SendOnlineSurveyResponseDto()
+                .setSurveyId(surveyId)
+                .setStartDate(OffsetDateTime.now())
+                .setFinishDate(OffsetDateTime.now().plusMinutes(1))
+                .setAnswers(Stream.of(
+                        new AnswerDto()
+                                .setQuestionId(questionId)
+                                .setTextAnswer("")
+                ).toList());
+
+        boolean isValid = validator.isValid(response, context);
+        assertFalse(isValid);
+        verify(context).buildConstraintViolationWithTemplate("Text answer must not be empty or blank");
+    }
+
+    @Test
+    void shouldPassWhenTextInputAnswerIsEmptyForNonRequiredQuestion() {
+        UUID surveyId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+
+        Survey survey = new Survey()
+                .setId(surveyId)
+                .setSections(Stream.of(
+                        new SurveySection()
+                                .setVisibility(Visibility.always)
+                                .setQuestions(Stream.of(
+                                        new Question()
+                                                .setId(questionId)
+                                                .setQuestionType(QuestionType.text_input)
+                                                .setRequired(false)
+                                ).toList())
+                ).toList());
+
+        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
+
+        SendOnlineSurveyResponseDto response = new SendOnlineSurveyResponseDto()
+                .setSurveyId(surveyId)
+                .setStartDate(OffsetDateTime.now())
+                .setFinishDate(OffsetDateTime.now().plusMinutes(1))
+                .setAnswers(new ArrayList<>());
+
+        boolean isValid = validator.isValid(response, context);
+        assertTrue(isValid);
+    }
+
+    @Test
+    void shouldFailWhenTextInputAnswerExceedsMaximumLength() {
+        UUID surveyId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+
+        Survey survey = new Survey()
+                .setId(surveyId)
+                .setSections(Stream.of(
+                        new SurveySection()
+                                .setVisibility(Visibility.always)
+                                .setQuestions(Stream.of(
+                                        new Question()
+                                                .setId(questionId)
+                                                .setQuestionType(QuestionType.text_input)
+                                                .setRequired(true)
+                                ).toList())
+                ).toList());
+
+        when(surveyRepository.findById(surveyId)).thenReturn(Optional.of(survey));
+        when(surveySendingPolicyService.getSurveysSendingPolicyById(survey.getId()))
+                .thenReturn(List.of(validSurveySendingPolicy(survey.getId())));
+
+        String longTextAnswer = "a".repeat(151);
+        SendOnlineSurveyResponseDto response = new SendOnlineSurveyResponseDto()
+                .setSurveyId(surveyId)
+                .setStartDate(OffsetDateTime.now())
+                .setFinishDate(OffsetDateTime.now().plusMinutes(1))
+                .setAnswers(Stream.of(
+                        new AnswerDto()
+                                .setQuestionId(questionId)
+                                .setTextAnswer(longTextAnswer)
+                ).toList());
+
+        boolean isValid = validator.isValid(response, context);
+
+        assertFalse(isValid);
+        verify(context).buildConstraintViolationWithTemplate("Text answer maximum length is 150 characters.");
+    }
+
 
 }

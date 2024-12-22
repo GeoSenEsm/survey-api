@@ -89,6 +89,7 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
             case linear_scale -> validateLinearScaleAnswer(question, answer, ctx);
             case number_input -> validateNumericAnswer(answer, ctx, "Numeric answer");
             case image_choice -> validateChoice(question, answer, ctx, "Image");
+            case text_input -> validateTextInput(answer, ctx);
         };
     }
 
@@ -105,9 +106,14 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         }
 
         if (answerDto.getYesNoAnswer() != null){
-            addConstraintViolation(ctx, answerTypeName + " answer must not have a yes/no answer specified", "answers");
+            addConstraintViolation(ctx, answerTypeName + " must not have a yes/no answer specified", "answers");
             result = false;
         }
+
+        if (answerDto.getTextAnswer() != null){
+            addConstraintViolation(ctx, answerTypeName + " must not have a text answer specified", "answers");
+        }
+
         return result;
     }
 
@@ -126,6 +132,10 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
         if (answerDto.getYesNoAnswer() == null){
             addConstraintViolation(ctx, "'Yes/No' answer must have a yes/no answer specified", "answers");
             result = false;
+        }
+
+        if (answerDto.getTextAnswer() != null){
+            addConstraintViolation(ctx,"'Yes/No' must not have a text answer specified", "answers");
         }
 
         return result;
@@ -177,6 +187,36 @@ implements ConstraintValidator<ValidSendSurveyResponse, SendSurveyResponseDto> {
 
         if (selectedOptions != null && selectedOptions.stream().anyMatch(x -> !optionsIds.contains(x.getOptionId()))){
             addConstraintViolation(ctx, questionTypeName + " choice answer must have a selected option matching available option for the proper question", "answers");
+            result = false;
+        }
+        return result;
+    }
+
+    private boolean validateTextInput(AnswerDto answerDto, ConstraintValidatorContext ctx){
+        boolean result = true;
+
+        if (answerDto.getTextAnswer() == null || answerDto.getTextAnswer().isBlank()){
+            addConstraintViolation(ctx, "Text answer must not be empty or blank", "answers");
+            result = false;
+        }
+
+        if (answerDto.getTextAnswer().length() > 150){
+            addConstraintViolation(ctx, "Text answer maximum length is 150 characters.", "answers");
+            result = false;
+        }
+
+        if (answerDto.getNumericAnswer() != null){
+            addConstraintViolation(ctx,"Text answer must not have a numeric value", "answers");
+            result = false;
+        }
+
+        if (answerDto.getSelectedOptions() != null && !answerDto.getSelectedOptions().isEmpty()){
+            addConstraintViolation(ctx,"Text answer must not have a selected options", "answers");
+            result = false;
+        }
+
+        if (answerDto.getYesNoAnswer() != null){
+            addConstraintViolation(ctx, "Text answer must not have a yes/no answer specified", "answers");
             result = false;
         }
         return result;

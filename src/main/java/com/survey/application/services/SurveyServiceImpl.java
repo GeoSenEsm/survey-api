@@ -344,6 +344,11 @@ public class SurveyServiceImpl implements SurveyService {
             question.setOptions(mapOptionsWithFiles(questionDto.getOptions(), question, surveySection.getOrder().toString(), surveyId, files));
         }
 
+        if (question.getQuestionType().equals(QuestionType.text_input)){
+            question.setNumberRange(null);
+            question.setOptions(null);
+        }
+
         return question;
     }
 

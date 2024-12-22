@@ -41,4 +41,7 @@ public class QuestionAnswer {
 
     @Column(name = "yes_no_answer")
     private Boolean yesNoAnswer;
+
+    @OneToOne(mappedBy = "questionAnswer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private TextAnswer textAnswer;
 }

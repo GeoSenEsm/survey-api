@@ -20,6 +20,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.BodyInserters;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,12 +37,35 @@ public class SurveyControllerIntegrationTest {
     private final SurveyParticipationRepository surveyParticipationRepository;
     private final TestUtils testUtils;
 
-    private static final String QUESTION_CONTENT = "What is your favorite color?";
-    private static final int QUESTION_ORDER = 1;
-    private static final String OPTION_CONTENT_1 = "Red";
-    private static final String OPTION_CONTENT_2 = "Blue";
-    private static final int OPTION_ORDER_1 = 1;
-    private static final int OPTION_ORDER_2 = 2;
+    private static final String SINGLE_CHOICE_QUESTION_CONTENT = "This is a single choice question.";
+    private static final int SINGLE_CHOICE_QUESTION_ORDER = 1;
+    private static final String SINGLE_CHOICE_QUESTION_OPTION_CONTENT_1 = "single option 1";
+    private static final String SINGLE_CHOICE_QUESTION_OPTION_CONTENT_2 = "single option 2";
+
+    private static final String TEXT_INPUT_QUESTION_CONTENT = "Write some text here.";
+    private static final int TEXT_INPUT_QUESTION_ORDER = 2;
+
+    private static final String YES_NO_QUESTION_CONTENT = "This is a yes/no question.";
+    private static final int YES_NO_QUESTION_ORDER = 3;
+
+    private static final String LINEAR_SCALE_QUESTION_CONTENT = "This is a linear scale question.";
+    private static final int LINEAR_SCALE_QUESTION_ORDER = 4;
+    private static final int LINEAR_SCALE_QUESTION_FROM = 1;
+    private static final String LINEAR_SCALE_QUESTION_FROM_LABEL = "from label";
+    private static final int LINEAR_SCALE_QUESTION_TO = 5;
+    private static final String LINEAR_SCALE_QUESTION_TO_LABEL = "to label";
+
+    private static final String NUMBER_INPUT_QUESTION_CONTENT = "This is a number input question.";
+    private static final int NUMBER_INPUT_QUESTION_ORDER = 5;
+
+    private static final String MULTIPLE_CHOICE_QUESTION_CONTENT = "This is a multiple choice question.";
+    private static final int MULTIPLE_CHOICE_QUESTION_ORDER = 6;
+    private static final String MULTIPLE_CHOICE_QUESTION_OPTION_CONTENT_1 = "multiple option 1";
+    private static final String MULTIPLE_CHOICE_QUESTION_OPTION_CONTENT_2 = "multiple option 2";
+
+
+
+
     private static final String SURVEY_NAME = "Survey";
     private static final String SECTION_NAME = "Section1";
     private static final String ADMIN_PASSWORD = "testAdminPassword";
@@ -85,7 +109,65 @@ public class SurveyControllerIntegrationTest {
 
         assertThat(response).isNotNull();
         assertThat(response.getName()).isEqualTo(SURVEY_NAME);
-        assertThat(response.getSections().get(0).getQuestions().get(0).getContent()).isEqualTo(QUESTION_CONTENT);
+
+        assertThat(response.getSections()).hasSize(1);
+        ResponseSurveySectionDto section = response.getSections().get(0);
+        assertThat(section.getName()).isEqualTo(SECTION_NAME);
+
+        List<ResponseQuestionDto> sortedQuestions = section.getQuestions().stream()
+                .sorted(Comparator.comparingInt(ResponseQuestionDto::getOrder))
+                .toList();
+
+        assertThat(sortedQuestions).hasSize(6);
+
+        ResponseQuestionDto singleChoiceQuestion = sortedQuestions.get(0);
+        assertThat(singleChoiceQuestion.getOrder()).isEqualTo(SINGLE_CHOICE_QUESTION_ORDER);
+        assertThat(singleChoiceQuestion.getContent()).isEqualTo(SINGLE_CHOICE_QUESTION_CONTENT);
+        assertThat(singleChoiceQuestion.getQuestionType().toString()).isEqualTo(QuestionType.single_choice.name());
+        List<ResponseOptionDto> singleChoiceOptions = singleChoiceQuestion.getOptions().stream()
+                .sorted(Comparator.comparingInt(ResponseOptionDto::getOrder))
+                .toList();
+        assertThat(singleChoiceOptions).hasSize(2);
+        assertThat(singleChoiceOptions.get(0).getLabel()).isEqualTo(SINGLE_CHOICE_QUESTION_OPTION_CONTENT_1);
+        assertThat(singleChoiceOptions.get(1).getLabel()).isEqualTo(SINGLE_CHOICE_QUESTION_OPTION_CONTENT_2);
+
+        ResponseQuestionDto textInputQuestion = sortedQuestions.get(1);
+        assertThat(textInputQuestion.getOrder()).isEqualTo(TEXT_INPUT_QUESTION_ORDER);
+        assertThat(textInputQuestion.getContent()).isEqualTo(TEXT_INPUT_QUESTION_CONTENT);
+        assertThat(textInputQuestion.getQuestionType().toString()).isEqualTo(QuestionType.text_input.name());
+        assertThat(textInputQuestion.getOptions()).isEmpty();
+
+        ResponseQuestionDto yesNoQuestion = sortedQuestions.get(2);
+        assertThat(yesNoQuestion.getOrder()).isEqualTo(YES_NO_QUESTION_ORDER);
+        assertThat(yesNoQuestion.getContent()).isEqualTo(YES_NO_QUESTION_CONTENT);
+        assertThat(yesNoQuestion.getQuestionType().toString()).isEqualTo(QuestionType.yes_no_choice.name());
+        assertThat(yesNoQuestion.getOptions()).isEmpty();
+
+        ResponseQuestionDto linearScaleQuestion = sortedQuestions.get(3);
+        assertThat(linearScaleQuestion.getOrder()).isEqualTo(LINEAR_SCALE_QUESTION_ORDER);
+        assertThat(linearScaleQuestion.getContent()).isEqualTo(LINEAR_SCALE_QUESTION_CONTENT);
+        assertThat(linearScaleQuestion.getQuestionType().toString()).isEqualTo(QuestionType.linear_scale.name());
+        assertThat(linearScaleQuestion.getNumberRange().getFrom()).isEqualTo(LINEAR_SCALE_QUESTION_FROM);
+        assertThat(linearScaleQuestion.getNumberRange().getFromLabel()).isEqualTo(LINEAR_SCALE_QUESTION_FROM_LABEL);
+        assertThat(linearScaleQuestion.getNumberRange().getTo()).isEqualTo(LINEAR_SCALE_QUESTION_TO);
+        assertThat(linearScaleQuestion.getNumberRange().getToLabel()).isEqualTo(LINEAR_SCALE_QUESTION_TO_LABEL);
+
+        ResponseQuestionDto numberInputQuestion = sortedQuestions.get(4);
+        assertThat(numberInputQuestion.getOrder()).isEqualTo(NUMBER_INPUT_QUESTION_ORDER);
+        assertThat(numberInputQuestion.getContent()).isEqualTo(NUMBER_INPUT_QUESTION_CONTENT);
+        assertThat(numberInputQuestion.getQuestionType().toString()).isEqualTo(QuestionType.number_input.name());
+        assertThat(numberInputQuestion.getOptions()).isEmpty();
+
+        ResponseQuestionDto multipleChoiceQuestion = sortedQuestions.get(5);
+        assertThat(multipleChoiceQuestion.getOrder()).isEqualTo(MULTIPLE_CHOICE_QUESTION_ORDER);
+        assertThat(multipleChoiceQuestion.getContent()).isEqualTo(MULTIPLE_CHOICE_QUESTION_CONTENT);
+        assertThat(multipleChoiceQuestion.getQuestionType().toString()).isEqualTo(QuestionType.single_choice.name());
+        List<ResponseOptionDto> multipleChoiceOptions = multipleChoiceQuestion.getOptions().stream()
+                .sorted(Comparator.comparingInt(ResponseOptionDto::getOrder))
+                .toList();
+        assertThat(multipleChoiceOptions).hasSize(2);
+        assertThat(multipleChoiceOptions.get(0).getLabel()).isEqualTo(MULTIPLE_CHOICE_QUESTION_OPTION_CONTENT_1);
+        assertThat(multipleChoiceOptions.get(1).getLabel()).isEqualTo(MULTIPLE_CHOICE_QUESTION_OPTION_CONTENT_2);
     }
 
     @Test
@@ -192,6 +274,7 @@ public class SurveyControllerIntegrationTest {
         multipartBodyBuilder.part("json", createSurveyDto, MediaType.APPLICATION_JSON);
         return multipartBodyBuilder;
     }
+
     private ResponseSurveyDto saveSurveyAsAdmin(CreateSurveyDto createSurveyDto) {
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
@@ -212,28 +295,74 @@ public class SurveyControllerIntegrationTest {
                 .getResponseBody();
     }
     private CreateSurveyDto createValidSurveyDto(){
-        CreateOptionDto createOptionDto1 = new CreateOptionDto();
-        createOptionDto1.setLabel(OPTION_CONTENT_1);
-        createOptionDto1.setOrder(OPTION_ORDER_1);
-        createOptionDto1.setImagePath(null);
+        CreateOptionDto createSingleOptionDto1 = new CreateOptionDto();
+        createSingleOptionDto1.setLabel(SINGLE_CHOICE_QUESTION_OPTION_CONTENT_1);
+        createSingleOptionDto1.setOrder(1);
+        CreateOptionDto createSingleOptionDto2 = new CreateOptionDto();
+        createSingleOptionDto2.setLabel(SINGLE_CHOICE_QUESTION_OPTION_CONTENT_2);
+        createSingleOptionDto2.setOrder(2);
+        CreateQuestionDto createSingleChoiceQuestionDto = new CreateQuestionDto();
+        createSingleChoiceQuestionDto.setQuestionType(QuestionType.single_choice.name());
+        createSingleChoiceQuestionDto.setOrder(SINGLE_CHOICE_QUESTION_ORDER);
+        createSingleChoiceQuestionDto.setContent(SINGLE_CHOICE_QUESTION_CONTENT);
+        createSingleChoiceQuestionDto.setOptions(List.of(createSingleOptionDto1, createSingleOptionDto2));
 
-        CreateOptionDto createOptionDto2 = new CreateOptionDto();
-        createOptionDto2.setLabel(OPTION_CONTENT_2);
-        createOptionDto2.setOrder(OPTION_ORDER_2);
-        createOptionDto2.setImagePath(null);
 
-        CreateQuestionDto createQuestionDto = new CreateQuestionDto();
-        createQuestionDto.setQuestionType(QuestionType.single_choice.name());
-        createQuestionDto.setOrder(QUESTION_ORDER);
-        createQuestionDto.setContent(QUESTION_CONTENT);
-        createQuestionDto.setOptions(List.of(createOptionDto1, createOptionDto2));
+        CreateQuestionDto createTextInputQuestionDto = new CreateQuestionDto();
+        createTextInputQuestionDto.setQuestionType(QuestionType.text_input.name());
+        createTextInputQuestionDto.setOrder(TEXT_INPUT_QUESTION_ORDER);
+        createTextInputQuestionDto.setContent(TEXT_INPUT_QUESTION_CONTENT);
+
+
+        CreateQuestionDto createYesNoQuestionDto = new CreateQuestionDto();
+        createYesNoQuestionDto.setQuestionType(QuestionType.yes_no_choice.name());
+        createYesNoQuestionDto.setOrder(YES_NO_QUESTION_ORDER);
+        createYesNoQuestionDto.setContent(YES_NO_QUESTION_CONTENT);
+
+
+        CreateNumberRangeOptionDto createNumberRangeOptionDto = new CreateNumberRangeOptionDto();
+        createNumberRangeOptionDto.setFrom(LINEAR_SCALE_QUESTION_FROM);
+        createNumberRangeOptionDto.setFromLabel(LINEAR_SCALE_QUESTION_FROM_LABEL);
+        createNumberRangeOptionDto.setTo(LINEAR_SCALE_QUESTION_TO);
+        createNumberRangeOptionDto.setToLabel(LINEAR_SCALE_QUESTION_TO_LABEL);
+        CreateQuestionDto createLinearScaleQuestionDto = new CreateQuestionDto();
+        createLinearScaleQuestionDto.setQuestionType(QuestionType.linear_scale.name());
+        createLinearScaleQuestionDto.setOrder(LINEAR_SCALE_QUESTION_ORDER);
+        createLinearScaleQuestionDto.setContent(LINEAR_SCALE_QUESTION_CONTENT);
+        createLinearScaleQuestionDto.setNumberRange(createNumberRangeOptionDto);
+
+
+        CreateQuestionDto createNumberInputQuestionDto = new CreateQuestionDto();
+        createNumberInputQuestionDto.setQuestionType(QuestionType.number_input.name());
+        createNumberInputQuestionDto.setOrder(NUMBER_INPUT_QUESTION_ORDER);
+        createNumberInputQuestionDto.setContent(NUMBER_INPUT_QUESTION_CONTENT);
+
+
+        CreateOptionDto createMultipleOptionDto1 = new CreateOptionDto();
+        createMultipleOptionDto1.setLabel(MULTIPLE_CHOICE_QUESTION_OPTION_CONTENT_1);
+        createMultipleOptionDto1.setOrder(1);
+        CreateOptionDto createMultipleOptionDto2 = new CreateOptionDto();
+        createMultipleOptionDto2.setLabel(MULTIPLE_CHOICE_QUESTION_OPTION_CONTENT_2);
+        createMultipleOptionDto2.setOrder(2);
+        CreateQuestionDto createMultipleChoiceQuestionDto = new CreateQuestionDto();
+        createMultipleChoiceQuestionDto.setQuestionType(QuestionType.single_choice.name());
+        createMultipleChoiceQuestionDto.setOrder(MULTIPLE_CHOICE_QUESTION_ORDER);
+        createMultipleChoiceQuestionDto.setContent(MULTIPLE_CHOICE_QUESTION_CONTENT);
+        createMultipleChoiceQuestionDto.setOptions(List.of(createMultipleOptionDto1, createMultipleOptionDto2));
+
 
         CreateSurveySectionDto createSurveySectionDto = new CreateSurveySectionDto();
         createSurveySectionDto.setName(SECTION_NAME);
         createSurveySectionDto.setOrder(1);
         createSurveySectionDto.setDisplayOnOneScreen(true);
         createSurveySectionDto.setVisibility("always");
-        createSurveySectionDto.setQuestions(List.of(createQuestionDto));
+        createSurveySectionDto.setQuestions(List.of(
+                createSingleChoiceQuestionDto,
+                createTextInputQuestionDto,
+                createYesNoQuestionDto,
+                createLinearScaleQuestionDto,
+                createNumberInputQuestionDto,
+                createMultipleChoiceQuestionDto));
 
         CreateSurveyDto createSurveyDto = new CreateSurveyDto();
         createSurveyDto.setName(SURVEY_NAME);

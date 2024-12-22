@@ -49,6 +49,8 @@ public class RespondentDataControllerIntegrationTest {
     private final SurveyRepository surveyRepository;
     private final RespondentGroupRepository respondentGroupRepository;
     private final RespondentDataRepository respondentDataRepository;
+    private final OptionSelectionRepository optionSelectionRepository;
+    private final QuestionAnswerRepository questionAnswerRepository;
     private final TestUtils testUtils;
 
     private static final String QUESTION_CONTENT = "What is your favorite color?";
@@ -68,7 +70,7 @@ public class RespondentDataControllerIntegrationTest {
                                                    InitialSurveyRepository initialSurveyRepository,
                                                    SurveyRepository surveyRepository,
                                                    RespondentGroupRepository respondentGroupRepository,
-                                                   RespondentDataRepository respondentDataRepository,
+                                                   RespondentDataRepository respondentDataRepository, OptionSelectionRepository optionSelectionRepository, QuestionAnswerRepository questionAnswerRepository,
                                                    TestUtils testUtils) {
         this.webTestClient = webTestClient;
         this.userRepository = userRepository;
@@ -77,10 +79,14 @@ public class RespondentDataControllerIntegrationTest {
         this.surveyRepository = surveyRepository;
         this.respondentGroupRepository = respondentGroupRepository;
         this.respondentDataRepository = respondentDataRepository;
+        this.optionSelectionRepository = optionSelectionRepository;
+        this.questionAnswerRepository = questionAnswerRepository;
         this.testUtils = testUtils;
     }
     @BeforeEach
     void setUp() {
+        questionAnswerRepository.deleteAll();
+        optionSelectionRepository.deleteAll();
         respondentToGroupRepository.deleteAll();
         respondentDataRepository.deleteAll();
         userRepository.deleteAll();

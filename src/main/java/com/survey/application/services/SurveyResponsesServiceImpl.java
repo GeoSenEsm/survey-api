@@ -107,6 +107,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                 .collect(Collectors.toList());
 
         List<Question> questions = findQuestionsByIds(questionIds, survey.getId());
+
         Map<UUID, Question> questionMap = questions.stream()
                 .collect(Collectors.toMap(Question::getId, question -> question));
 
@@ -140,6 +141,13 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
 
                     if (question.getQuestionType().equals(QuestionType.number_input) || question.getQuestionType().equals(QuestionType.linear_scale)) {
                         questionAnswer.setNumericAnswer(answerDto.getNumericAnswer());
+                    }
+
+                    if (question.getQuestionType().equals(QuestionType.text_input)){
+                        TextAnswer textAnswer = new TextAnswer();
+                        textAnswer.setTextAnswerContent(answerDto.getTextAnswer());
+                        textAnswer.setQuestionAnswer(questionAnswer);
+                        questionAnswer.setTextAnswer(textAnswer);
                     }
 
                     return questionAnswer;
@@ -256,6 +264,10 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
 
         Optional.ofNullable(questionAnswer.getYesNoAnswer())
                 .ifPresent(answers::add);
+
+        if (questionAnswer.getTextAnswer() != null){
+            answers.add(questionAnswer.getTextAnswer().getTextAnswerContent());
+        }
 
         return answers;
     }
