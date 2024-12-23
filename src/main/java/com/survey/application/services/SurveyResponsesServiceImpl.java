@@ -155,6 +155,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         SurveyParticipationDto surveyParticipationDto = modelMapper.map(finalSurveyParticipation, SurveyParticipationDto.class);
         surveyParticipationDto.setSurveyId(sendSurveyResponseDto.getSurveyId());
         surveyParticipationDto.setRespondentId(identityUser.getId());
+        surveyParticipationDto.setSurveyStartDate(sendSurveyResponseDto.getStartDate());
+        surveyParticipationDto.setSurveyFinishDate(sendSurveyResponseDto.getFinishDate());
         return surveyParticipationDto;
     }
 

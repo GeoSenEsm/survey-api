@@ -13,5 +13,7 @@ public class SurveyParticipationDto {
     private UUID respondentId;
     private UUID surveyId;
     private OffsetDateTime date;
+    private OffsetDateTime surveyStartDate;
+    private OffsetDateTime surveyFinishDate;
     private Long rowVersion;
 }
