@@ -11,7 +11,8 @@ public enum QuestionType {
     yes_no_choice(2),
     multiple_choice(3),
     number_input(4),
-    image_choice(5);
+    image_choice(5),
+    text_input(6);
 
     private final int value;
 

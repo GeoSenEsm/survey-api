@@ -19,4 +19,5 @@ public class AnswerDto {
     private List<SelectedOptionDto> selectedOptions;
     private Integer numericAnswer;
     private Boolean yesNoAnswer;
+    private String textAnswer;
 }
