@@ -267,9 +267,9 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         Optional.ofNullable(questionAnswer.getYesNoAnswer())
                 .ifPresent(answers::add);
 
-        if (questionAnswer.getTextAnswer() != null){
-            answers.add(questionAnswer.getTextAnswer().getTextAnswerContent());
-        }
+        Optional.ofNullable(questionAnswer.getTextAnswer())
+                .map(TextAnswer::getTextAnswerContent)
+                .ifPresent(answers::add);
 
         return answers;
     }

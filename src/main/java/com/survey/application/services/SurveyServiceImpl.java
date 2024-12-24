@@ -331,11 +331,6 @@ public class SurveyServiceImpl implements SurveyService {
             question.setOptions(null);
         }
 
-        if (question.getQuestionType().equals(QuestionType.yes_no_choice) || question.getQuestionType().equals(QuestionType.number_input)) {
-            question.setNumberRange(null);
-            question.setOptions(null);
-        }
-
         if (question.getQuestionType().equals(QuestionType.image_choice)) {
             if (questionDto.getOptions() == null){
                 throw new IllegalArgumentException("Question type set as image_choice - must include a list of options in dto.");
@@ -344,7 +339,10 @@ public class SurveyServiceImpl implements SurveyService {
             question.setOptions(mapOptionsWithFiles(questionDto.getOptions(), question, surveySection.getOrder().toString(), surveyId, files));
         }
 
-        if (question.getQuestionType().equals(QuestionType.text_input)){
+        if (question.getQuestionType().equals(QuestionType.yes_no_choice) ||
+                question.getQuestionType().equals(QuestionType.number_input) ||
+                question.getQuestionType().equals(QuestionType.text_input)){
+
             question.setNumberRange(null);
             question.setOptions(null);
         }
