@@ -5,19 +5,30 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.text.Normalizer;
 import java.util.Comparator;
+
+import static com.survey.application.services.FileValidationServiceImpl.getFileExtension;
+
 
 @Service
 public class StorageServiceImpl implements StorageService {
     private static final String BASE_DIRECTORY = "/uploads";
+    private final FileValidationService fileValidationService;
+
+    public StorageServiceImpl(FileValidationService fileValidationService) {
+        this.fileValidationService = fileValidationService;
+    }
 
     @Override
     public String store(MultipartFile file, String surveyName, String sectionOrder, String questionOrder, String optionOrder) throws IOException {
+        fileValidationService.validateFileType(file.getOriginalFilename());
+
         Path directoryPath = Paths.get(BASE_DIRECTORY, formatSurveyName(surveyName), "sections", sectionOrder, "questions", questionOrder, "options");
 
         Files.createDirectories(directoryPath);
 
-        String fileName = optionOrder + getFileExtension(file);
+        String fileName = optionOrder + getFileExtension(file.getOriginalFilename());
         Path filePath = directoryPath.resolve(fileName);
 
         file.transferTo(filePath.toFile());
@@ -51,14 +62,9 @@ public class StorageServiceImpl implements StorageService {
         }
     }
 
-
     private String formatSurveyName(String name) {
-        return name.trim().replaceAll(" ", "_");
+        return Normalizer.normalize(name.trim(), Normalizer.Form.NFKC)
+                .replaceAll(" ", "_");
     }
-    private String getFileExtension(MultipartFile file) {
-        String originalFileName = file.getOriginalFilename();
-        return originalFileName != null && originalFileName.contains(".")
-                ? originalFileName.substring(originalFileName.lastIndexOf("."))
-                : "";
-    }
+
 }
