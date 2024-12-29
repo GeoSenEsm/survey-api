@@ -12,13 +12,16 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.net.MalformedURLException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/uploads")
 public class UploadsController {
     private final Path basePath = Paths.get("uploads");
+
     @GetMapping("/**")
     public ResponseEntity<Resource> getImage() throws MalformedURLException {
         String pathFromRequest = extractPathFromRequest();
@@ -38,9 +41,11 @@ public class UploadsController {
         }
     }
     private String extractPathFromRequest() {
-        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-        return request.getRequestURI();
+        HttpServletRequest request = ((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes())).getRequest();
+        String requestURI = request.getRequestURI();
+        return java.net.URLDecoder.decode(requestURI, StandardCharsets.UTF_8);
     }
+
     private String getContentType(Path path) {
         String fileName = path.getFileName().toString().toLowerCase();
         if (fileName.endsWith(".png")) {
