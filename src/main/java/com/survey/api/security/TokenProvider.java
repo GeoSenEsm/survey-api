@@ -6,6 +6,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
+
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Date;
 import io.jsonwebtoken.Jwts;
 
@@ -23,13 +26,17 @@ public class TokenProvider {
 
     public String generateToken(Authentication authentication){
         String username = authentication.getName();
-        Date curretDate = new Date();
-        int expiration = securitySettings.getExpiration();
-        Date expireDate = new Date(curretDate.getTime() + expiration);
+        OffsetDateTime currentDateTime = OffsetDateTime.now(ZoneOffset.UTC);
+
+        int expirationDays = securitySettings.getExpiration();
+        OffsetDateTime expireDateTime = currentDateTime.plusDays(expirationDays);
+
+        Date issuedAt = Date.from(currentDateTime.toInstant());
+        Date expireDate = Date.from(expireDateTime.toInstant());
 
         String token = Jwts.builder()
                 .setSubject(username)
-                .setIssuedAt(curretDate)
+                .setIssuedAt(issuedAt)
                 .setExpiration(expireDate)
                 .signWith(SignatureAlgorithm.HS512, securitySettings.getKey())
                 .compact();
