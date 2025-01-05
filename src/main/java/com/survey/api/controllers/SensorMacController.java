@@ -45,6 +45,14 @@ public class SensorMacController {
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
+    @DeleteMapping("/all")
+    public ResponseEntity<Void> deleteAllSensorMacs(){
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+
+        sensorMacService.deleteAll();
+        return ResponseEntity.status(HttpStatus.OK).build();
+    }
+
     @PutMapping("/{sensorId}")
     public ResponseEntity<SensorMacDtoOut> updateSensorMacBySensorId(
             @PathVariable @NotNull String sensorId,

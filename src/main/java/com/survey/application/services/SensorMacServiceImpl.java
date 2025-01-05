@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -59,6 +60,11 @@ public class SensorMacServiceImpl implements SensorMacService{
     }
 
     @Override
+    public void deleteAll() {
+        sensorMacRepository.deleteAll();
+    }
+
+    @Override
     public SensorMacDtoOut updateSensorMacBySensorId(String sensorId, UpdatedSensorMacDtoIn updatedSensorMacDtoIn) {
         SensorMac existingSensorMac = sensorMacRepository.findBySensorId(sensorId)
                 .orElseThrow(() -> new NoSuchElementException("Sensor with sensorId " + sensorId + " not found."));
@@ -76,6 +82,13 @@ public class SensorMacServiceImpl implements SensorMacService{
 
         return sensorMacList.stream()
                 .map(entity -> modelMapper.map(entity, SensorMacDtoOut.class))
+                .sorted(Comparator.comparing(sensor -> {
+                    try {
+                        return Integer.parseInt(sensor.getSensorId());
+                    } catch (NumberFormatException e){
+                        return Integer.MAX_VALUE;
+                    }
+                }))
                 .toList();
     }
 

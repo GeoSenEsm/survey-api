@@ -274,11 +274,25 @@ public class SensorMacControllerIntegrationTest {
                 .uri("/api/sensormac/{VALID_SENSOR_ID_2}", VALID_SENSOR_ID_2)
                 .header("Authorization", "Bearer " + adminToken)
                 .exchange()
-                .expectStatus().isOk()
-                .expectBodyList(SensorMacDtoOut.class);
+                .expectStatus().isOk();
 
         assertThat(sensorMacRepository.findAll().size()).isEqualTo(2);
         assertThat(sensorMacRepository.findBySensorId(VALID_SENSOR_ID_2)).isEmpty();
+    }
+
+    @Test
+    void deleteAll_shouldReturnOkStatus(){
+        saveSensorMacListDirectly(getValidSensorMacDtoList());
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+
+        webTestClient.delete()
+                .uri("/api/sensormac/all")
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isOk();
+
+        assertThat(sensorMacRepository.findAll().size()).isEqualTo(0);
     }
 
     @Test
