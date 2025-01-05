@@ -12,7 +12,6 @@ import java.time.ZoneOffset;
 import java.util.Date;
 import io.jsonwebtoken.Jwts;
 
-import javax.swing.text.TableView;
 
 @Component
 public class TokenProvider {
