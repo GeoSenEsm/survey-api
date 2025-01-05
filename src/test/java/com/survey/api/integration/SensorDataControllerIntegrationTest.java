@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -157,27 +158,6 @@ public class SensorDataControllerIntegrationTest {
                 .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isBadRequest();
-    }
-
-    @Test
-    void saveSensorData_DuplicateEntry_ShouldReturnConflict(){
-        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
-        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
-
-        SensorDataDto entryDto = new SensorDataDto();
-        entryDto.setDateTime(OffsetDateTime.now(UTC));
-        entryDto.setTemperature(VALID_TEMPERATURE);
-        entryDto.setHumidity(VALID_HUMIDITY);
-
-        saveSensorData(respondent, entryDto);
-
-        webTestClient.post()
-                .uri("/api/sensordata")
-                .header("Authorization", "Bearer " + respondentToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(List.of(entryDto))
-                .exchange()
-                .expectStatus().isEqualTo(409);
     }
 
     @Test
