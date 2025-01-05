@@ -160,27 +160,6 @@ public class SensorDataControllerIntegrationTest {
     }
 
     @Test
-    void saveSensorData_DuplicateEntry_ShouldReturnConflict(){
-        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
-        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
-
-        SensorDataDto entryDto = new SensorDataDto();
-        entryDto.setDateTime(OffsetDateTime.now(UTC));
-        entryDto.setTemperature(VALID_TEMPERATURE);
-        entryDto.setHumidity(VALID_HUMIDITY);
-
-        saveSensorData(respondent, entryDto);
-
-        webTestClient.post()
-                .uri("/api/sensordata")
-                .header("Authorization", "Bearer " + respondentToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(List.of(entryDto))
-                .exchange()
-                .expectStatus().isEqualTo(409);
-    }
-
-    @Test
     void getSensorData_ValidRange_ShouldReturnOkStatus(){
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
 

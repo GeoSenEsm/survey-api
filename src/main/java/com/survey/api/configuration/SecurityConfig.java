@@ -79,6 +79,10 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.PUT, "/api/surveys/**").permitAll();
                     r.requestMatchers(HttpMethod.PATCH, "/api/authentication/admin/**").permitAll();
                     r.requestMatchers(HttpMethod.PATCH, "/api/authentication/password").permitAll();
+                    r.requestMatchers(HttpMethod.POST, "/api/sensormac").permitAll();
+                    r.requestMatchers(HttpMethod.PUT, "/api/sensormac/**").permitAll();
+                    r.requestMatchers(HttpMethod.DELETE, "/api/sensormac/**").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/sensormac/**").permitAll();
                 })
                 .httpBasic(Customizer.withDefaults());
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
