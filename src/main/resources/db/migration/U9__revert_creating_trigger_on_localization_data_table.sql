@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS trg_compute_outside_research_area_on_insert;

@@ -7,12 +7,12 @@ import com.survey.domain.repository.ResearchAreaRepository;
 import jakarta.persistence.EntityManager;
 import org.apache.coyote.BadRequestException;
 import org.modelmapper.ModelMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,11 +20,15 @@ public class ResearchAreaServiceImpl implements ResearchAreaService {
     private final ResearchAreaRepository researchAreaRepository;
     private final ModelMapper modelMapper;
     private final EntityManager entityManager;
+    private final JdbcTemplate jdbcTemplate;
 
-    public ResearchAreaServiceImpl(ResearchAreaRepository researchAreaRepository, ModelMapper modelMapper, EntityManager entityManager) {
+    private static final String PROCEDURE_CALL = "EXEC RecalculateOutsideResearchArea";
+
+    public ResearchAreaServiceImpl(ResearchAreaRepository researchAreaRepository, ModelMapper modelMapper, EntityManager entityManager, JdbcTemplate jdbcTemplate) {
         this.researchAreaRepository = researchAreaRepository;
         this.modelMapper = modelMapper;
         this.entityManager = entityManager;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
@@ -49,6 +53,8 @@ public class ResearchAreaServiceImpl implements ResearchAreaService {
 
         savedResearchAreas.forEach(entityManager::refresh);
 
+        jdbcTemplate.update(PROCEDURE_CALL);
+
         return savedResearchAreas.stream()
                 .map(researchArea -> modelMapper.map(researchArea, ResponseResearchAreaDto.class))
                 .collect(Collectors.toList());
@@ -69,6 +75,7 @@ public class ResearchAreaServiceImpl implements ResearchAreaService {
         long count = researchAreaRepository.count();
         if (count > 0) {
             researchAreaRepository.deleteAll();
+            jdbcTemplate.update(PROCEDURE_CALL);
             return true;
         }
         return false;

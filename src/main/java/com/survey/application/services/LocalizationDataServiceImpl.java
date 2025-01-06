@@ -75,22 +75,7 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
             jpql.append("AND EXISTS (SELECT 1 FROM survey_participation sp WHERE sp.id = ld.participation_id AND sp.survey_id = :surveyId) ");
         }
         if (outsideResearchArea) {
-            jpql.append("\nAND EXISTS (")
-                    .append("SELECT 1 ")
-                    .append("FROM (")
-                    .append("    SELECT geography::::STGeomFromText('POLYGON((' + ")
-                    .append("    (SELECT STRING_AGG(CAST(longitude AS NVARCHAR(20)) + ' ' + CAST(latitude AS NVARCHAR(20)), ', ') ")
-                    .append("""
-                             WITHIN GROUP (ORDER BY [order])\s
-                            + ', ' +
-                                (SELECT CAST(longitude AS NVARCHAR(20)) + ' ' + CAST(latitude AS NVARCHAR(20))
-                                 FROM research_area
-                                 WHERE [order] = (SELECT MIN([order]) FROM research_area))
-                            FROM research_area)""")
-                    .append("    + '))', 4326).MakeValid() AS area_geography ")
-                    .append(") AS polygon ")
-                    .append("WHERE polygon.area_geography.STContains(geography::::Point(CAST(ld.latitude AS NVARCHAR(20)), CAST(ld.longitude AS NVARCHAR(20)), 4326)) = 0")
-                    .append(")");
+            jpql.append("AND ld.outside_research_area = 1 ");
         }
 
         jpql.append("ORDER BY ld.date_time");

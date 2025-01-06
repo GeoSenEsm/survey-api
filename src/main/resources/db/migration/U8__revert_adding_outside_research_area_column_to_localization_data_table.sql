@@ -1,0 +1,2 @@
+ALTER TABLE localization_data
+DROP COLUMN outside_research_area;
