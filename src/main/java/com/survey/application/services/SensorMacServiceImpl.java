@@ -35,9 +35,17 @@ public class SensorMacServiceImpl implements SensorMacService{
     public List<SensorMacDtoOut> saveSensorMacList(List<SensorMacDtoIn> dtoList) {
         List<SensorMac> sensorMacEntityList = dtoList.stream()
                 .map(dto -> {
-                    SensorMac sensorMac = modelMapper.map(dto, SensorMac.class);
-                    sensorMac.setSensorMac(sensorMac.getSensorMac().toUpperCase());
-                    return sensorMac;
+                    Optional<SensorMac> existingSensorMacOptional = sensorMacRepository.findBySensorId(dto.getSensorId());
+
+                    if (existingSensorMacOptional.isPresent()){
+                        SensorMac existingSensorMac = existingSensorMacOptional.get();
+                        existingSensorMac.setSensorMac(dto.getSensorMac().toUpperCase());
+                        return existingSensorMac;
+                    } else {
+                        SensorMac newSensorMac = modelMapper.map(dto, SensorMac.class);
+                        newSensorMac.setSensorMac(newSensorMac.getSensorMac().toUpperCase());
+                        return newSensorMac;
+                    }
                 })
                 .toList();
 
