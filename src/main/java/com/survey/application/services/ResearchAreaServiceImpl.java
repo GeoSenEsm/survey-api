@@ -22,7 +22,8 @@ public class ResearchAreaServiceImpl implements ResearchAreaService {
     private final EntityManager entityManager;
     private final JdbcTemplate jdbcTemplate;
 
-    private static final String PROCEDURE_CALL = "EXEC RecalculateOutsideResearchArea";
+    private static final String PROCEDURE_CALL_RECALCULATE_ALL_POINTS = "EXEC RecalculateOutsideResearchArea";
+    private static final String PROCEDURE_CALL_UPDATE_STORED_POLYGON = "EXEC UpdateStoredPolygon";
 
     public ResearchAreaServiceImpl(ResearchAreaRepository researchAreaRepository, ModelMapper modelMapper, EntityManager entityManager, JdbcTemplate jdbcTemplate) {
         this.researchAreaRepository = researchAreaRepository;
@@ -53,7 +54,8 @@ public class ResearchAreaServiceImpl implements ResearchAreaService {
 
         savedResearchAreas.forEach(entityManager::refresh);
 
-        jdbcTemplate.update(PROCEDURE_CALL);
+        jdbcTemplate.update(PROCEDURE_CALL_UPDATE_STORED_POLYGON);
+        jdbcTemplate.update(PROCEDURE_CALL_RECALCULATE_ALL_POINTS);
 
         return savedResearchAreas.stream()
                 .map(researchArea -> modelMapper.map(researchArea, ResponseResearchAreaDto.class))
@@ -75,7 +77,8 @@ public class ResearchAreaServiceImpl implements ResearchAreaService {
         long count = researchAreaRepository.count();
         if (count > 0) {
             researchAreaRepository.deleteAll();
-            jdbcTemplate.update(PROCEDURE_CALL);
+            jdbcTemplate.update(PROCEDURE_CALL_UPDATE_STORED_POLYGON);
+            jdbcTemplate.update(PROCEDURE_CALL_RECALCULATE_ALL_POINTS);
             return true;
         }
         return false;

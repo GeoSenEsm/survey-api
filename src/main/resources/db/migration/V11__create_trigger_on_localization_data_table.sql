@@ -5,21 +5,12 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    IF EXISTS (SELECT 1 FROM research_area)
+    DECLARE @polygon geography;
+
+    SELECT @polygon = polygon FROM stored_polygon WHERE id = 1;
+
+    IF @polygon IS NOT NULL
     BEGIN
-        DECLARE @polygon geography;
-
-        SELECT @polygon = geography::STGeomFromText(
-            'POLYGON((' +
-            STRING_AGG(CAST(longitude AS NVARCHAR(20)) + ' ' + CAST(latitude AS NVARCHAR(20)), ', ') WITHIN GROUP (ORDER BY [order]) +
-            ', ' +
-            (SELECT CAST(longitude AS NVARCHAR(20)) + ' ' + CAST(latitude AS NVARCHAR(20))
-             FROM research_area
-             WHERE [order] = (SELECT MIN([order]) FROM research_area)) +
-            '))', 4326
-        ).MakeValid()
-        FROM research_area;
-
         UPDATE ld
         SET outside_research_area =
             CASE

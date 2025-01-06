@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE RecalculateOutsideResearchArea
+CREATE OR ALTER PROCEDURE UpdateStoredPolygon
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -18,17 +18,21 @@ BEGIN
         ).MakeValid()
         FROM research_area;
 
-        UPDATE ld
-        SET outside_research_area =
-            CASE
-                WHEN @polygon.STContains(geography::Point(ld.latitude, ld.longitude, 4326)) = 0 THEN 1
-                ELSE 0
-            END
-        FROM localization_data ld;
+        IF EXISTS (SELECT 1 FROM stored_polygon WHERE id = 1)
+        BEGIN
+            UPDATE stored_polygon
+            SET polygon = @polygon
+            WHERE id = 1;
+        END
+        ELSE
+        BEGIN
+            INSERT INTO stored_polygon (id, polygon)
+            VALUES (1, @polygon);
+        END
     END
     ELSE
     BEGIN
-        UPDATE localization_data
-        SET outside_research_area = NULL;
+        DELETE FROM stored_polygon WHERE id = 1;
     END
 END;
+GO
