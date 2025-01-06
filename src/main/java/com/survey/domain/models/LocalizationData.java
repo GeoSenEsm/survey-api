@@ -33,4 +33,6 @@ public class LocalizationData {
 
     @Column(name = "row_version", insertable = false)
     private byte[] rowVersion;
+
+    private Boolean outsideResearchArea;
 }

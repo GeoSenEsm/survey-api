@@ -18,4 +18,5 @@ public class ResponseLocalizationDto {
     private BigDecimal latitude;
     private BigDecimal longitude;
     private Long rowVersion;
+    private Boolean outsideResearchArea;
 }
