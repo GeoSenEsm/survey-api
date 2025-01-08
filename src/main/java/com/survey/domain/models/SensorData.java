@@ -30,4 +30,8 @@ public class SensorData {
     private BigDecimal temperature;
 
     private BigDecimal humidity;
+
+    @ManyToOne
+    @JoinColumn(name = "survey_participation_id")
+    private SurveyParticipation surveyParticipation;
 }
