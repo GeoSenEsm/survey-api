@@ -33,6 +33,7 @@ public class SendOnlineSurveyResponseDto implements SendSurveyResponseDto {
     @Schema(description = "UTC date and time when respondent finished filling the survey.")
     private OffsetDateTime finishDate;
 
+    @Schema(description = "(optional) When sensor data has been read while respondent was taking a survey it can be attached here.")
     private SensorDataDto sensorData;
 
     @NotNull

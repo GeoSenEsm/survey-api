@@ -19,17 +19,13 @@ public class CreateInitialSurveyQuestionDto {
     @Min(0)
     @Max(256)
     @Schema(description = "Order in which question will be displayed in the initial survey. Unique within the scope of the initial survey.",
-            example = "0",
-            minimum = "0",
-            maximum = "256")
+            example = "0")
     private Integer order;
 
     @NotBlank
     @Size(max = 250)
     @Schema(description = "Question content.",
-            example = "Gender",
-            minimum = "1",
-            maximum = "250")
+            example = "Gender")
     private String content;
 
     @NotEmpty

@@ -41,8 +41,7 @@ public class CreateSurveySectionDto {
     private boolean displayOnOneScreen;
 
     @NotEmpty
-    @Schema(description = "A list of questions within the section. Must contain at least one valid question.",
-            implementation = CreateQuestionDto.class)
+    @Schema(description = "A list of questions within the section. Must contain at least one valid question.")
     private List<@Valid CreateQuestionDto> questions;
 
 }

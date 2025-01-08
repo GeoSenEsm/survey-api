@@ -16,13 +16,13 @@ public class CreateQuestionDto {
     @NotNull
     @Min(1)
     @Max(9999)
-    @Schema(description = "The order in which the question appears within the survey. Must be a unique value for each question.",
+    @Schema(description = "The order in which the question will be displayed. Unique within the scope of the survey.",
             example = "1")
     private Integer order;
 
     @NotBlank
     @Size(min = 1, max = 250)
-    @Schema(description = "The content of the question being asked in the survey.",
+    @Schema(description = "The content of the question.",
             example = "What is your opinion on the product?")
     private String content;
 
@@ -38,7 +38,7 @@ public class CreateQuestionDto {
             example = "true")
     private boolean required;
 
-    @Schema(description = "Must be set when question type is `single_choice` or `multiple_choice`.")
+    @Schema(description = "(optional) Must be set when question type is `single_choice` or `multiple_choice`.")
     private List<@Valid CreateOptionDto> options;
 
     @Valid

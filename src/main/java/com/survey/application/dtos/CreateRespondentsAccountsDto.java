@@ -15,8 +15,6 @@ import lombok.Setter;
 public class CreateRespondentsAccountsDto {
     @Min(1)
     @Max(400)
-    @Schema(description = "Amount of respondent accounts to create.",
-            minimum = "1",
-            maximum = "400")
+    @Schema(description = "Amount of respondent accounts to create.")
     private int amount;
 }
