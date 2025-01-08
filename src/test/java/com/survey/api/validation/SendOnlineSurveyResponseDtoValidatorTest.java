@@ -224,6 +224,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                         surveyId,
                         OffsetDateTime.now(),
                         OffsetDateTime.now().plusMinutes(1),
+                        null,
                         Stream.of(
                                 answerDto
                         ).collect(Collectors.toList())

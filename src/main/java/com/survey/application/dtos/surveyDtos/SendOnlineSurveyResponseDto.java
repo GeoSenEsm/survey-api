@@ -1,6 +1,7 @@
 package com.survey.application.dtos.surveyDtos;
 
 import com.survey.api.validation.ValidSendSurveyResponse;
+import com.survey.application.dtos.SensorDataDto;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -27,6 +28,8 @@ public class SendOnlineSurveyResponseDto implements SendSurveyResponseDto {
 
     @NotNull
     private OffsetDateTime finishDate;
+
+    private SensorDataDto sensorData;
 
     @NotNull
     private List<AnswerDto> answers;

@@ -2,12 +2,16 @@ package com.survey.api.integration;
 
 import com.survey.api.TestUtils;
 import com.survey.api.security.Role;
-import com.survey.application.dtos.*;
+import com.survey.application.dtos.CreateSurveySendingPolicyDto;
+import com.survey.application.dtos.SensorDataDto;
+import com.survey.application.dtos.SurveyParticipationTimeStartFinishDto;
+import com.survey.application.dtos.SurveyResultDto;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.enums.QuestionType;
 import com.survey.domain.models.enums.Visibility;
 import com.survey.domain.repository.IdentityUserRepository;
+import com.survey.domain.repository.SensorDataRepository;
 import com.survey.domain.repository.SurveyParticipationRepository;
 import com.survey.domain.repository.SurveyRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +26,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.BodyInserters;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -38,6 +43,7 @@ public class SurveyResponsesControllerIntegrationTest {
     private final IdentityUserRepository userRepository;
     private final SurveyRepository surveyRepository;
     private final SurveyParticipationRepository surveyParticipationRepository;
+    private final SensorDataRepository sensorDataRepository;
     private final TestUtils testUtils;
     private static final String QUESTION_CONTENT = "What is your favorite color?";
     private static final int QUESTION_ORDER = 1;
@@ -51,23 +57,135 @@ public class SurveyResponsesControllerIntegrationTest {
     private static final String ADMIN_PASSWORD = "testAdminPassword";
     private static final String RESPONDENT_PASSWORD_1 = "testRespondentPassword1";
     private static final String RESPONDENT_PASSWORD_2 = "testRespondentPassword2";
+    private static final BigDecimal VALID_TEMPERATURE = new BigDecimal("21.5");
+    private static final BigDecimal VALID_HUMIDITY = new BigDecimal("60.4");
 
     @Autowired
     public SurveyResponsesControllerIntegrationTest(WebTestClient webTestClient,
-                                           IdentityUserRepository userRepository,
-                                           SurveyRepository surveyRepository,
-                                           SurveyParticipationRepository surveyParticipationRepository, TestUtils testUtils) {
+                                                    IdentityUserRepository userRepository,
+                                                    SurveyRepository surveyRepository,
+                                                    SurveyParticipationRepository surveyParticipationRepository, SensorDataRepository sensorDataRepository, TestUtils testUtils) {
         this.webTestClient = webTestClient;
         this.userRepository = userRepository;
         this.surveyRepository = surveyRepository;
         this.surveyParticipationRepository = surveyParticipationRepository;
+        this.sensorDataRepository = sensorDataRepository;
         this.testUtils = testUtils;
     }
     @BeforeEach
     void SetUp(){
+        sensorDataRepository.deleteAll();
         surveyParticipationRepository.deleteAll();
         userRepository.deleteAll();
         surveyRepository.deleteAll();
+    }
+
+    @Test
+    void saveSurveyResponseOnline_shouldSaveResponses_WhenNoSensorDataSent() {
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD_1);
+        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD_1);
+
+        ResponseSurveyDto survey = saveSurvey(createSurveyDto(SURVEY_NAME_1));
+        saveSurveySendingPolicy(survey.getId());
+
+        SendOnlineSurveyResponseDto sendSurveyResponseDto = createSendSurveyResponseOnline(survey, null);
+
+        var response = webTestClient.post()
+                .uri("/api/surveyresponses")
+                .header("Authorization", "Bearer " + respondentToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(sendSurveyResponseDto)
+                .exchange()
+                .expectStatus()
+                .isCreated()
+                .expectBody(SurveyParticipationDto.class)
+                .returnResult()
+                .getResponseBody();
+
+        assertThat(response).isNotNull();
+        assertThat(response.getRespondentId()).isEqualTo(respondent.getId());
+        assertThat(response.getSurveyId()).isEqualTo(survey.getId());
+    }
+    @Test
+    void saveSurveyResponseOnline_shouldSaveResponses_WhenSensorDataSent() {
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD_1);
+        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD_1);
+
+        ResponseSurveyDto survey = saveSurvey(createSurveyDto(SURVEY_NAME_1));
+        saveSurveySendingPolicy(survey.getId());
+
+        SensorDataDto sensorData = createSensorDataDto();
+
+        SendOnlineSurveyResponseDto sendSurveyResponseDto = createSendSurveyResponseOnline(survey, sensorData);
+
+        var response = webTestClient.post()
+                .uri("/api/surveyresponses")
+                .header("Authorization", "Bearer " + respondentToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(sendSurveyResponseDto)
+                .exchange()
+                .expectStatus()
+                .isCreated()
+                .expectBody(SurveyParticipationDto.class)
+                .returnResult()
+                .getResponseBody();
+
+        assertThat(response).isNotNull();
+        assertThat(response.getRespondentId()).isEqualTo(respondent.getId());
+        assertThat(response.getSurveyId()).isEqualTo(survey.getId());
+    }
+    @Test
+    void saveSurveyResponseOffline_shouldSaveResponses_WhenNoSensorDataSent() {
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD_1);
+        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD_1);
+
+        ResponseSurveyDto survey = saveSurvey(createSurveyDto(SURVEY_NAME_1));
+        saveSurveySendingPolicy(survey.getId());
+
+        SendOfflineSurveyResponseDto sendOfflineSurveyResponseDto = createSendSurveyResponseOffline(survey, null);
+
+        var response = webTestClient.post()
+                .uri("/api/surveyresponses/offline")
+                .header("Authorization", "Bearer " + respondentToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(List.of(sendOfflineSurveyResponseDto))
+                .exchange()
+                .expectStatus()
+                .isCreated()
+                .expectBodyList(SurveyParticipationDto.class)
+                .returnResult()
+                .getResponseBody();
+
+        assertThat(response).isNotNull();
+        assertThat(response.get(0).getRespondentId()).isEqualTo(respondent.getId());
+        assertThat(response.get(0).getSurveyId()).isEqualTo(survey.getId());
+    }
+    @Test
+    void saveSurveyResponseOffline_shouldSaveResponses_WhenSensorDataSent() {
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD_1);
+        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD_1);
+
+        ResponseSurveyDto survey = saveSurvey(createSurveyDto(SURVEY_NAME_1));
+        saveSurveySendingPolicy(survey.getId());
+
+        SensorDataDto sensorData = createSensorDataDto();
+        SendOfflineSurveyResponseDto sendOfflineSurveyResponseDto = createSendSurveyResponseOffline(survey, sensorData);
+
+        var response = webTestClient.post()
+                .uri("/api/surveyresponses/offline")
+                .header("Authorization", "Bearer " + respondentToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(List.of(sendOfflineSurveyResponseDto))
+                .exchange()
+                .expectStatus()
+                .isCreated()
+                .expectBodyList(SurveyParticipationDto.class)
+                .returnResult()
+                .getResponseBody();
+
+        assertThat(response).isNotNull();
+        assertThat(response.get(0).getRespondentId()).isEqualTo(respondent.getId());
+        assertThat(response.get(0).getSurveyId()).isEqualTo(survey.getId());
     }
     @Test
     void getResponsesResults_shouldReturnAllResults_WhenNoParams() {
@@ -190,7 +308,39 @@ public class SurveyResponsesControllerIntegrationTest {
         assertThat(response.get(0).getSurveyName()).isEqualTo(SURVEY_NAME_1);
     }
 
+    private <T extends SendSurveyResponseDto> void populateSurveyResponseBase(T responseDto, ResponseSurveyDto survey, SensorDataDto sensorData) {
+        SelectedOptionDto selectedOption = new SelectedOptionDto();
+        selectedOption.setOptionId(survey.getSections().get(0).getQuestions().get(0).getOptions().get(0).getId());
 
+        AnswerDto answer = new AnswerDto();
+        answer.setQuestionId(survey.getSections().get(0).getQuestions().get(0).getId());
+        answer.setSelectedOptions(List.of(selectedOption));
+
+        responseDto.setSurveyId(survey.getId());
+        responseDto.setAnswers(List.of(answer));
+        responseDto.setStartDate(OffsetDateTime.now().minusHours(1));
+        responseDto.setFinishDate(OffsetDateTime.now());
+        responseDto.setSensorData(sensorData);
+    }
+
+    private SendOnlineSurveyResponseDto createSendSurveyResponseOnline(ResponseSurveyDto survey, SensorDataDto sensorData) {
+        SendOnlineSurveyResponseDto responseDto = new SendOnlineSurveyResponseDto();
+        populateSurveyResponseBase(responseDto, survey, sensorData);
+        return responseDto;
+    }
+
+    private SendOfflineSurveyResponseDto createSendSurveyResponseOffline(ResponseSurveyDto survey, SensorDataDto sensorData) {
+        SendOfflineSurveyResponseDto responseDto = new SendOfflineSurveyResponseDto();
+        populateSurveyResponseBase(responseDto, survey, sensorData);
+        return responseDto;
+    }
+    private SensorDataDto createSensorDataDto() {
+        SensorDataDto sensorDataDto = new SensorDataDto();
+        sensorDataDto.setDateTime(OffsetDateTime.now(UTC));
+        sensorDataDto.setTemperature(VALID_TEMPERATURE);
+        sensorDataDto.setHumidity(VALID_HUMIDITY);
+        return sensorDataDto;
+    }
     private ResponseSurveyDto saveSurvey(CreateSurveyDto createSurveyDto) {
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);

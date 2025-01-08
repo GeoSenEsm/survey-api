@@ -6,10 +6,7 @@ import com.survey.application.dtos.SurveyResultDto;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.QuestionType;
-import com.survey.domain.repository.OptionRepository;
-import com.survey.domain.repository.QuestionRepository;
-import com.survey.domain.repository.SurveyParticipationRepository;
-import com.survey.domain.repository.SurveyRepository;
+import com.survey.domain.repository.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.*;
 import org.modelmapper.ModelMapper;
@@ -36,7 +33,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final EntityManager entityManager;
     private final SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator;
     private final SurveyParticipationTimeValidationService surveyParticipationTimeValidationService;
-
+    private final SensorDataRepository sensorDataRepository;
 
 
     @Autowired
@@ -47,7 +44,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             QuestionRepository questionRepository,
             ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl,
             ModelMapper modelMapper,
-            EntityManager entityManager, SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator, SurveyParticipationTimeValidationService surveyParticipationTimeValidationService) {
+            EntityManager entityManager, SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator, SurveyParticipationTimeValidationService surveyParticipationTimeValidationService, SensorDataRepository sensorDataRepository) {
         this.surveyParticipationRepository = surveyParticipationRepository;
         this.surveyRepository = surveyRepository;
         this.optionRepository = optionRepository;
@@ -57,6 +54,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         this.entityManager = entityManager;
         this.sendSurveyResponseDtoValidator = sendSurveyResponseDtoValidator;
         this.surveyParticipationTimeValidationService = surveyParticipationTimeValidationService;
+        this.sensorDataRepository = sensorDataRepository;
     }
 
     Survey findSurveyById(UUID surveyId) {
@@ -177,6 +175,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         SurveyParticipation surveyParticipation = saveSurveyParticipationOnline(identityUser, survey, sendOnlineSurveyResponseDto.getStartDate(), sendOnlineSurveyResponseDto.getFinishDate());
         SurveyParticipation finalSurveyParticipation = mapQuestionAnswers(sendOnlineSurveyResponseDto, surveyParticipation, survey);
         surveyParticipationRepository.save(finalSurveyParticipation);
+        saveSensorData(sendOnlineSurveyResponseDto, finalSurveyParticipation, identityUser);
         return mapToDto(finalSurveyParticipation, sendOnlineSurveyResponseDto, identityUser);
     }
 
@@ -194,12 +193,12 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
 
                     SurveyParticipation finalParticipation = mapQuestionAnswers(dto, participation, survey);
                     surveyParticipationRepository.save(finalParticipation);
+                    saveSensorData(dto, finalParticipation, identityUser);
                     return mapToDto(finalParticipation, dto, identityUser);
                 })
                 .filter(Objects::nonNull)
                 .toList();
     }
-
 
     @Override
     @Transactional
@@ -233,6 +232,14 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         return participationList.stream()
                 .flatMap(this::mapParticipationToDto)
                 .collect(Collectors.toList());
+    }
+    private void saveSensorData(SendSurveyResponseDto sendSurveyResponseDto, SurveyParticipation surveyParticipation, IdentityUser identityUser) {
+        if (sendSurveyResponseDto.getSensorData() != null) {
+            SensorData sensorData = modelMapper.map(sendSurveyResponseDto.getSensorData(), SensorData.class);
+            sensorData.setSurveyParticipation(surveyParticipation);
+            sensorData.setRespondent(identityUser);
+            sensorDataRepository.save(sensorData);
+        }
     }
 
     private Stream<SurveyResultDto> mapParticipationToDto(SurveyParticipation surveyParticipation) {
