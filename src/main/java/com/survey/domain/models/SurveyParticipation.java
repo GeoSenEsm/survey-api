@@ -38,7 +38,7 @@ public class SurveyParticipation {
     @OneToMany(mappedBy = "surveyParticipation", cascade = CascadeType.ALL)
     private List<LocalizationData> localizationDataList;
 
-    @OneToMany(mappedBy = "surveyParticipation", cascade = CascadeType.ALL)
-    private List<SensorData> sensorDataList;
+    @OneToOne(mappedBy = "surveyParticipation", cascade = CascadeType.ALL)
+    private SensorData sensorData;
 
 }
