@@ -1,4 +1,4 @@
-package com.survey.application.dtos.surveyDtos;
+package com.survey.application.dtos;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

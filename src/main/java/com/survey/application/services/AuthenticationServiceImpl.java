@@ -4,7 +4,7 @@ import com.survey.api.security.Role;
 import com.survey.api.security.TokenProvider;
 import com.survey.application.dtos.CreateRespondentsAccountsDto;
 import com.survey.application.dtos.LoginDto;
-import com.survey.application.dtos.surveyDtos.ChangePasswordDto;
+import com.survey.application.dtos.ChangePasswordDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.repository.IdentityUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;

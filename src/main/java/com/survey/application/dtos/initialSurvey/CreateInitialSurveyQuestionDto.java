@@ -1,8 +1,8 @@
 package com.survey.application.dtos.initialSurvey;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,10 +14,24 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CreateInitialSurveyQuestionDto {
+
     @NotNull
+    @Min(0)
+    @Max(256)
+    @Schema(description = "Order in which question will be displayed in the initial survey. Unique within the scope of the initial survey.",
+            example = "0",
+            minimum = "0",
+            maximum = "256")
     private Integer order;
-    @NotNull
+
+    @NotBlank
+    @Size(max = 250)
+    @Schema(description = "Question content.",
+            example = "Gender",
+            minimum = "1",
+            maximum = "250")
     private String content;
+
     @NotEmpty
     private List<@Valid CreateInitialSurveyOptionDto> options;
 }

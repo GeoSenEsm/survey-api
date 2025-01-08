@@ -1,6 +1,7 @@
 package com.survey.application.dtos.surveyDtos;
 
 import com.survey.api.validation.ValidSendSurveyResponse;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -23,9 +24,11 @@ public class SendOnlineSurveyResponseDto implements SendSurveyResponseDto {
     private UUID surveyId;
 
     @NotNull
+    @Schema(description = "UTC date and time when respondent started filling the survey.")
     private OffsetDateTime startDate;
 
     @NotNull
+    @Schema(description = "UTC date and time when respondent finished filling the survey.")
     private OffsetDateTime finishDate;
 
     @NotNull

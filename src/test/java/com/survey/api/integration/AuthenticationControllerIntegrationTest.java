@@ -6,7 +6,7 @@ import com.survey.api.TestUtils;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.CreateRespondentsAccountsDto;
 import com.survey.application.dtos.LoginDto;
-import com.survey.application.dtos.surveyDtos.ChangePasswordDto;
+import com.survey.application.dtos.ChangePasswordDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.repository.IdentityUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -144,7 +144,7 @@ public class AuthenticationControllerIntegrationTest {
                 .bodyValue(dto)
                 .exchange()
                 .expectStatus()
-                .isOk()
+                .isCreated()
                 .expectBody()
                 .jsonPath("$.length()").isEqualTo(3);
     }

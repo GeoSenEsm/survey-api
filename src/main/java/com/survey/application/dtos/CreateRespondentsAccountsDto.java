@@ -1,5 +1,6 @@
 package com.survey.application.dtos;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
@@ -14,5 +15,8 @@ import lombok.Setter;
 public class CreateRespondentsAccountsDto {
     @Min(1)
     @Max(400)
+    @Schema(description = "Amount of respondent accounts to create.",
+            minimum = "1",
+            maximum = "400")
     private int amount;
 }
