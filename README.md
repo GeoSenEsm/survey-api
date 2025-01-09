@@ -8,6 +8,7 @@ If you inspect `main/resources/application.properties` you can see that there ar
 - `SPRING_DATASOURCE_URL` - database url (a connection string to your database)
 - `ADMIN_USER_PASSWORD` - password for admin user that will be created on first application startup
 - `ALLOWED_ORIGINS` - a comma-separated list of allowed origins for CORS (e.g. `https://*.example.com,http://localhost:*`). If not set, the application will allow all origins by default (`*`),
+- `ENABLE_SWAGGER` - swagger is disabled by default. Set as true to access swagger documentation.
 
 The best idea is to configure your IDE, so that it sets those variables always, when you run the application. 
 
@@ -20,5 +21,6 @@ To configure your IntelliJ Idea to the following:
 
 ## Documentation
 
+- Remember to set `ENABLE_SWAGGER` environmental variable as true.
 - Run this API
 - Go to http://[host]:[port]/swagger-ui.html
