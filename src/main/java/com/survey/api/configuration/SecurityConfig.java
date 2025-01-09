@@ -34,7 +34,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, @Value("${ENABLE_SWAGGER:FALSE}") boolean enableSwagger) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, @Value("${ENABLE_SWAGGER:false}") boolean enableSwagger) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(e -> {
