@@ -5,6 +5,7 @@ import com.survey.api.security.JwtAuthenticationFilter;
 import com.survey.application.services.UserDetailsServiceImpl;
 import jakarta.servlet.Filter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -33,7 +34,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, @Value("${ENABLE_SWAGGER:false}") boolean enableSwagger) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(e -> {
@@ -63,7 +64,6 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.GET, "/api/initialsurvey").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/initialsurvey/state").permitAll();
                     r.requestMatchers(HttpMethod.PATCH, "/api/initialsurvey/publish").permitAll();
-                    r.requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/surveys/allwithtimeslots").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/sensordata").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/sensordata").permitAll();
@@ -83,6 +83,9 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.PUT, "/api/sensormac/**").permitAll();
                     r.requestMatchers(HttpMethod.DELETE, "/api/sensormac/**").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/sensormac/**").permitAll();
+                    if (enableSwagger){
+                        r.requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll();
+                    }
                 })
                 .httpBasic(Customizer.withDefaults());
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
