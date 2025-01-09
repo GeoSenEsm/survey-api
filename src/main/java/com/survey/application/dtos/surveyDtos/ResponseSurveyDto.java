@@ -25,8 +25,9 @@ public class ResponseSurveyDto {
             allowableValues = {"created", "published"})
     private SurveyState state;
 
-    private Long rowVersion;
-
     @Schema(description = "A list of sections that make up the survey. The survey must contain at least one section.")
     private List<ResponseSurveySectionDto> sections;
+
+    @Schema(example = "2001")
+    private Long rowVersion;
 }

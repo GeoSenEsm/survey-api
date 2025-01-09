@@ -36,11 +36,12 @@ public class ResponseQuestionDto {
             example = "true")
     private boolean required;
 
-    private Long rowVersion;
-
     @Schema(description = "(optional) Present only when question type is `single_choice` or `multiple_choice`.")
     private List<ResponseOptionDto> options;
 
     @Schema(description = "(optional) Present only when question type is `linear_scale`")
     private ResponseNumberRangeOptionDto numberRange;
+
+    @Schema(example = "2001")
+    private Long rowVersion;
 }

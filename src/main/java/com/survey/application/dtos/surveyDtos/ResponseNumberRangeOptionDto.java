@@ -35,5 +35,6 @@ public class ResponseNumberRangeOptionDto {
             maximum = "50")
     private String toLabel;
 
+    @Schema(example = "2001")
     private Long rowVersion;
 }

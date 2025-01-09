@@ -30,5 +30,6 @@ public class SurveyParticipationDto {
     @Schema(description = "Date and time in UTC when respondent finished filling the survey.")
     private OffsetDateTime surveyFinishDate;
 
+    @Schema(example = "2001")
     private Long rowVersion;
 }

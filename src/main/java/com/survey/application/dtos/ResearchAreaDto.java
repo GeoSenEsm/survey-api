@@ -18,9 +18,7 @@ public class ResearchAreaDto {
     @DecimalMax(value = "90.0")
     @Digits(integer = 2, fraction = 6)
     @Schema(description = "Latitude of a point creating research area polygon. Precision up to 6 decimal places.",
-            example = "52.228851",
-            minimum = "-90.0",
-            maximum = "90.0")
+            example = "52.228851")
     private BigDecimal latitude;
 
     @NotNull
@@ -28,8 +26,6 @@ public class ResearchAreaDto {
     @DecimalMax(value = "180.0")
     @Digits(integer = 3, fraction = 6)
     @Schema(description = "Longitude of a point creating research area polygon. Precision up to 6 decimal places.",
-            example = "21.020921",
-            minimum = "-180.0",
-            maximum = "180.0")
+            example = "21.020921")
     private BigDecimal longitude;
 }

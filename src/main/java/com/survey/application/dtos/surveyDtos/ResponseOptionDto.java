@@ -34,5 +34,6 @@ public class ResponseOptionDto {
             example = "/images/option_image.jpg")
     private String imagePath;
 
+    @Schema(example = "2001")
     private Long rowVersion;
 }

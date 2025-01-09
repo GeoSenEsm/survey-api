@@ -3,7 +3,6 @@ package com.survey.api.controllers;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.LocalizationDataDto;
 import com.survey.application.dtos.ResponseLocalizationDto;
-import com.survey.application.dtos.initialSurvey.InitialSurveyQuestionResponseDto;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.LocalizationDataService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,7 +47,8 @@ public class LocalizationDataController {
                     - Send a list of localization data points to be saved in database.
                     - `dateTime` is in UTC.
                     - **Important**: latitude and longitude can have maximum 6 decimal numbers.
-                    - **Access roles: RESPONDENT**
+                    - **Access:**
+                        - RESPONDENT
                     """
     )
     @ApiResponses(value = {
@@ -75,7 +75,8 @@ public class LocalizationDataController {
                     - Fetch a list of localization data points that meed filtering criteria.
                     - `dateTime` is in UTC.
                     - All filters are optional. If no filters are set, all available data will be returned.
-                    - **Access roles: ADMIN**
+                    - **Access:**
+                        - ADMIN
                     """
     )
     @ApiResponses(value = {

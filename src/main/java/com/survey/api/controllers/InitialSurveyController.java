@@ -1,7 +1,6 @@
 package com.survey.api.controllers;
 
 import com.survey.api.security.Role;
-import com.survey.application.dtos.LoginDto;
 import com.survey.application.dtos.initialSurvey.CreateInitialSurveyQuestionDto;
 import com.survey.application.dtos.initialSurvey.InitialSurveyQuestionResponseDto;
 import com.survey.application.dtos.initialSurvey.InitialSurveyStateDto;
@@ -44,7 +43,8 @@ public class InitialSurveyController {
                     - Create initial survey.
                     - If an initial survey already exists in database, sending a request will override the existing initial survey.
                     - Only one initial survey exists at all times.
-                    - **Access roles: ADMIN**
+                    - **Access:**
+                        - ADMIN
                     """
     )
     @ApiResponses(value = {
@@ -66,7 +66,9 @@ public class InitialSurveyController {
             summary = "Get initial survey.",
             description = """
                     - Fetch initial survey.
-                    - **Access roles: ADMIN, RESPONDENT**
+                    - **Access:**
+                        - ADMIN
+                        - RESPONDENT
                     """
     )
     @ApiResponses(value = {
@@ -93,7 +95,9 @@ public class InitialSurveyController {
                         - `not_created`
                         - `created`
                         - `published`
-                    - **Access roles: ADMIN, RESPONDENT**
+                    - **Access:**
+                        - ADMIN
+                        - RESPONDENT
                     """
     )
     @ApiResponses(value = {
@@ -111,7 +115,8 @@ public class InitialSurveyController {
             summary = "Publish initial survey.",
             description = """
                     - Endpoint for setting initial survey state to `published`.
-                    - **Access roles: ADMIN**
+                    - **Access:**
+                        - ADMIN
                     """
     )
     @ApiResponses(value = {

@@ -43,7 +43,8 @@ public class AuthenticationController {
             summary = "Login for respondents.",
             description = """
                     - Authenticate respondent and retrieve a JWT token.
-                    - **Access: unrestricted**
+                    - **Access:**
+                        - unrestricted
                     """
     )
     @ApiResponses(value = {
@@ -60,7 +61,8 @@ public class AuthenticationController {
             summary = "Login for administrators.",
             description = """
                     - Authenticate an administrator and retrieve a JWT token.
-                    - **Access: unrestricted**
+                    - **Access:**
+                        - unrestricted
                     """
     )
     @ApiResponses(value = {
@@ -76,8 +78,9 @@ public class AuthenticationController {
     @Operation(
             summary = "Create respondent accounts.",
             description = """
-                     - Allows an admin to create accounts for respondents. Returns a list with usernames and passwords.
-                     - **Access: ADMIN**
+                    - Allows an admin to create accounts for respondents. Returns a list with usernames and passwords.
+                    - **Access:**
+                        - ADMIN
                     """
     )
     @ApiResponses(value = {
@@ -101,7 +104,9 @@ public class AuthenticationController {
             description = """
                     - Allows respondents and administrators to change their own password.
                     - Correct current password must be provided in `ChangePasswordDto`.
-                    - **Access: ADMIN, RESPONDENT**
+                    - **Access:**
+                        - ADMIN
+                        - RESPONDENT
                     """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Password updated successfully.")
@@ -120,7 +125,8 @@ public class AuthenticationController {
                     - Allows admin to update given respondents password.
                     - Old password is not required.
                     - To be used when respondent forgets their password.
-                    - **Access: ADMIN**
+                    - **Access:**
+                        - ADMIN
                     """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Respondent password updated successfully.")

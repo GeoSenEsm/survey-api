@@ -1,5 +1,6 @@
 package com.survey.application.dtos;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,5 +14,7 @@ public class SurveySendingPolicyTimesDto {
     private OffsetDateTime start;
     private OffsetDateTime finish;
     private boolean isDeleted;
+
+    @Schema(example = "2001")
     private Long rowVersion;
 }

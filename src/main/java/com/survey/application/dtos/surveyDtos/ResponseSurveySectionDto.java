@@ -40,5 +40,6 @@ public class ResponseSurveySectionDto {
     @Schema(description = "A list of questions within the section. Must contain at least one valid question.")
     private List<ResponseQuestionDto> questions;
 
+    @Schema(example = "2001")
     private Long rowVersion;
 }
