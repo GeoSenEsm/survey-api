@@ -5,7 +5,6 @@ import com.survey.api.configuration.CommonApiResponse401;
 import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.SurveyResultDto;
-import com.survey.application.dtos.SurveySendingPolicyDto;
 import com.survey.application.dtos.surveyDtos.SendOfflineSurveyResponseDto;
 import com.survey.application.dtos.surveyDtos.SendOnlineSurveyResponseDto;
 import com.survey.application.dtos.surveyDtos.SurveyParticipationDto;

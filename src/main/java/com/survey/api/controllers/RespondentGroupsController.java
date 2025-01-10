@@ -5,7 +5,6 @@ import com.survey.api.configuration.CommonApiResponse401;
 import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.RespondentGroupDto;
-import com.survey.application.dtos.SurveySendingPolicyDto;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.RespondentGroupService;
 import io.swagger.v3.oas.annotations.Operation;
