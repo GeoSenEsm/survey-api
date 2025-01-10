@@ -1,5 +1,6 @@
 package com.survey.api.controllers;
 
+import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.HistogramDataDto;
 import com.survey.application.services.ClaimsPrincipalService;
@@ -41,6 +42,7 @@ public class SummaryController {
                         - RESPONDENT
                     """,
             deprecated = true)
+    @CommonApiResponse403
     public ResponseEntity<List<HistogramDataDto>> getHistogramData(
             @RequestParam("surveyId") UUID surveyId,
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date date){

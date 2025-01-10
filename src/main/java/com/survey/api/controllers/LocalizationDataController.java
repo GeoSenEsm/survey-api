@@ -1,5 +1,8 @@
 package com.survey.api.controllers;
 
+import com.survey.api.configuration.CommonApiResponse400;
+import com.survey.api.configuration.CommonApiResponse401;
+import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.LocalizationDataDto;
 import com.survey.application.dtos.ResponseLocalizationDto;
@@ -59,6 +62,9 @@ public class LocalizationDataController {
                             array = @ArraySchema(schema = @Schema(implementation = ResponseLocalizationDto.class))
                     ))
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<ResponseLocalizationDto>> saveLocalizationData(
             @Valid @RequestBody List<LocalizationDataDto> localizationDataDtos){
         claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
@@ -87,6 +93,9 @@ public class LocalizationDataController {
                             array = @ArraySchema(schema = @Schema(implementation = ResponseLocalizationDto.class))
                     ))
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<ResponseLocalizationDto>> getLocalizationData(
             @RequestParam(value = "from", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime from,
             @RequestParam(value = "to", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to,

@@ -1,5 +1,6 @@
 package com.survey.api.controllers;
 
+import com.survey.api.configuration.CommonApiResponse400;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -51,6 +52,7 @@ public class UploadsController {
                     content = @Content
             )
     })
+    @CommonApiResponse400
     public ResponseEntity<Resource> getImage() throws MalformedURLException {
         String pathFromRequest = extractPathFromRequest();
 

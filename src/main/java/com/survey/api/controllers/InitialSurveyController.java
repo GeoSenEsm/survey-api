@@ -1,5 +1,8 @@
 package com.survey.api.controllers;
 
+import com.survey.api.configuration.CommonApiResponse400;
+import com.survey.api.configuration.CommonApiResponse401;
+import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.initialSurvey.CreateInitialSurveyQuestionDto;
 import com.survey.application.dtos.initialSurvey.InitialSurveyQuestionResponseDto;
@@ -13,6 +16,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@Validated
 @RequestMapping("/api/initialsurvey")
 @Tag(name = "Initial survey", description = "Endpoints for managing initial survey.")
 public class InitialSurveyController {
@@ -55,7 +60,10 @@ public class InitialSurveyController {
                             array = @ArraySchema(schema = @Schema(implementation = InitialSurveyQuestionResponseDto.class))
                     ))
     })
-    public ResponseEntity<List<InitialSurveyQuestionResponseDto>> createInitialSurvey(@Validated @RequestBody List<CreateInitialSurveyQuestionDto> createInitialSurveyQuestionDtoList) {
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<List<InitialSurveyQuestionResponseDto>> createInitialSurvey(@Validated @RequestBody List<@Valid CreateInitialSurveyQuestionDto> createInitialSurveyQuestionDtoList) {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         List<InitialSurveyQuestionResponseDto> initialSurveyResponseDto = initialSurveyService.createInitialSurvey(createInitialSurveyQuestionDtoList);
         return ResponseEntity.status(HttpStatus.CREATED).body(initialSurveyResponseDto);
@@ -63,7 +71,7 @@ public class InitialSurveyController {
 
     @GetMapping
     @Operation(
-            summary = "Get initial survey.",
+            summary = "Fetch initial survey.",
             description = """
                     - Fetch initial survey.
                     - **Access:**
@@ -73,12 +81,19 @@ public class InitialSurveyController {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200",
-                    description = "Initial survey fetched successfully",
+                    description = "Initial survey fetched successfully.",
                     content = @Content(
                             mediaType = "application/json",
                             array = @ArraySchema(schema = @Schema(implementation = InitialSurveyQuestionResponseDto.class))
-                    ))
+                    )),
+            @ApiResponse(responseCode = "404",
+                    description = "Initial survey does not exist.",
+                    content = @Content
+                )
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<InitialSurveyQuestionResponseDto>> getInitialSurvey() {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
         List<InitialSurveyQuestionResponseDto> initialSurveyResponseDto = initialSurveyService.getInitialSurvey();
@@ -103,6 +118,9 @@ public class InitialSurveyController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Initial survey state fetched successfully.")
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<InitialSurveyStateDto> getInitialSurveyState(){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
         InitialSurveyStateDto response = initialSurveyService.checkInitialSurveyState();
@@ -115,6 +133,9 @@ public class InitialSurveyController {
             summary = "Publish initial survey.",
             description = """
                     - Endpoint for setting initial survey state to `published`.
+                    - This operation populates respondents_group table with groups created based on initial survey.
+                        - [question content] - [option content]
+                        - ex. "gender - male"
                     - **Access:**
                         - ADMIN
                     """
@@ -122,6 +143,9 @@ public class InitialSurveyController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Initial survey published successfully.")
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<Void> publishInitialSurvey(){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         initialSurveyService.publishInitialSurveyAndCreateRespondentGroups();

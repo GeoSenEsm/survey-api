@@ -1,5 +1,8 @@
 package com.survey.api.controllers;
 
+import com.survey.api.configuration.CommonApiResponse400;
+import com.survey.api.configuration.CommonApiResponse401;
+import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.ResearchAreaDto;
 import com.survey.application.dtos.ResponseResearchAreaDto;
@@ -55,6 +58,9 @@ public class ResearchAreaController {
                             array = @ArraySchema(schema = @Schema(implementation = ResponseResearchAreaDto.class))
                     ))
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<ResponseResearchAreaDto>> saveResearchAreaData(@Valid @RequestBody List<ResearchAreaDto> researchAreaDtoList) throws BadRequestException {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         List<ResponseResearchAreaDto> responseResearchAreaDto = researchAreaService.saveResearchArea(researchAreaDtoList);
@@ -81,6 +87,9 @@ public class ResearchAreaController {
                     description = "Research area polygon has not been defined yet.",
                     content = @Content(mediaType = "null"))
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<ResponseResearchAreaDto>> getResearchArea() {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         List<ResponseResearchAreaDto> responseResearchAreaDtoList = researchAreaService.getResearchArea();
@@ -106,6 +115,8 @@ public class ResearchAreaController {
             @ApiResponse(responseCode = "404",
                     description = "Research area polygon has not been defined yet.")
     })
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<Void> deleteResearchArea() {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         boolean isDeleted = researchAreaService.deleteResearchArea();

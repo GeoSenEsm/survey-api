@@ -1,7 +1,9 @@
 package com.survey.api.controllers;
 
+import com.survey.api.configuration.CommonApiResponse400;
+import com.survey.api.configuration.CommonApiResponse401;
+import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
-import com.survey.application.dtos.ResponseSensorDataDto;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.SurveyService;
@@ -57,6 +59,7 @@ public class SurveyController {
                     )
             )
     })
+    @CommonApiResponse403
     public ResponseEntity<ResponseSurveyDto> createSurvey(@RequestPart("json") @Validated CreateSurveyDto createSurveyDto, @RequestPart(value = "files", required = false) List<MultipartFile> files) {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         ResponseSurveyDto responseDto = surveyService.createSurvey(createSurveyDto, files);
@@ -90,6 +93,7 @@ public class SurveyController {
                             schema = @Schema(implementation = ResponseSurveyDto.class)
                     ))
     })
+    @CommonApiResponse403
     public ResponseEntity<ResponseSurveyDto> getSurveyById(@RequestParam("surveyId") UUID surveyId){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
         ResponseSurveyDto responseSurveyDto = surveyService.getSurveyById(surveyId);
@@ -114,6 +118,9 @@ public class SurveyController {
                             array = @ArraySchema(schema = @Schema(implementation = ResponseSurveyShortDto.class))
                     ))
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<ResponseSurveyShortDto>> getShortSurveys(){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         List<ResponseSurveyShortDto> shortSurveys = surveyService.getSurveysShort();
@@ -122,6 +129,9 @@ public class SurveyController {
 
 
     @GetMapping("/shortsummaries")
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<ResponseSurveyShortSummariesDto>> getShortSurveysSummaries(){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
         List<ResponseSurveyShortSummariesDto> shortSummariesSurveys = surveyService.getSurveysShortSummaries();
@@ -158,6 +168,9 @@ public class SurveyController {
                     content = @Content(mediaType = "null"
             ))
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<ResponseSurveyWithTimeSlotsDto>> getAllSurveysWithTimeSlots(@RequestParam(value = "maxRowVersion", required = false) Long maxRowVersionFromMobileApp){
         claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
         if (maxRowVersionFromMobileApp != null && !surveyService.doesNewerDataExistsInDB(maxRowVersionFromMobileApp)){
@@ -188,6 +201,9 @@ public class SurveyController {
                     content = @Content(mediaType = "null")
                     )
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<Void> publishSurvey(@RequestParam("surveyId") UUID surveyId){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         surveyService.publishSurvey(surveyId);
@@ -210,6 +226,9 @@ public class SurveyController {
                     content = @Content(mediaType = "null")
             )
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<Void> deleteSurvey(@PathVariable UUID surveyId){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         surveyService.deleteSurvey(surveyId);
@@ -235,6 +254,9 @@ public class SurveyController {
                     )
             )
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<ResponseSurveyDto> updateSurvey(@PathVariable UUID surveyId, @RequestPart("json") @Validated CreateSurveyDto createSurveyDto, @RequestPart(value = "files", required = false) List<MultipartFile> files) {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         ResponseSurveyDto responseSurveyDto = surveyService.updateSurvey(surveyId, createSurveyDto, files);

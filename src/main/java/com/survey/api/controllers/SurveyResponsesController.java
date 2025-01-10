@@ -1,5 +1,8 @@
 package com.survey.api.controllers;
 
+import com.survey.api.configuration.CommonApiResponse400;
+import com.survey.api.configuration.CommonApiResponse401;
+import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.SurveyResultDto;
 import com.survey.application.dtos.SurveySendingPolicyDto;
@@ -49,6 +52,7 @@ public class SurveyResponsesController {
             summary = "Send answers to a survey that is currently active.",
             description = """
                     - Allows respondent to send answers to a survey that has a currently active time slot.
+                    - When surveyStartDate is within time slot, but surveyFinishDate is up to 5 minutes after time slot finish - the response will be accepted.
                     - **Access:**
                         - RESPONDENT
                     """)
@@ -61,6 +65,9 @@ public class SurveyResponsesController {
                     )
             )
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<SurveyParticipationDto> saveSurveyResponseOnline(@Validated @RequestBody SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto) throws InvalidAttributeValueException {
         claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
         SurveyParticipationDto surveyParticipationDto = surveyResponsesService.saveSurveyResponseOnline(sendOnlineSurveyResponseDto);
@@ -73,6 +80,7 @@ public class SurveyResponsesController {
             description = """
                     - Allows respondent to send answers to a survey (many surveys) that they filled offline.
                     - Time slots can be from the past.
+                    - When surveyStartDate is within time slot, but surveyFinishDate is up to 5 minutes after time slot finish - the response will be accepted.
                     - **IMPORTANT** this endpoint will always return 201 (CREATED) status code.
                         - It will perform silent validation and save only valid survey responses to the database.
                         - Survey responses that did not passed the validation (eg. required answer not present) will be lost forever.
@@ -89,6 +97,8 @@ public class SurveyResponsesController {
                     )
             )
     })
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<SurveyParticipationDto>> saveSurveyResponseOffline(@RequestBody List<SendOfflineSurveyResponseDto> sendOfflineSurveyResponseDtoList){
         claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
         List<SurveyParticipationDto> surveyParticipationDtoList = surveyResponsesService.saveSurveyResponsesOffline(sendOfflineSurveyResponseDtoList);

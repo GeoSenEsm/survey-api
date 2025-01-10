@@ -1,6 +1,9 @@
 package com.survey.api.controllers;
 
 
+import com.survey.api.configuration.CommonApiResponse400;
+import com.survey.api.configuration.CommonApiResponse401;
+import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.*;
 import com.survey.application.services.ClaimsPrincipalService;
@@ -61,6 +64,9 @@ public class SurveySendingPolicyController {
                     )
             )
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<SurveySendingPolicyDto> createSurveySendingPolicy(
             @Validated @RequestBody CreateSurveySendingPolicyDto createSurveySendingPolicy) throws  InstanceAlreadyExistsException, NoSuchElementException,  IllegalArgumentException, BadRequestException, BadAttributeValueExpException, InstanceNotFoundException, InvalidAttributeValueException {
 
@@ -93,6 +99,8 @@ public class SurveySendingPolicyController {
                     )
             )
     })
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<SurveySendingPolicyDto>> getSurveySendingPolicyBySurveyId(
             @RequestParam("surveyId") UUID surveyId) {
 
@@ -120,6 +128,9 @@ public class SurveySendingPolicyController {
                     )
             )
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<SurveySendingPolicyTimesDto>> deleteTimeSlotsByIds(
             @Validated @RequestBody TimeSlotsToDeleteDto timeSlotsToDelete
     ){

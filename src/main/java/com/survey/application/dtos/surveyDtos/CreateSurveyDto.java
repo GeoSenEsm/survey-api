@@ -21,6 +21,5 @@ public class CreateSurveyDto {
     private String name;
 
     @NotNull
-    @Schema(description = "A list of sections that make up the survey. The survey must contain at least one section.")
     private List<@Valid CreateSurveySectionDto> sections;
 }

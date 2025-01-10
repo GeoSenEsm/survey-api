@@ -1,5 +1,8 @@
 package com.survey.api.controllers;
 
+import com.survey.api.configuration.CommonApiResponse400;
+import com.survey.api.configuration.CommonApiResponse401;
+import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.LastSensorEntryDateDto;
 import com.survey.application.dtos.ResponseSensorDataDto;
@@ -58,6 +61,9 @@ public class SensorDataController {
                             array = @ArraySchema(schema = @Schema(implementation = ResponseSensorDataDto.class))
                     ))
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<ResponseSensorDataDto>> saveSensorData(
             @Valid @RequestBody List<SensorDataDto> temperatureDataDtoList){
 
@@ -85,6 +91,9 @@ public class SensorDataController {
                             array = @ArraySchema(schema = @Schema(implementation = ResponseSensorDataDto.class))
                     ))
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<ResponseSensorDataDto>> getSensorData(
             @RequestParam("from") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime from,
             @RequestParam("to") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to){
@@ -115,6 +124,9 @@ public class SensorDataController {
                             schema = @Schema(implementation = LastSensorEntryDateDto.class)
                     ))
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<LastSensorEntryDateDto> getDateOfLastSensorDataForRespondent(@RequestParam("respondentId") UUID identityUserId){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
         LastSensorEntryDateDto dto = sensorDataService.getDateOfLastSensorDataForRespondent(identityUserId);

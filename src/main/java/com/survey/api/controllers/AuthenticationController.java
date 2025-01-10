@@ -1,5 +1,8 @@
 package com.survey.api.controllers;
 
+import com.survey.api.configuration.CommonApiResponse400;
+import com.survey.api.configuration.CommonApiResponse401;
+import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.CreateRespondentsAccountsDto;
 import com.survey.application.dtos.LoginDto;
@@ -48,7 +51,11 @@ public class AuthenticationController {
                     """
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Authentication successful. JWT token returned.")
+            @ApiResponse(responseCode = "200", description = "Authentication successful. JWT token returned."),
+            @ApiResponse(responseCode = "401",
+                        description = "Invalid credentials.",
+                        content = @Content
+            )
     })
     public ResponseEntity<String> loginForRespondents(@Validated @RequestBody LoginDto loginDto){
         String jwtToken = authenticationService.getJwtTokenAsRespondent(loginDto);
@@ -66,7 +73,10 @@ public class AuthenticationController {
                     """
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Authentication successful. JWT token returned.")
+            @ApiResponse(responseCode = "200", description = "Authentication successful. JWT token returned."),
+            @ApiResponse(responseCode = "401",
+                        description = "Invalid credentials.",
+                        content = @Content)
     })
     public ResponseEntity<String> loginForAdmin(@Validated @RequestBody LoginDto loginDto){
         String jwtToken = authenticationService.getJwtTokenAsAdmin(loginDto);
@@ -91,6 +101,9 @@ public class AuthenticationController {
                             array = @ArraySchema(schema = @Schema(implementation = LoginDto.class))
                     ))
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<LoginDto>> createRespondentsAccounts(@Validated @RequestBody CreateRespondentsAccountsDto dto){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         List<LoginDto> responseDtoList = authenticationService.createRespondentsAccounts(dto);
@@ -111,6 +124,9 @@ public class AuthenticationController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Password updated successfully.")
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<Void> updateOwnPassword(@Validated @RequestBody ChangePasswordDto changePasswordDto){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName(), Role.RESPONDENT.getRoleName());
         authenticationService.updateOwnPassword(changePasswordDto);
@@ -131,6 +147,9 @@ public class AuthenticationController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Respondent password updated successfully.")
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<Void> updateUserPassword(@PathVariable("respondentId") UUID identityUserId, @Validated @RequestBody ChangePasswordDto changePasswordDto){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         authenticationService.updateUserPassword(identityUserId, changePasswordDto);

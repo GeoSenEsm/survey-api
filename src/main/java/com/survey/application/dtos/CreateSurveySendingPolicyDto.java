@@ -18,7 +18,6 @@ public class CreateSurveySendingPolicyDto {
     private UUID surveyId;
 
     @NotEmpty
-    @Schema(description = "List of time slots when survey will be active for respondents.")
     private List<SurveyParticipationTimeStartFinishDto> surveyParticipationTimeSlots;
 
 }

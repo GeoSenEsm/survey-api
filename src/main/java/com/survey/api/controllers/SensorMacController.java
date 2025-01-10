@@ -1,5 +1,8 @@
 package com.survey.api.controllers;
 
+import com.survey.api.configuration.CommonApiResponse400;
+import com.survey.api.configuration.CommonApiResponse401;
+import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.UpdatedSensorMacDtoIn;
 import com.survey.application.dtos.SensorMacDtoIn;
@@ -59,6 +62,7 @@ public class SensorMacController {
                             array = @ArraySchema(schema = @Schema(implementation = SensorMacDtoOut.class))
                     ))
     })
+    @CommonApiResponse403
     public ResponseEntity<List<SensorMacDtoOut>> saveSensorMacList(@Valid @RequestBody List<SensorMacDtoIn> sensorMacDtoList){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
 
@@ -77,8 +81,15 @@ public class SensorMacController {
                     """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200",
-                    description = "SensorId - sensorMac pair deleted successfully.")
+                    description = "SensorId - sensorMac pair deleted successfully."),
+            @ApiResponse(responseCode = "404",
+                    description = "Sensor with given sensorId does not exist.",
+                    content = @Content
+            )
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<Void> deleteSensorMacBySensorId(@PathVariable @NotNull String sensorId){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
 
@@ -99,6 +110,9 @@ public class SensorMacController {
             @ApiResponse(responseCode = "200",
                     description = "All sensorId - sensorMac pairs deleted successfully.")
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<Void> deleteAllSensorMacs(){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
 
@@ -121,8 +135,15 @@ public class SensorMacController {
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = SensorMacDtoOut.class)
-                    ))
+                    )),
+            @ApiResponse(responseCode = "404",
+                    description = "Sensor with given sensorId does not exist.",
+                    content = @Content
+            )
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<SensorMacDtoOut> updateSensorMacBySensorId(
             @PathVariable @NotNull String sensorId,
             @Valid @RequestBody UpdatedSensorMacDtoIn updatedSensorMacDtoIn){
@@ -149,6 +170,8 @@ public class SensorMacController {
                             array = @ArraySchema(schema = @Schema(implementation = SensorMacDtoOut.class))
                     ))
     })
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<SensorMacDtoOut>> getAll(){
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         List<SensorMacDtoOut> responseDtoList = sensorMacService.getFullSensorMacList();
@@ -171,8 +194,15 @@ public class SensorMacController {
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = SensorMacDtoOut.class)
-                    ))
+                    )),
+            @ApiResponse(responseCode = "404",
+                    description = "Sensor with given sensorId does not exist.",
+                    content = @Content
+            )
     })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<SensorMacDtoOut> getBySensorId(@RequestParam String sensorId){
         claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName(), Role.ADMIN.getRoleName());
         SensorMacDtoOut responseDto = sensorMacService.getSensorMacBySensorId(sensorId);
