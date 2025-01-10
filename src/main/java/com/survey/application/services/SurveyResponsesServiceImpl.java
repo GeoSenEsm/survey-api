@@ -283,7 +283,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     }
     private AllResultsDto mapIdentityUserToDto(IdentityUser identityUser, List<LocalizationData> localizationDataList, List<SensorData> sensorDataList, List<SurveyParticipation> surveyParticipationList) {
         AllResultsDto allResultsDto = new AllResultsDto();
-        allResultsDto.setIdentityUserId(identityUser.getId());
+        allResultsDto.setRespondentId(identityUser.getId());
         allResultsDto.setUsername(identityUser.getUsername());
         allResultsDto.setLocalizationDataList(mapLocalizationDataToDto(localizationDataList));
         allResultsDto.setSensorDataList(mapSensorDataToDto(sensorDataList));

@@ -106,7 +106,28 @@ public class SurveyResponsesController {
     }
 
     @GetMapping("/results")
-    // TODO: not documented, because wgrzesik is modifying this endpoint.
+    @Operation(
+            summary = "Fetch survey results with optional filters.",
+            description = """
+                - Allows an administrator to fetch survey results based on optional filters.
+                - **Filters available:**
+                    - `surveyId`: Filter results by a specific survey ID.
+                    - `respondentId`: Filter results by a specific respondent's ID.
+                    - `dateFrom` and `dateTo`: Specify a date range for the results.
+                - **Access:**
+                  - ADMIN
+                    """)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Survey results retrieved successfully.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = SurveyResultDto.class))
+                    )
+            )
+    })
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<SurveyResultDto>> getSurveyResults(
             @RequestParam(value = "surveyId", required = false) UUID surveyId,
             @RequestParam(value = "respondentId", required = false) UUID identityUserId,
@@ -119,6 +140,24 @@ public class SurveyResponsesController {
     }
 
     @GetMapping("/results/all")
+    @Operation(
+            summary = "Fetch all results.",
+            description = """
+                - Allows an administrator to fetch all survey results, localization data and sensor data for all respondents.
+                - **Access:**
+                  - ADMIN
+                    """)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Results retrieved successfully.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = AllResultsDto.class))
+                    )
+            )
+    })
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<AllResultsDto>> getAllSurveyResults() {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         List<AllResultsDto> results = surveyResponsesService.getAllSurveyResults();
