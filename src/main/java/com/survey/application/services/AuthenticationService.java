@@ -2,7 +2,7 @@ package com.survey.application.services;
 
 import com.survey.application.dtos.CreateRespondentsAccountsDto;
 import com.survey.application.dtos.LoginDto;
-import com.survey.application.dtos.surveyDtos.ChangePasswordDto;
+import com.survey.application.dtos.ChangePasswordDto;
 
 import java.util.List;
 import java.util.UUID;

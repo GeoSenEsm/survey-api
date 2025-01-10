@@ -1,5 +1,6 @@
 package com.survey.application.services;
 
+import com.survey.api.security.Role;
 import com.survey.application.dtos.SurveySendingPolicyTimesDto;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.domain.models.*;
@@ -104,7 +105,7 @@ public class SurveyServiceImpl implements SurveyService {
         OffsetDateTime endOfDay = OffsetDateTime.now(ZoneOffset.UTC).withHour(23).withMinute(59).withSecond(59);
 
 
-        if (!claimsPrincipalService.isAnonymous() && claimsPrincipalService.findIdentityUser().getRole().equals("Respondent")) {
+        if (!claimsPrincipalService.isAnonymous() && claimsPrincipalService.findIdentityUser().getRole().equalsIgnoreCase(Role.RESPONDENT.getRoleName())) {
             OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC).withNano(0);
 
 
