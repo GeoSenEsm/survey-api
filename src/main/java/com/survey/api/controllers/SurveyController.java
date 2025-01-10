@@ -59,6 +59,7 @@ public class SurveyController {
                     )
             )
     })
+    @CommonApiResponse401
     @CommonApiResponse403
     public ResponseEntity<ResponseSurveyDto> createSurvey(@RequestPart("json") @Validated CreateSurveyDto createSurveyDto, @RequestPart(value = "files", required = false) List<MultipartFile> files) {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
@@ -68,6 +69,24 @@ public class SurveyController {
 
 
     @GetMapping(params = "completionDate")
+    @Operation(
+            summary = "Fetch survey by completionDate.",
+            description = """
+                    - Allows admin to fetch surveys that are have time slots in given day.
+                    - **Access:**
+                        - ADMIN
+                    """)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Surveys fetched successfully.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ResponseSurveyDto.class)
+                    ))
+    })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
     public ResponseEntity<List<ResponseSurveyDto>> getSurveysByCompletionDate(
             @RequestParam("completionDate") @DateTimeFormat(pattern = "dd-MM-yyyy") LocalDate completionDate) {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
@@ -129,6 +148,26 @@ public class SurveyController {
 
 
     @GetMapping("/shortsummaries")
+    @Operation(
+            summary = "Fetch brief summaries of surveys.",
+            description = """
+        - Allows admin and respondents to fetch brief summaries of surveys.
+        - Includes survey ID, name, and associated time slot details.
+        - Respondent-specific behavior:
+            - Fetches only active or upcoming surveys not yet participated by the respondent.
+        - **Access:**
+            - ADMIN
+            - RESPONDENT
+        """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Survey summaries fetched successfully.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = ResponseSurveyShortSummariesDto.class))
+                    )),
+    })
     @CommonApiResponse400
     @CommonApiResponse401
     @CommonApiResponse403
