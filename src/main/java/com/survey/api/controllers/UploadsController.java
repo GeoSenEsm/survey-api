@@ -1,5 +1,11 @@
 package com.survey.api.controllers;
 
+import com.survey.api.configuration.CommonApiResponse400;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -19,10 +25,34 @@ import java.util.Objects;
 
 @RestController
 @RequestMapping("/uploads")
+@Tag(name = "Uploaded images", description = "Provides access to uploaded files.")
 public class UploadsController {
     private final Path basePath = Paths.get("uploads");
 
     @GetMapping("/**")
+    @Operation(
+            summary = "Retrieve uploaded file.",
+            description = """
+                    - Fetches an uploaded image from the server based on the requested path.
+                    - Those images are a part of image question type.
+                    - Supported file types include images with extensions `.png`, `.jpg`, and `.jpeg`.
+                    - **Access:**
+                        - unrestricted
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "File retrieved successfully.",
+                    content = {@Content(mediaType = "application/octet-stream")}
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "File not found.",
+                    content = @Content
+            )
+    })
+    @CommonApiResponse400
     public ResponseEntity<Resource> getImage() throws MalformedURLException {
         String pathFromRequest = extractPathFromRequest();
 
