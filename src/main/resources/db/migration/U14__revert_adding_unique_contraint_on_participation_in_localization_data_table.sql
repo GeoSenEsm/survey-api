@@ -1,0 +1,1 @@
+DROP INDEX UQ_Respondent_Participation ON localization_data;

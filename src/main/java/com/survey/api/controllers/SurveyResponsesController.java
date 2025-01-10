@@ -2,6 +2,7 @@ package com.survey.api.controllers;
 
 import com.survey.api.security.Role;
 import com.survey.application.dtos.SurveyResultDto;
+import com.survey.application.dtos.AllResultsDto;
 import com.survey.application.dtos.surveyDtos.SendOfflineSurveyResponseDto;
 import com.survey.application.dtos.surveyDtos.SendOnlineSurveyResponseDto;
 import com.survey.application.dtos.surveyDtos.SurveyParticipationDto;
@@ -57,6 +58,13 @@ public class SurveyResponsesController {
 
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         List<SurveyResultDto> results = surveyResponsesService.getSurveyResults(surveyId, identityUserId, dateFrom, dateTo);
+        return ResponseEntity.status(HttpStatus.OK).body(results);
+    }
+
+    @GetMapping("/results/all")
+    public ResponseEntity<List<AllResultsDto>> getAllSurveyResults() {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        List<AllResultsDto> results = surveyResponsesService.getAllSurveyResults();
         return ResponseEntity.status(HttpStatus.OK).body(results);
     }
 }

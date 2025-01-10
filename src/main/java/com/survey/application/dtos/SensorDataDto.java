@@ -1,7 +1,9 @@
 package com.survey.application.dtos;
 
 import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
@@ -9,6 +11,8 @@ import java.time.OffsetDateTime;
 
 @Getter
 @Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class SensorDataDto {
     @NotNull(message = "DateTime cannot be null!")
     private OffsetDateTime dateTime;
