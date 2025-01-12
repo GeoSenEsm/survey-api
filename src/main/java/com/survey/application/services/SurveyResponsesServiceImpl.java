@@ -381,7 +381,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     }
     private SensorDataDto extractSensorData(SurveyParticipation sp) {
         if(sp.getSensorData() != null){
-            return new SensorDataDto(sp.getSensorData().getDateTime(), sp.getSensorData().getHumidity(), sp.getSensorData().getTemperature());
+            return new SensorDataDto(sp.getSensorData().getDateTime(), sp.getSensorData().getTemperature(), sp.getSensorData().getHumidity());
         }
         return null;
     }
