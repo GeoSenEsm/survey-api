@@ -46,7 +46,7 @@ class SurveyResponsesServiceImplTest {
     private Survey survey;
     private IdentityUser user;
     private List<QuestionAnswer> questionAnswerList;
-    private List<LocalizationData> localizationDataList;
+    private LocalizationData localizationDataList;
     private SurveyParticipation surveyParticipation;
 
     @BeforeEach
@@ -87,7 +87,7 @@ class SurveyResponsesServiceImplTest {
         participation.setDate(OffsetDateTime.now(ZoneOffset.UTC));
         participation.setIdentityUser(user);
         participation.setQuestionAnswers(questionAnswerList);
-        participation.setLocalizationDataList(localizationDataList);
+        participation.setLocalizationData(localizationDataList);
         return participation;
     }
 
@@ -104,12 +104,12 @@ class SurveyResponsesServiceImplTest {
         return user;
     }
 
-    private List<LocalizationData> createLocalizationDataList(){
+    private LocalizationData createLocalizationDataList(){
         LocalizationData localizationData = new LocalizationData();
         localizationData.setLatitude(VALID_LATITUDE);
         localizationData.setLongitude(VALID_LONGITUDE);
         localizationData.setDateTime(OffsetDateTime.now());
-        return List.of(localizationData);
+        return localizationData;
     }
 
     private List<QuestionAnswer> createQuestionAnswerList() {

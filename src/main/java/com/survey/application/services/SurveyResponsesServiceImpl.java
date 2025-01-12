@@ -1,8 +1,8 @@
 package com.survey.application.services;
 
+import com.survey.api.security.Role;
 import com.survey.api.validation.SendSurveyResponseDtoValidator;
-import com.survey.application.dtos.LocalizationPointDto;
-import com.survey.application.dtos.SurveyResultDto;
+import com.survey.application.dtos.*;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.QuestionType;
@@ -207,7 +207,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         CriteriaQuery<SurveyParticipation> cq = cb.createQuery(SurveyParticipation.class);
 
         Root<SurveyParticipation> root = cq.from(SurveyParticipation.class);
-        root.fetch("localizationDataList", JoinType.LEFT);
+        root.fetch("localizationData", JoinType.LEFT);
+        root.fetch("sensorData", JoinType.LEFT);
 
         List<Predicate> predicates = new ArrayList<>();
 
@@ -233,6 +234,104 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                 .flatMap(this::mapParticipationToDto)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    @Transactional
+    public List<AllResultsDto> getAllSurveyResults() {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<IdentityUser> cq = cb.createQuery(IdentityUser.class);
+        Root<IdentityUser> root = cq.from(IdentityUser.class);
+
+        List<Predicate> predicates = new ArrayList<>();
+        predicates.add(cb.equal(root.get("role"), Role.RESPONDENT.getRoleName()));
+
+        cq.select(root).where(cb.and(predicates.toArray(new Predicate[0])));
+        List<IdentityUser> identityUserList = entityManager.createQuery(cq)
+                .getResultList();
+
+        return identityUserList.stream()
+                .map(identityUser -> {
+                    List<LocalizationData> localizationDataList = fetchLocalizationDataForUser(identityUser);
+                    List<SensorData> sensorDataList = fetchSensorDataForUser(identityUser);
+                    List<SurveyParticipation> surveyParticipationList = fetchSurveyParticipationForUser(identityUser);
+                    return mapIdentityUserToDto(identityUser, localizationDataList, sensorDataList, surveyParticipationList);
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<SurveyParticipation> fetchSurveyParticipationForUser(IdentityUser identityUser) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<SurveyParticipation> cq = cb.createQuery(SurveyParticipation.class);
+        Root<SurveyParticipation> root = cq.from(SurveyParticipation.class);
+        cq.select(root).where(cb.equal(root.get("identityUser"), identityUser));
+        return entityManager.createQuery(cq).getResultList();
+    }
+
+    private List<LocalizationData> fetchLocalizationDataForUser(IdentityUser identityUser) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<LocalizationData> cq = cb.createQuery(LocalizationData.class);
+        Root<LocalizationData> root = cq.from(LocalizationData.class);
+        cq.select(root).where(cb.equal(root.get("identityUser"), identityUser));
+        return entityManager.createQuery(cq).getResultList();
+    }
+
+    private List<SensorData> fetchSensorDataForUser(IdentityUser identityUser) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<SensorData> cq = cb.createQuery(SensorData.class);
+        Root<SensorData> root = cq.from(SensorData.class);
+        cq.select(root).where(cb.equal(root.get("respondent"), identityUser));
+        return entityManager.createQuery(cq).getResultList();
+    }
+    private AllResultsDto mapIdentityUserToDto(IdentityUser identityUser, List<LocalizationData> localizationDataList, List<SensorData> sensorDataList, List<SurveyParticipation> surveyParticipationList) {
+        AllResultsDto allResultsDto = new AllResultsDto();
+        allResultsDto.setRespondentId(identityUser.getId());
+        allResultsDto.setUsername(identityUser.getUsername());
+        allResultsDto.setLocalizationDataList(mapLocalizationDataToDto(localizationDataList));
+        allResultsDto.setSensorDataList(mapSensorDataToDto(sensorDataList));
+        allResultsDto.setSurveyResults(mapSurveyParticipationToDto(surveyParticipationList));
+        return allResultsDto;
+    }
+    private List<AllResultsLocalizationDataDto> mapLocalizationDataToDto(List<LocalizationData> localizationDataList) {
+        return localizationDataList.stream()
+                .map(ld -> new AllResultsLocalizationDataDto(
+                        ld.getId(),
+                        ld.getLatitude(),
+                        ld.getLongitude(),
+                        ld.getDateTime(),
+                        ld.getOutsideResearchArea(),
+                        ld.getSurveyParticipation() != null ? ld.getSurveyParticipation().getId() : null
+                ))
+                .collect(Collectors.toList());
+    }
+
+    private List<AllResultsSensorDataDto> mapSensorDataToDto(List<SensorData> sensorDataList) {
+        return sensorDataList.stream()
+                .map(sd -> new AllResultsSensorDataDto(
+                        sd.getId(),
+                        sd.getDateTime(),
+                        sd.getTemperature(),
+                        sd.getHumidity(),
+                        sd.getSurveyParticipation() != null ? sd.getSurveyParticipation().getId() : null
+                ))
+                .collect(Collectors.toList());
+    }
+
+    private List<AllResultsSurveyParticipationDto> mapSurveyParticipationToDto(List<SurveyParticipation> surveyParticipationList) {
+        return surveyParticipationList.stream()
+                .map(sp -> new AllResultsSurveyParticipationDto(
+                        sp.getId(),
+                        sp.getSurvey().getId(),
+                        sp.getSurvey().getName(),
+                        sp.getDate(),
+                        sp.getQuestionAnswers().stream()
+                                .map(qa -> new AllResultsQuestionAnswerDto(
+                                        qa.getQuestion().getContent(),
+                                        extractAnswers(qa)
+                                ))
+                                .collect(Collectors.toList())
+                ))
+                .collect(Collectors.toList());
+    }
     private void saveSensorData(SendSurveyResponseDto sendSurveyResponseDto, SurveyParticipation surveyParticipation, IdentityUser identityUser) {
         if (sendSurveyResponseDto.getSensorData() != null) {
             SensorData sensorData = modelMapper.map(sendSurveyResponseDto.getSensorData(), SensorData.class);
@@ -254,8 +353,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         dto.setResponseDate(surveyParticipation.getDate());
         dto.setRespondentId(surveyParticipation.getIdentityUser().getId());
         dto.setAnswers(extractAnswers(questionAnswer));
-        dto.setLocalizations(extractLocalizationPoints(surveyParticipation));
-
+        dto.setLocalizationData(extractLocalizationData(surveyParticipation));
+        dto.setSensorData(extractSensorData(surveyParticipation));
         return dto;
     }
 
@@ -280,11 +379,16 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
 
         return answers;
     }
-
-    List<LocalizationPointDto> extractLocalizationPoints(SurveyParticipation surveyParticipation){
-        return surveyParticipation.getLocalizationDataList().stream()
-                .map(ld -> new LocalizationPointDto(ld.getLatitude(), ld.getLongitude(), ld.getDateTime()))
-                .toList();
+    private SensorDataDto extractSensorData(SurveyParticipation sp) {
+        if(sp.getSensorData() != null){
+            return new SensorDataDto(sp.getSensorData().getDateTime(), sp.getSensorData().getTemperature(), sp.getSensorData().getHumidity());
+        }
+        return null;
     }
-
+    private LocalizationPointDto extractLocalizationData(SurveyParticipation sp){
+        if(sp.getLocalizationData() != null){
+            return new LocalizationPointDto(sp.getLocalizationData().getLatitude(), sp.getLocalizationData().getLongitude(), sp.getLocalizationData().getDateTime(), sp.getLocalizationData().getOutsideResearchArea());
+        }
+        return null;
+    }
 }

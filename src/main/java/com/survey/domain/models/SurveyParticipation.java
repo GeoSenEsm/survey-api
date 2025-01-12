@@ -35,8 +35,8 @@ public class SurveyParticipation {
     @OneToMany(mappedBy = "surveyParticipation", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<QuestionAnswer> questionAnswers = new ArrayList<>();
 
-    @OneToMany(mappedBy = "surveyParticipation", cascade = CascadeType.ALL)
-    private List<LocalizationData> localizationDataList;
+    @OneToOne(mappedBy = "surveyParticipation", cascade = CascadeType.ALL)
+    private LocalizationData localizationData;
 
     @OneToOne(mappedBy = "surveyParticipation", cascade = CascadeType.ALL)
     private SensorData sensorData;

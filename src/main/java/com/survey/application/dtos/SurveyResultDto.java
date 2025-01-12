@@ -16,6 +16,7 @@ public class SurveyResultDto {
     private String question;
     private OffsetDateTime responseDate;
     private List<Object> answers;
-    private List<LocalizationPointDto> localizations;
+    private LocalizationPointDto localizationData;
+    private SensorDataDto sensorData;
     private UUID respondentId;
 }

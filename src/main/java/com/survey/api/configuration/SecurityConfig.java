@@ -60,6 +60,7 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.GET, "/api/surveys/shortsummaries").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/summaries/histogram").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/surveyresponses/results").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/surveyresponses/results/all").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/initialsurvey").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/initialsurvey").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/initialsurvey/state").permitAll();

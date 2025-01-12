@@ -27,4 +27,5 @@ public class LocalizationPointDto {
 
     @Schema(description = "Date and time of given geolocation reading in UTC.")
     private OffsetDateTime dateTime;
+    private Boolean outsideResearchArea;
 }

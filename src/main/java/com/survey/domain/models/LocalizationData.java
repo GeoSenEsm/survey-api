@@ -18,7 +18,7 @@ public class LocalizationData {
     @JoinColumn(name = "respondent_id", nullable = false)
     private IdentityUser identityUser;
 
-    @ManyToOne
+    @OneToOne
     @JoinColumn(name = "participation_id")
     private SurveyParticipation surveyParticipation;
 
