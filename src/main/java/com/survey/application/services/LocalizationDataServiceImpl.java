@@ -43,7 +43,12 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
                 .map(this::mapToEntity)
                 .toList();
 
-        List<LocalizationData> savedEntities = localizationDataRepository.saveAllAndFlush(entities);
+        List<LocalizationData> filteredEntities = entities.stream()
+                .filter(entity -> entity.getSurveyParticipation() == null || !localizationDataRepository.existsByRespondentIdAndParticipationId(
+                        entity.getIdentityUser().getId(), entity.getSurveyParticipation().getId()))
+                .toList();
+
+        List<LocalizationData> savedEntities = localizationDataRepository.saveAllAndFlush(filteredEntities);
         savedEntities.forEach(entityManager::refresh);
 
 
