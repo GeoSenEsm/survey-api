@@ -57,25 +57,23 @@ public class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    public void testLoginForRespondentsForNonExistingUser() throws JsonProcessingException {
+    public void testLoginForRespondentsForNonExistingUser() {
         LoginDto dto = LoginDto
                 .builder()
                 .withUsername("this user does not exist")
                 .withPassword("test password")
                 .build();
 
-        String json = objectMapper.writeValueAsString(dto);
-
         webTestClient.post().uri("/api/authentication/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(json)
+                .bodyValue(dto)
                 .exchange()
                 .expectStatus()
                 .isUnauthorized();
     }
 
     @Test
-    public void testLoginForRespondentsForExistingUserButWrongPassword() throws JsonProcessingException{
+    public void testLoginForRespondentsForExistingUserButWrongPassword() {
         String randomUsername = UUID.randomUUID().toString();
         testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
 
@@ -85,18 +83,16 @@ public class AuthenticationControllerIntegrationTest {
                 .withPassword("wrong password")
                 .build();
 
-        String json = objectMapper.writeValueAsString(dto);
-
         webTestClient.post().uri("/api/authentication/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(json)
+                .bodyValue(dto)
                 .exchange()
                 .expectStatus()
                 .isUnauthorized();
     }
 
     @Test
-    public void testLoginForRespondentsWithCorrectCredentials() throws JsonProcessingException{
+    public void testLoginForRespondentsWithCorrectCredentials() {
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
 
         LoginDto dto = LoginDto
@@ -105,27 +101,23 @@ public class AuthenticationControllerIntegrationTest {
                 .withPassword(RESPONDENT_PASSWORD)
                 .build();
 
-        String json = objectMapper.writeValueAsString(dto);
-
         webTestClient.post().uri("/api/authentication/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(json)
+                .bodyValue(dto)
                 .exchange()
                 .expectStatus()
                 .isOk();
     }
 
     @Test
-    public void testLoginForRespondentsForEmptyUsernameAndPassword() throws JsonProcessingException{
+    public void testLoginForRespondentsForEmptyUsernameAndPassword() {
         LoginDto dto = LoginDto
                 .builder()
                 .build();
 
-        String json = objectMapper.writeValueAsString(dto);
-
         webTestClient.post().uri("/api/authentication/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(json)
+                .bodyValue(dto)
                 .exchange()
                 .expectStatus()
                 .isBadRequest();
@@ -171,11 +163,9 @@ public class AuthenticationControllerIntegrationTest {
                 .withPassword(ADMIN_PASSWORD)
                 .build();
 
-        String json = objectMapper.writeValueAsString(dto);
-
         webTestClient.post().uri("/api/authentication/login/admin")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(json)
+                .bodyValue(dto)
                 .exchange()
                 .expectStatus()
                 .isOk();
@@ -185,15 +175,13 @@ public class AuthenticationControllerIntegrationTest {
     public void testAdminLoginWithInvalidCredentials() throws JsonProcessingException {
         LoginDto dto = LoginDto
                 .builder()
-                .withUsername("admin")
+                .withUsername("Admin")
                 .withPassword("wrongPassword")
                 .build();
 
-        String json = objectMapper.writeValueAsString(dto);
-
         webTestClient.post().uri("/api/authentication/login/admin")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(json)
+                .bodyValue(dto)
                 .exchange()
                 .expectStatus()
                 .isUnauthorized();
@@ -205,16 +193,29 @@ public class AuthenticationControllerIntegrationTest {
                 .builder()
                 .build();
 
-        String json = objectMapper.writeValueAsString(dto);
-
         webTestClient.post().uri("/api/authentication/login/admin")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(json)
+                .bodyValue(dto)
                 .exchange()
                 .expectStatus()
                 .isBadRequest();
     }
 
+    @Test
+    public void loginAsAdmin_withWrongLoginCase_ShouldReturnBadCredentials(){
+        LoginDto dto = LoginDto
+                .builder()
+                .withUsername("admin")
+                .withPassword(ADMIN_PASSWORD)
+                .build();
+
+        webTestClient.post().uri("/api/authentication/login/admin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(dto)
+                .exchange()
+                .expectStatus()
+                .isUnauthorized();
+    }
     @Test
     void updateUserPassword_ShouldReturnOk_WhenAdminUpdatesRespondentPassword() {
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);

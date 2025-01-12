@@ -102,6 +102,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         IdentityUser identityUser = identityUserRepository.findByUsername(dto.getUsername())
                 .orElseThrow(() -> new BadCredentialsException("Bad credentials"));
 
+        if (!identityUser.getUsername().equals(dto.getUsername())){
+            throw new BadCredentialsException("Bad credentials");
+        }
+
         if (!expectedRole.getRoleName().equalsIgnoreCase(identityUser.getRole())) {
             throw new BadCredentialsException("Bad credentials");
         }
