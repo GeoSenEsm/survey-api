@@ -1,5 +1,6 @@
 package com.survey.application.services;
 
+import com.survey.api.security.Role;
 import com.survey.api.validation.SendSurveyResponseDtoValidator;
 import com.survey.application.dtos.*;
 import com.survey.application.dtos.surveyDtos.*;
@@ -242,7 +243,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         Root<IdentityUser> root = cq.from(IdentityUser.class);
 
         List<Predicate> predicates = new ArrayList<>();
-        predicates.add(cb.equal(root.get("role"), "Respondent"));
+        predicates.add(cb.equal(root.get("role"), Role.RESPONDENT.getRoleName()));
 
         cq.select(root).where(cb.and(predicates.toArray(new Predicate[0])));
         List<IdentityUser> identityUserList = entityManager.createQuery(cq)
