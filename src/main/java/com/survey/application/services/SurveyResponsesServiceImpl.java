@@ -309,8 +309,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                 .map(sd -> new AllResultsSensorDataDto(
                         sd.getId(),
                         sd.getDateTime(),
-                        sd.getHumidity(),
                         sd.getTemperature(),
+                        sd.getHumidity(),
                         sd.getSurveyParticipation() != null ? sd.getSurveyParticipation().getId() : null
                 ))
                 .collect(Collectors.toList());
