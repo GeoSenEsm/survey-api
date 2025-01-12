@@ -1,7 +1,5 @@
 package com.survey.api.integration;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.api.TestUtils;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.CreateRespondentsAccountsDto;
@@ -30,7 +28,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @AutoConfigureWebTestClient
 public class AuthenticationControllerIntegrationTest {
     private final WebTestClient webTestClient;
-    private final ObjectMapper objectMapper;
     private final IdentityUserRepository userRepository;
     private final TestUtils testUtils;
     private final PasswordEncoder passwordEncoder;
@@ -41,11 +38,12 @@ public class AuthenticationControllerIntegrationTest {
 
 
     @Autowired
-    public AuthenticationControllerIntegrationTest(WebTestClient webTestClient, ObjectMapper objectMapper,
-                                                   IdentityUserRepository identityUserRepository, TestUtils testUtils, PasswordEncoder passwordEncoder){
+    public AuthenticationControllerIntegrationTest(WebTestClient webTestClient,
+                                                   IdentityUserRepository identityUserRepository,
+                                                   TestUtils testUtils,
+                                                   PasswordEncoder passwordEncoder){
 
         this.webTestClient = webTestClient;
-        this.objectMapper = objectMapper;
         this.userRepository = identityUserRepository;
         this.testUtils = testUtils;
         this.passwordEncoder = passwordEncoder;
@@ -154,7 +152,7 @@ public class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    public void testAdminLoginWithCorrectCredentials() throws JsonProcessingException {
+    public void testAdminLoginWithCorrectCredentials() {
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
 
         LoginDto dto = LoginDto
@@ -172,7 +170,7 @@ public class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    public void testAdminLoginWithInvalidCredentials() throws JsonProcessingException {
+    public void testAdminLoginWithInvalidCredentials() {
         LoginDto dto = LoginDto
                 .builder()
                 .withUsername("Admin")
@@ -188,7 +186,7 @@ public class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    public void testAdminLoginWithMissingCredentials() throws JsonProcessingException {
+    public void testAdminLoginWithMissingCredentials() {
         LoginDto dto = LoginDto
                 .builder()
                 .build();
