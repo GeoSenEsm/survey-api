@@ -58,7 +58,7 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
     }
 
     @Override
-    public List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime from, OffsetDateTime to, UUID identityUserId, UUID surveyId, boolean outsideResearchArea) {
+    public List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime from, OffsetDateTime to, UUID identityUserId, UUID surveyId, Boolean outsideResearchArea) {
         if (from != null && to != null && from.isAfter(to)) {
             throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
         }
@@ -79,8 +79,13 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
             jpql.append("AND ld.participation_id IS NOT NULL ");
             jpql.append("AND EXISTS (SELECT 1 FROM survey_participation sp WHERE sp.id = ld.participation_id AND sp.survey_id = :surveyId) ");
         }
-        if (outsideResearchArea) {
-            jpql.append("AND ld.outside_research_area = 1 ");
+        if (outsideResearchArea != null) {
+            if (outsideResearchArea == Boolean.TRUE){
+                jpql.append("AND ld.outside_research_area = 1 ");
+            }
+            else {
+                jpql.append("AND ld.outside_research_area = 0 ");
+            }
         }
 
         jpql.append("ORDER BY ld.date_time");
