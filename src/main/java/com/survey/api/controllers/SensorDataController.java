@@ -95,12 +95,13 @@ public class SensorDataController {
     @CommonApiResponse401
     @CommonApiResponse403
     public ResponseEntity<List<ResponseSensorDataDto>> getSensorData(
-            @RequestParam("from") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime from,
-            @RequestParam("to") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to){
+            @RequestParam(value = "from", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime from,
+            @RequestParam(value = "to", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to,
+            @RequestParam(value = "respondentId", required = false) UUID identityUserId){
 
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
 
-        List<ResponseSensorDataDto> dtos = sensorDataService.getSensorData(from, to);
+        List<ResponseSensorDataDto> dtos = sensorDataService.getSensorData(from, to, identityUserId);
         return ResponseEntity.status(HttpStatus.OK).body(dtos);
     }
 

@@ -7,12 +7,18 @@ import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.SensorData;
 import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.SensorDataRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -24,13 +30,15 @@ public class SensorDataServiceImpl implements SensorDataService {
     private final ModelMapper modelMapper;
     private final SensorDataRepository sensorDataRepository;
     private final IdentityUserRepository identityUserRepository;
+    private final EntityManager entityManager;
 
     @Autowired
-    public SensorDataServiceImpl(ClaimsPrincipalService claimsPrincipalService, ModelMapper modelMapper, SensorDataRepository sensorDataRepository, IdentityUserRepository identityUserRepository) {
+    public SensorDataServiceImpl(ClaimsPrincipalService claimsPrincipalService, ModelMapper modelMapper, SensorDataRepository sensorDataRepository, IdentityUserRepository identityUserRepository, EntityManager entityManager) {
         this.claimsPrincipalService = claimsPrincipalService;
         this.modelMapper = modelMapper;
         this.sensorDataRepository = sensorDataRepository;
         this.identityUserRepository = identityUserRepository;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -54,13 +62,33 @@ public class SensorDataServiceImpl implements SensorDataService {
     }
 
     @Override
-    public List<ResponseSensorDataDto> getSensorData(OffsetDateTime from, OffsetDateTime to) {
-        if (from.isAfter(to)){
-            throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
+    public List<ResponseSensorDataDto> getSensorData(OffsetDateTime dateFrom, OffsetDateTime dateTo, UUID identityUserId) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<SensorData> cq = cb.createQuery(SensorData.class);
+        Root<SensorData> root = cq.from(SensorData.class);
+
+        List<Predicate> predicates = new ArrayList<>();
+
+        if (dateFrom != null && dateTo != null) {
+            if (dateFrom.isAfter(dateTo)){
+                throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
+            }
+            predicates.add(cb.between(root.get("dateTime"), dateFrom, dateTo));
+        } else if (dateFrom != null) {
+            predicates.add(cb.greaterThanOrEqualTo(root.get("dateTime"), dateFrom));
+        } else if (dateTo != null) {
+            predicates.add(cb.lessThanOrEqualTo(root.get("dateTime"), dateTo));
         }
 
-        List<SensorData> dbEntityList = sensorDataRepository.findAllBetween(from, to);
-        return mapToResponseDtoList(dbEntityList);
+        if (identityUserId != null) {
+            predicates.add(cb.equal(root.get("respondent").get("id"), identityUserId));
+        }
+
+        cq.select(root).where(cb.and(predicates.toArray(new Predicate[0])));
+
+        List<SensorData> sensorDataList = entityManager.createQuery(cq).getResultList();
+
+        return mapToResponseDtoList(sensorDataList);
     }
 
     @Override
