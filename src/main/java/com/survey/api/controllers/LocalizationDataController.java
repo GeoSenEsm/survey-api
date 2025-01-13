@@ -101,7 +101,7 @@ public class LocalizationDataController {
             @RequestParam(value = "to", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to,
             @RequestParam(value = "respondentId", required = false) UUID identityUserId,
             @RequestParam(value = "surveyId", required = false) UUID surveyId,
-            @RequestParam(value = "outsideResearchArea", required = false) boolean outsideResearchArea){
+            @RequestParam(value = "outsideResearchArea", required = false) Boolean outsideResearchArea){
 
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
 
