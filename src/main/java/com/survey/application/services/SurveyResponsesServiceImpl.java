@@ -219,6 +219,9 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             predicates.add(cb.equal(root.get("identityUser").get("id"), identityUserId));
         }
         if (dateFrom != null && dateTo != null) {
+            if (dateFrom.isAfter(dateTo)){
+                throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
+            }
             predicates.add(cb.between(root.get("date"), dateFrom, dateTo));
         } else if (dateFrom != null) {
             predicates.add(cb.greaterThanOrEqualTo(root.get("date"), dateFrom));
