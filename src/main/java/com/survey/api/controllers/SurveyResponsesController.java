@@ -114,9 +114,10 @@ public class SurveyResponsesController {
                     - `surveyId`: Filter results by a specific survey ID.
                     - `respondentId`: Filter results by a specific respondent's ID.
                     - `dateFrom` and `dateTo`: Specify a date range for the results.
+                    - `outsideResearchArea`: Specify if you want to get answers only from research area, or outside research area.
                 - **Access:**
                   - ADMIN
-                    """)
+                """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200",
                     description = "Survey results retrieved successfully.",
@@ -132,10 +133,11 @@ public class SurveyResponsesController {
             @RequestParam(value = "surveyId", required = false) UUID surveyId,
             @RequestParam(value = "respondentId", required = false) UUID identityUserId,
             @RequestParam(value = "dateFrom", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime dateFrom,
-            @RequestParam(value = "dateTo", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime dateTo) {
+            @RequestParam(value = "dateTo", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime dateTo,
+            @RequestParam(value = "outsideResearchArea", required = false) Boolean outsideResearchArea) {
 
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
-        List<SurveyResultDto> results = surveyResponsesService.getSurveyResults(surveyId, identityUserId, dateFrom, dateTo);
+        List<SurveyResultDto> results = surveyResponsesService.getSurveyResults(surveyId, identityUserId, dateFrom, dateTo, outsideResearchArea);
         return ResponseEntity.status(HttpStatus.OK).body(results);
     }
 
@@ -146,7 +148,7 @@ public class SurveyResponsesController {
                 - Allows an administrator to fetch all survey results, localization data and sensor data for all respondents.
                 - **Access:**
                   - ADMIN
-                    """)
+                """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200",
                     description = "Results retrieved successfully.",

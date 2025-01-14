@@ -78,7 +78,7 @@ public class SensorDataController {
     @Operation(
             summary = "Fetch sensor readings.",
             description = """
-                    - Allows to fetch sensor reading filtered by date and time.
+                    - Allows to fetch sensor readings filtered by date and respondentId.
                     - Date and time must be passed in UTC.
                     - **Access:**
                         - ADMIN

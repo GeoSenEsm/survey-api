@@ -75,7 +75,7 @@ class SurveyResponsesServiceImplTest {
         when(entityManager.createQuery(mockCriteriaQuery)).thenReturn(mockTypedQuery);
         when(mockTypedQuery.getResultList()).thenReturn(List.of(surveyParticipation));
 
-        List<SurveyResultDto> results = surveyResponsesService.getSurveyResults(null, null, null, null);
+        List<SurveyResultDto> results = surveyResponsesService.getSurveyResults(null, null, null, null, null);
 
         assertFalse(results.isEmpty());
         assertEquals(SURVEY_NAME, results.get(0).getSurveyName());

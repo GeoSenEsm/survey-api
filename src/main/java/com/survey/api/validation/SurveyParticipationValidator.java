@@ -4,6 +4,7 @@ import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.domain.repository.SurveyParticipationRepository;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import org.springframework.security.authentication.BadCredentialsException;
 
 import java.util.UUID;
 
@@ -18,9 +19,12 @@ public class SurveyParticipationValidator implements ConstraintValidator<ValidSu
 
     @Override
     public boolean isValid(UUID surveyParticipationId, ConstraintValidatorContext constraintValidatorContext) {
-        UUID respondentId = claimsPrincipalService.findIdentityUser().getId();
-
-        return surveyParticipationId == null || validateSurveyParticipationId(surveyParticipationId, respondentId);
+        try {
+            UUID respondentId = claimsPrincipalService.findIdentityUser().getId();
+            return surveyParticipationId == null || validateSurveyParticipationId(surveyParticipationId, respondentId);
+        } catch (BadCredentialsException e){
+            return false;
+        }
     }
 
     private boolean validateSurveyParticipationId(UUID surveyParticipationId, UUID respondentId){
