@@ -7,13 +7,14 @@ import com.survey.domain.models.SurveyParticipation;
 import com.survey.domain.repository.LocalizationDataRepository;
 import com.survey.domain.repository.SurveyParticipationRepository;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.Query;
+import jakarta.persistence.criteria.*;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -58,54 +59,49 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
     }
 
     @Override
-    public List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime from, OffsetDateTime to, UUID identityUserId, UUID surveyId, Boolean outsideResearchArea) {
-        if (from != null && to != null && from.isAfter(to)) {
-            throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
-        }
+    public List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime dateFrom, OffsetDateTime dateTo, UUID identityUserId, UUID surveyId, Boolean outsideResearchArea) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<LocalizationData> cq = cb.createQuery(LocalizationData.class);
 
-        StringBuilder jpql = new StringBuilder("SELECT ld.* FROM localization_data ld ");
-        jpql.append("WHERE 1=1 ");
+        Root<LocalizationData> root = cq.from(LocalizationData.class);
+        root.fetch("surveyParticipation", JoinType.LEFT);
 
-        if (from != null) {
-            jpql.append("AND ld.date_time >= :fromDate ");
-        }
-        if (to != null) {
-            jpql.append("AND ld.date_time <= :toDate ");
-        }
-        if (identityUserId != null) {
-            jpql.append("AND ld.respondent_id = :identityUserId ");
-        }
+        List<Predicate> predicates = new ArrayList<>();
+
         if (surveyId != null) {
-            jpql.append("AND ld.participation_id IS NOT NULL ");
-            jpql.append("AND EXISTS (SELECT 1 FROM survey_participation sp WHERE sp.id = ld.participation_id AND sp.survey_id = :surveyId) ");
+            predicates.add(cb.equal(root.get("surveyParticipation").get("survey").get("id"), surveyId));
         }
-        if (outsideResearchArea != null) {
+
+        if(identityUserId != null){
+            predicates.add(cb.equal(root.get("identityUser").get("id"), identityUserId));
+        }
+
+        if (dateFrom != null && dateTo != null) {
+            if (dateFrom.isAfter(dateTo)){
+                throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
+            }
+            predicates.add(cb.between(root.get("dateTime"), dateFrom, dateTo));
+        } else if (dateFrom != null) {
+            predicates.add(cb.greaterThanOrEqualTo(root.get("dateTime"), dateFrom));
+        } else if (dateTo != null) {
+            predicates.add(cb.lessThanOrEqualTo(root.get("dateTime"), dateTo));
+        }
+
+        if (outsideResearchArea != null){
             if (outsideResearchArea == Boolean.TRUE){
-                jpql.append("AND ld.outside_research_area = 1 ");
+                predicates.add(cb.equal(root.get("outsideResearchArea"), Boolean.TRUE));
             }
             else {
-                jpql.append("AND ld.outside_research_area = 0 ");
+                predicates.add(cb.equal(root.get("outsideResearchArea"), Boolean.FALSE));
             }
         }
 
-        jpql.append("ORDER BY ld.date_time");
+        cq.select(root)
+                .where(cb.and(predicates.toArray(new Predicate[0])))
+                .orderBy(cb.asc(root.get("dateTime")));
 
-        Query query = entityManager.createNativeQuery(jpql.toString(), LocalizationData.class);
-
-        if (from != null) {
-            query.setParameter("fromDate", from);
-        }
-        if (to != null) {
-            query.setParameter("toDate", to);
-        }
-        if (identityUserId != null) {
-            query.setParameter("identityUserId", identityUserId);
-        }
-        if (surveyId != null) {
-            query.setParameter("surveyId", surveyId);
-        }
-
-        List<LocalizationData> dbEntityList = query.getResultList();
+        List<LocalizationData> dbEntityList = entityManager.createQuery(cq)
+                .getResultList();
 
         return dbEntityList.stream()
                 .map(this::mapToDto)
