@@ -202,7 +202,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
 
     @Override
     @Transactional
-    public List<SurveyResultDto> getSurveyResults(UUID surveyId, UUID identityUserId, OffsetDateTime dateFrom, OffsetDateTime dateTo) {
+    public List<SurveyResultDto> getSurveyResults(UUID surveyId, UUID identityUserId, OffsetDateTime dateFrom, OffsetDateTime dateTo, Boolean outsideResearchArea) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<SurveyParticipation> cq = cb.createQuery(SurveyParticipation.class);
 
@@ -215,9 +215,11 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         if (surveyId != null) {
             predicates.add(cb.equal(root.get("survey").get("id"), surveyId));
         }
+
         if (identityUserId != null) {
             predicates.add(cb.equal(root.get("identityUser").get("id"), identityUserId));
         }
+
         if (dateFrom != null && dateTo != null) {
             if (dateFrom.isAfter(dateTo)){
                 throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
@@ -227,6 +229,15 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             predicates.add(cb.greaterThanOrEqualTo(root.get("date"), dateFrom));
         } else if (dateTo != null) {
             predicates.add(cb.lessThanOrEqualTo(root.get("date"), dateTo));
+        }
+
+        if (outsideResearchArea != null){
+            if (outsideResearchArea == Boolean.TRUE){
+                predicates.add(cb.equal(root.get("localizationData").get("outsideResearchArea"), Boolean.TRUE));
+            }
+            else {
+                predicates.add(cb.equal(root.get("localizationData").get("outsideResearchArea"), Boolean.FALSE));
+            }
         }
 
         cq.select(root).where(cb.and(predicates.toArray(new Predicate[0])));
