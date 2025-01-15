@@ -9,6 +9,8 @@ If you inspect `main/resources/application.properties` you can see that there ar
 - `ADMIN_USER_PASSWORD` - password for admin user that will be created on first application startup
 - `ALLOWED_ORIGINS` - a comma-separated list of allowed origins for CORS (e.g. `https://*.example.com,http://localhost:*`). If not set, the application will allow all origins by default (`*`),
 - `ENABLE_SWAGGER` - swagger is disabled by default. Set as true to access swagger documentation.
+- `JWT_KEY` - key for jwt tokens generation
+- `JWT_EXPIRATION` - days of jwt token lifetime
 
 The best idea is to configure your IDE, so that it sets those variables always, when you run the application. 
 
@@ -19,8 +21,18 @@ To configure your IntelliJ Idea to the following:
 - Go to `Debug` -> `Edit configurations` -> `Edit environmental variables`
 - Add proper variables with values and save changes
 
-## Documentation
+# Documentation
 
 - Remember to set `ENABLE_SWAGGER` environmental variable as true.
 - Run this API
 - Go to http://[host]:[port]/swagger-ui.html
+
+# Build docker image
+
+You are able to build a docker image with this application simply by runnning 
+
+```bash
+docker build -t your_image_name:your_tag .
+```
+
+The interenal docker image port, the applicatoin is listening on, is `8080`.
