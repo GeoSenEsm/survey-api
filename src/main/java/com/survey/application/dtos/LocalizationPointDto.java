@@ -28,4 +28,10 @@ public class LocalizationPointDto {
     @Schema(description = "Date and time of given geolocation reading in UTC.")
     private OffsetDateTime dateTime;
     private Boolean outsideResearchArea;
+
+    @Schema(description = "Accuracy of location measurement in meters.",
+            example = "20.50",
+            minimum = "0.0",
+            maximum = "999999.99")
+    private BigDecimal accuracyMeters;
 }

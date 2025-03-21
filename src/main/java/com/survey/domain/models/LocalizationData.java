@@ -35,4 +35,7 @@ public class LocalizationData {
     private byte[] rowVersion;
 
     private Boolean outsideResearchArea;
+
+    @Column(name = "accuracy_meters")
+    private BigDecimal accuracyMeters;
 }

@@ -44,4 +44,10 @@ public class ResponseLocalizationDto {
 
     @Schema(example = "2001")
     private Long rowVersion;
+
+    @Schema(description = "Accuracy of location measurement in meters.",
+            example = "20.50",
+            minimum = "0.0",
+            maximum = "999999.99")
+    private BigDecimal accuracyMeters;
 }

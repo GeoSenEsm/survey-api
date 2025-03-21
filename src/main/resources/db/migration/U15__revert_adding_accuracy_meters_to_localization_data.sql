@@ -1,0 +1,1 @@
+ALTER TABLE localization_data DROP COLUMN accuracy_meters;

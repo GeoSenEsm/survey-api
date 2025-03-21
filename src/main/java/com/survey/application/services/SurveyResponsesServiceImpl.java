@@ -313,7 +313,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                         ld.getLongitude(),
                         ld.getDateTime(),
                         ld.getOutsideResearchArea(),
-                        ld.getSurveyParticipation() != null ? ld.getSurveyParticipation().getId() : null
+                        ld.getSurveyParticipation() != null ? ld.getSurveyParticipation().getId() : null,
+                        ld.getAccuracyMeters()
                 ))
                 .collect(Collectors.toList());
     }
@@ -401,7 +402,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     }
     private LocalizationPointDto extractLocalizationData(SurveyParticipation sp){
         if(sp.getLocalizationData() != null){
-            return new LocalizationPointDto(sp.getLocalizationData().getLatitude(), sp.getLocalizationData().getLongitude(), sp.getLocalizationData().getDateTime(), sp.getLocalizationData().getOutsideResearchArea());
+            return new LocalizationPointDto(sp.getLocalizationData().getLatitude(), sp.getLocalizationData().getLongitude(), sp.getLocalizationData().getDateTime(), sp.getLocalizationData().getOutsideResearchArea(), sp.getLocalizationData().getAccuracyMeters());
         }
         return null;
     }
