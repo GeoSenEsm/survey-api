@@ -34,8 +34,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class LocalizationDataControllerIntegrationTest {
     private static final BigDecimal VALID_LATITUDE = new BigDecimal("52.237049");
     private static final BigDecimal VALID_LONGITUDE = new BigDecimal("21.017532");
+    private static final BigDecimal VALID_ACCURACY = new BigDecimal("7.55");
     private static final BigDecimal INVALID_LATITUDE = new BigDecimal("60.237049");
     private static final BigDecimal INVALID_LONGITUDE = new BigDecimal("60.017532");
+    private static final BigDecimal NEGATIVE_ACCURACY = new BigDecimal("-1.0");
+    private static final BigDecimal OVERFLOW_ACCURACY = new BigDecimal("1234567.89");
     private static final String ADMIN_PASSWORD = "testAdminPassword";
     private static final String RESPONDENT_PASSWORD = "testRespondentPassword";
 
@@ -70,6 +73,7 @@ public class LocalizationDataControllerIntegrationTest {
         localizationDataDto.setLatitude(VALID_LATITUDE);
         localizationDataDto.setLongitude(VALID_LONGITUDE);
         localizationDataDto.setDateTime(OffsetDateTime.now(UTC));
+        localizationDataDto.setAccuracyMeters(VALID_ACCURACY);
 
         var response = webTestClient.post()
                 .uri("/api/localization")
@@ -85,6 +89,7 @@ public class LocalizationDataControllerIntegrationTest {
         assertThat(response).hasSize(1);
         assertThat(response.get(0).getLatitude()).isEqualByComparingTo(localizationDataDto.getLatitude());
         assertThat(response.get(0).getLongitude()).isEqualByComparingTo(localizationDataDto.getLongitude());
+        assertThat(response.get(0).getAccuracyMeters()).isEqualByComparingTo(localizationDataDto.getAccuracyMeters());
         assertThat(response.get(0).getRespondentId()).isEqualTo(respondent.getId());
     }
 
@@ -156,6 +161,7 @@ public class LocalizationDataControllerIntegrationTest {
         localizationDataDto.setLatitude(VALID_LATITUDE);
         localizationDataDto.setLongitude(VALID_LONGITUDE);
         localizationDataDto.setDateTime(OffsetDateTime.now(UTC));
+        localizationDataDto.setAccuracyMeters(VALID_ACCURACY);
 
         webTestClient.post()
                 .uri("/api/localization")
@@ -166,6 +172,49 @@ public class LocalizationDataControllerIntegrationTest {
                 .expectStatus().isBadRequest();
 
     }
+
+    @Test
+    void saveLocalizationData_NegativeAccuracyMeters_ShouldReturnBadRequest(){
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
+        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
+
+        LocalizationDataDto localizationDataDto = new LocalizationDataDto();
+
+        localizationDataDto.setLatitude(VALID_LATITUDE);
+        localizationDataDto.setLongitude(VALID_LONGITUDE);
+        localizationDataDto.setDateTime(OffsetDateTime.now(UTC));
+        localizationDataDto.setAccuracyMeters(NEGATIVE_ACCURACY);
+
+        webTestClient.post()
+                .uri("/api/localization")
+                .header("Authorization", "Bearer " + respondentToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(List.of(localizationDataDto))
+                .exchange()
+                .expectStatus().isBadRequest();
+    }
+
+    @Test
+    void saveLocalizationData_OverflowAccuracyMeters_ShouldReturnBadRequest(){
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
+        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
+
+        LocalizationDataDto localizationDataDto = new LocalizationDataDto();
+
+        localizationDataDto.setLatitude(VALID_LATITUDE);
+        localizationDataDto.setLongitude(VALID_LONGITUDE);
+        localizationDataDto.setDateTime(OffsetDateTime.now(UTC));
+        localizationDataDto.setAccuracyMeters(OVERFLOW_ACCURACY);
+
+        webTestClient.post()
+                .uri("/api/localization")
+                .header("Authorization", "Bearer " + respondentToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(List.of(localizationDataDto))
+                .exchange()
+                .expectStatus().isBadRequest();
+    }
+
 
     @Test
     void getLocalizationData_InvalidRange_ShouldReturnBadRequest() {

@@ -32,4 +32,7 @@ public class AllResultsLocalizationDataDto {
 
     @Schema(description = "Unique identifier of the survey participation associated with this localization data.")
     private UUID surveyParticipationId;
+
+    @Schema(description = "Accuracy of given geolocation measurement in meters.")
+    private BigDecimal accuracyMeters;
 }

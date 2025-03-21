@@ -38,4 +38,12 @@ public class LocalizationDataDto {
     @Schema(description = "Precision up to 6 decimal places.",
             example = "21.020921")
     private BigDecimal longitude;
+
+    @DecimalMin(value = "0.0")
+    @DecimalMax(value = "999999.99")
+    @Digits(integer = 6, fraction = 2)
+    @Schema(description = "Accuracy of location measurement in meters. Max value 999999.99",
+            example = "20.50")
+    private BigDecimal accuracyMeters;
+
 }
