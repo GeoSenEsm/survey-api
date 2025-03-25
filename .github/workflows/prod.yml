@@ -28,4 +28,4 @@ jobs:
       with:
         context: .
         push: true
-        tags: ghcr.io/projekt-inzynierski/survey-api:prod
+        tags: ghcr.io/geosenesm/survey-api:prod
