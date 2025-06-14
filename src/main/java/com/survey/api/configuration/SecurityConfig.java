@@ -84,7 +84,7 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.PUT, "/api/sensormac/**").permitAll();
                     r.requestMatchers(HttpMethod.DELETE, "/api/sensormac/**").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/sensormac/**").permitAll();
-                    r.requestMatchers(HttpMethod.GET, "/api/phonenumber").permitAll
+                    r.requestMatchers(HttpMethod.GET, "/api/phonenumber").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/phonenumber/**").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/phonenumber/**").permitAll();
                     r.requestMatchers(HttpMethod.PUT, "/api/phonenumber/**").permitAll();
