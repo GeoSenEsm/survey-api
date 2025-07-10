@@ -76,7 +76,7 @@ public class SurveySendingPolicyServiceImpl implements SurveySendingPolicyServic
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<SurveySendingPolicyDto> getSurveysSendingPolicyById(UUID surveyId) {
         List<SurveySendingPolicy> surveySendingPolicies = surveySendingPolicyRepository.findAllBySurveyId(surveyId);
 

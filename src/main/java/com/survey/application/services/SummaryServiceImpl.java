@@ -3,9 +3,9 @@ package com.survey.application.services;
 import com.survey.application.dtos.HistogramDataDto;
 import com.survey.domain.models.*;
 import com.survey.domain.repository.SurveyParticipationRepository;
-import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -24,7 +24,7 @@ public class SummaryServiceImpl implements SummaryService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<HistogramDataDto> getHistogramData(UUID surveyId, Date date) {
 
         LocalDate localDate = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();

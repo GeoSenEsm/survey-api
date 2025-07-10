@@ -1,5 +1,6 @@
 package com.survey.application.services;
 
+import com.survey.api.handlers.GlobalExceptionHandler;
 import com.survey.domain.models.SurveyParticipationTimeSlot;
 import com.survey.domain.models.SurveySendingPolicy;
 import com.survey.domain.repository.SurveyParticipationRepository;
@@ -11,9 +12,12 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 @Service
 public class SurveyParticipationTimeValidationServiceImpl implements SurveyParticipationTimeValidationService{
+
+    private static final Logger LOGGER = Logger.getLogger(SurveyParticipationTimeValidationServiceImpl.class.getName());
 
     private static final int ALLOWED_LATE_MINUTES = 5;
 
@@ -39,7 +43,7 @@ public class SurveyParticipationTimeValidationServiceImpl implements SurveyParti
         }
 
         if (!isSurveyFinishDateBeforeCurrentTime(surveyFinishDate)){
-            throw new IllegalArgumentException("Survey finish date is from the future.");
+            LOGGER.severe("Survey finish date is from the future. " + surveyFinishDate + " vs current date " +  OffsetDateTime.now(ZoneOffset.UTC));
         }
 
         if (hasRespondentParticipatedInSurveyInSpecifiedTimeSlot(surveyId, identityUserId, timeSlot)){

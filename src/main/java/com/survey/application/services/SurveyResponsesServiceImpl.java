@@ -250,7 +250,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<AllResultsDto> getAllSurveyResults() {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<IdentityUser> cq = cb.createQuery(IdentityUser.class);
