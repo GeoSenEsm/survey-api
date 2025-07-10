@@ -68,7 +68,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getAll(RespondentFilterOption filterOption, Integer amount, OffsetDateTime from, OffsetDateTime to){
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<IdentityUser> cq = cb.createQuery(IdentityUser.class);
@@ -90,7 +90,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public Map<String, Object> getFromUserContext(){
         UUID currentUserId = claimsPrincipalService.findIdentityUser().getId();
 

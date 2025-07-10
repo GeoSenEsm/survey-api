@@ -48,7 +48,7 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<InitialSurveyQuestionResponseDto> getInitialSurvey() {
         IdentityUser identityUser = claimsPrincipalService.findIdentityUser();
         String userRole = identityUser.getRole();
