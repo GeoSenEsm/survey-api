@@ -60,7 +60,7 @@ public class SurveyParticipationTimeValidationServiceImpl implements SurveyParti
         if (timeSlot == null ||
                 !isTimeslotStartInThePast(timeSlot) ||
                 !areSurveyStartAndFinishDatesWithinGivenTimeSlot(timeSlot, surveyStartDate, surveyFinishDate) ||
-                !isSurveyFinishDateBeforeCurrentTime(surveyFinishDate) ||
+                //!isSurveyFinishDateBeforeCurrentTime(surveyFinishDate) ||
                 hasRespondentParticipatedInSurveyInSpecifiedTimeSlot(surveyId, identityUserId, timeSlot)) {
             return null;
         }
