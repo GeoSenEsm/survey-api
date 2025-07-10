@@ -38,9 +38,14 @@ public class SurveyParticipationTimeValidationServiceImpl implements SurveyParti
             throw new IllegalArgumentException("SurveyStartDate and/or surveyFinishDate do not fit in time slot.");
         }
 
-        if (!isSurveyFinishDateBeforeCurrentTime(surveyFinishDate)){
-            throw new IllegalArgumentException("Survey finish date is from the future.");
-        }
+
+        /*
+        * Disabled on 10.07.2025 by Mikołaj Gawor
+        * Condition causes problems in production system and is not necessary for the app to function properly.
+        * */
+//        if (!isSurveyFinishDateBeforeCurrentTime(surveyFinishDate)){
+//            throw new IllegalArgumentException("Survey finish date is from the future.");
+//        }
 
         if (hasRespondentParticipatedInSurveyInSpecifiedTimeSlot(surveyId, identityUserId, timeSlot)){
             throw new IllegalArgumentException("Respondent already participated in this survey in this time slot.");
@@ -56,7 +61,7 @@ public class SurveyParticipationTimeValidationServiceImpl implements SurveyParti
         if (timeSlot == null ||
                 !isTimeslotStartInThePast(timeSlot) ||
                 !areSurveyStartAndFinishDatesWithinGivenTimeSlot(timeSlot, surveyStartDate, surveyFinishDate) ||
-                !isSurveyFinishDateBeforeCurrentTime(surveyFinishDate) ||
+//                !isSurveyFinishDateBeforeCurrentTime(surveyFinishDate) || Disabled on 10.07.2025 by Mikołaj Gawor
                 hasRespondentParticipatedInSurveyInSpecifiedTimeSlot(surveyId, identityUserId, timeSlot)) {
             return null;
         }
