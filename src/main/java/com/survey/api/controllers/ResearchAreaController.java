@@ -44,6 +44,7 @@ public class ResearchAreaController {
                         - Points must be send in counter clockwise order.
                     - Endpoint takes a list of localization data points (latitude, longitude) in order to define research area.
                     - Research area is just a polygon that defines the area in which respondents should be.
+                    - Research area polygon can be created with min. 3, max. 250 geolocation points.
                     - It is not mandatory to set research area. If it it set, it will be possible to filter survey responses that have been sent from outside this area.
                     - What if respondents already sent their localization data but I want to change research area?
                         - When new research area polygon is uploaded, all currently existing localization data points have their `outsideResearchArea` parameter recalculated.

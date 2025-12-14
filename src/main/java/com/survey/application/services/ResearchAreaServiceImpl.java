@@ -38,6 +38,9 @@ public class ResearchAreaServiceImpl implements ResearchAreaService {
         if (researchAreaDtoList == null || researchAreaDtoList.size() < 3) {
             throw new BadRequestException("The research area list must contain at least 3 elements.");
         }
+        if (researchAreaDtoList.size() > 250) {
+            throw new BadRequestException("The research area list can contain max. 250 elements");
+        }
 
         researchAreaRepository.deleteAll();
         researchAreaRepository.flush();
