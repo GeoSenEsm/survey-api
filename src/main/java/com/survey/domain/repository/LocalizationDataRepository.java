@@ -1,11 +1,13 @@
 package com.survey.domain.repository;
 
 import com.survey.domain.models.LocalizationData;
+import com.survey.domain.models.IdentityUser;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -17,5 +19,7 @@ public interface LocalizationDataRepository extends JpaRepository<LocalizationDa
     boolean existsByRespondentIdAndParticipationId(
             @Param("respondentId") UUID respondentId,
             @Param("participationId") UUID participationId);
+
+    List<LocalizationData> findAllByIdentityUser(IdentityUser identityUser);
 
 }

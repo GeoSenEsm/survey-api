@@ -1,7 +1,7 @@
 package com.survey.application.services;
 
 import com.survey.application.dtos.HistogramDataDto;
-import com.survey.domain.models.*;
+import com.survey.domain.models.SurveyParticipation;
 import com.survey.domain.repository.SurveyParticipationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -9,7 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.*;
+import java.util.Date;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.UUID;
 
 @Service
 public class SummaryServiceImpl implements SummaryService {

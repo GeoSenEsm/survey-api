@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,4 +18,6 @@ public interface IdentityUserRepository extends JpaRepository<IdentityUser, UUID
 
     @Query("SELECT count(u) > 0 FROM IdentityUser u where u.id = :id and u.role = 'Respondent'")
     boolean existsById(@NonNull UUID id);
+
+    List<IdentityUser> findByRole(String roleName);
 }

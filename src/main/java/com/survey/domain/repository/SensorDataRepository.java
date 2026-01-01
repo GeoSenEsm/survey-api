@@ -1,6 +1,7 @@
 package com.survey.domain.repository;
 
 import com.survey.domain.models.SensorData;
+import com.survey.domain.models.IdentityUser;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -18,4 +19,6 @@ public interface SensorDataRepository extends JpaRepository<SensorData, UUID> {
 
     @Query(value = "SELECT MAX(sd.dateTime) FROM SensorData sd WHERE sd.respondent.id = :respondentId")
     Optional<OffsetDateTime> findDateOfLastEntryForRespondent(UUID respondentId);
+
+    List<SensorData> findAllByRespondent(IdentityUser respondent);
 }

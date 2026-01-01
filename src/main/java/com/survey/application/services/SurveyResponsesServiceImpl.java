@@ -8,7 +8,6 @@ import com.survey.domain.models.*;
 import com.survey.domain.models.enums.QuestionType;
 import com.survey.domain.repository.*;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.criteria.*;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -34,6 +33,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator;
     private final SurveyParticipationTimeValidationService surveyParticipationTimeValidationService;
     private final SensorDataRepository sensorDataRepository;
+    private final IdentityUserRepository identityUserRepository;
+    private final LocalizationDataRepository localizationDataRepository;
 
 
     @Autowired
@@ -44,7 +45,12 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             QuestionRepository questionRepository,
             ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl,
             ModelMapper modelMapper,
-            EntityManager entityManager, SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator, SurveyParticipationTimeValidationService surveyParticipationTimeValidationService, SensorDataRepository sensorDataRepository) {
+            EntityManager entityManager,
+            SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator,
+            SurveyParticipationTimeValidationService surveyParticipationTimeValidationService,
+            SensorDataRepository sensorDataRepository,
+            IdentityUserRepository identityUserRepository,
+            LocalizationDataRepository localizationDataRepository) {
         this.surveyParticipationRepository = surveyParticipationRepository;
         this.surveyRepository = surveyRepository;
         this.optionRepository = optionRepository;
@@ -55,6 +61,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         this.sendSurveyResponseDtoValidator = sendSurveyResponseDtoValidator;
         this.surveyParticipationTimeValidationService = surveyParticipationTimeValidationService;
         this.sensorDataRepository = sensorDataRepository;
+        this.identityUserRepository = identityUserRepository;
+        this.localizationDataRepository = localizationDataRepository;
     }
 
     Survey findSurveyById(UUID surveyId) {
@@ -65,7 +73,6 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private List<Question> findQuestionsByIds(List<UUID> questionIds, UUID surveyId) {
         return questionRepository.findAllByIds(surveyId, questionIds);
     }
-
 
     private SurveyParticipation saveSurveyParticipationOnline(IdentityUser identityUser, Survey survey, OffsetDateTime surveyStartDate, OffsetDateTime surveyFinishDate){
         OffsetDateTime surveyParticipationDateToSave = surveyParticipationTimeValidationService
@@ -201,48 +208,10 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<SurveyResultDto> getSurveyResults(UUID surveyId, UUID identityUserId, OffsetDateTime dateFrom, OffsetDateTime dateTo, Boolean outsideResearchArea) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<SurveyParticipation> cq = cb.createQuery(SurveyParticipation.class);
-
-        Root<SurveyParticipation> root = cq.from(SurveyParticipation.class);
-        root.fetch("localizationData", JoinType.LEFT);
-        root.fetch("sensorData", JoinType.LEFT);
-
-        List<Predicate> predicates = new ArrayList<>();
-
-        if (surveyId != null) {
-            predicates.add(cb.equal(root.get("survey").get("id"), surveyId));
-        }
-
-        if (identityUserId != null) {
-            predicates.add(cb.equal(root.get("identityUser").get("id"), identityUserId));
-        }
-
-        if (dateFrom != null && dateTo != null) {
-            if (dateFrom.isAfter(dateTo)){
-                throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
-            }
-            predicates.add(cb.between(root.get("date"), dateFrom, dateTo));
-        } else if (dateFrom != null) {
-            predicates.add(cb.greaterThanOrEqualTo(root.get("date"), dateFrom));
-        } else if (dateTo != null) {
-            predicates.add(cb.lessThanOrEqualTo(root.get("date"), dateTo));
-        }
-
-        if (outsideResearchArea != null){
-            if (outsideResearchArea == Boolean.TRUE){
-                predicates.add(cb.equal(root.get("localizationData").get("outsideResearchArea"), Boolean.TRUE));
-            }
-            else {
-                predicates.add(cb.equal(root.get("localizationData").get("outsideResearchArea"), Boolean.FALSE));
-            }
-        }
-
-        cq.select(root).where(cb.and(predicates.toArray(new Predicate[0])));
-        List<SurveyParticipation> participationList = entityManager.createQuery(cq)
-                .getResultList();
+        List<SurveyParticipation> participationList = surveyParticipationRepository
+                .findByFiltersWithFetch(surveyId, identityUserId, dateFrom, dateTo, outsideResearchArea);
 
         return participationList.stream()
                 .flatMap(this::mapParticipationToDto)
@@ -252,16 +221,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     @Override
     @Transactional(readOnly = true)
     public List<AllResultsDto> getAllSurveyResults() {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<IdentityUser> cq = cb.createQuery(IdentityUser.class);
-        Root<IdentityUser> root = cq.from(IdentityUser.class);
-
-        List<Predicate> predicates = new ArrayList<>();
-        predicates.add(cb.equal(root.get("role"), Role.RESPONDENT.getRoleName()));
-
-        cq.select(root).where(cb.and(predicates.toArray(new Predicate[0])));
-        List<IdentityUser> identityUserList = entityManager.createQuery(cq)
-                .getResultList();
+        List<IdentityUser> identityUserList = identityUserRepository.findByRole(Role.RESPONDENT.getRoleName());
 
         return identityUserList.stream()
                 .map(identityUser -> {
@@ -274,27 +234,15 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     }
 
     private List<SurveyParticipation> fetchSurveyParticipationForUser(IdentityUser identityUser) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<SurveyParticipation> cq = cb.createQuery(SurveyParticipation.class);
-        Root<SurveyParticipation> root = cq.from(SurveyParticipation.class);
-        cq.select(root).where(cb.equal(root.get("identityUser"), identityUser));
-        return entityManager.createQuery(cq).getResultList();
+        return surveyParticipationRepository.findAllByIdentityUser(identityUser);
     }
 
     private List<LocalizationData> fetchLocalizationDataForUser(IdentityUser identityUser) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<LocalizationData> cq = cb.createQuery(LocalizationData.class);
-        Root<LocalizationData> root = cq.from(LocalizationData.class);
-        cq.select(root).where(cb.equal(root.get("identityUser"), identityUser));
-        return entityManager.createQuery(cq).getResultList();
+        return localizationDataRepository.findAllByIdentityUser(identityUser);
     }
 
     private List<SensorData> fetchSensorDataForUser(IdentityUser identityUser) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<SensorData> cq = cb.createQuery(SensorData.class);
-        Root<SensorData> root = cq.from(SensorData.class);
-        cq.select(root).where(cb.equal(root.get("respondent"), identityUser));
-        return entityManager.createQuery(cq).getResultList();
+        return sensorDataRepository.findAllByRespondent(identityUser);
     }
     private AllResultsDto mapIdentityUserToDto(IdentityUser identityUser, List<LocalizationData> localizationDataList, List<SensorData> sensorDataList, List<SurveyParticipation> surveyParticipationList) {
         AllResultsDto allResultsDto = new AllResultsDto();
