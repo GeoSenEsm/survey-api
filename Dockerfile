@@ -6,7 +6,7 @@ COPY src ./src
 RUN mvn clean install
 
 
-FROM openjdk:17-jdk-alpine as publish
+FROM amazoncorretto:17-alpine as publish
 ARG JAR_FILE=target/*.jar
 COPY --from=build /app/target/api-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8080
