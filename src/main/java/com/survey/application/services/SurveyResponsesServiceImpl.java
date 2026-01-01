@@ -175,7 +175,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
 
     @Override
     @Transactional
-    public SurveyParticipationDto saveSurveyResponseOnline(SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto) throws InvalidAttributeValueException {
+    public SurveyParticipationDto saveSurveyResponseOnline(SendOnlineSurveyResponseDto sendOnlineSurveyResponseDto) {
         IdentityUser identityUser = claimsPrincipalServiceImpl.findIdentityUser();
         Survey survey = findSurveyById(sendOnlineSurveyResponseDto.getSurveyId());
 
