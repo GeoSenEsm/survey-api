@@ -1,20 +1,17 @@
 package com.survey.application.services;
 
+import com.survey.api.validation.SendSurveyResponseDtoValidator;
 import com.survey.application.dtos.SurveyResultDto;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.QuestionType;
+import com.survey.domain.repository.*;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.TypedQuery;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.modelmapper.ModelMapper;
 import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -24,9 +21,10 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest(classes = SurveyResponsesServiceImpl.class)
+@ExtendWith(MockitoExtension.class)
 class SurveyResponsesServiceImplTest {
 
     private static final String SURVEY_NAME = "Survey 1";
@@ -39,55 +37,98 @@ class SurveyResponsesServiceImplTest {
     private static final BigDecimal VALID_LONGITUDE = new BigDecimal("21.017532");
 
     @Mock
+    private SurveyParticipationRepository surveyParticipationRepository;
+
+    @Mock
+    private SurveyRepository surveyRepository;
+
+    @Mock
+    private OptionRepository optionRepository;
+
+    @Mock
+    private QuestionRepository questionRepository;
+
+    @Mock
+    private ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl;
+
+    @Mock
+    private ModelMapper modelMapper;
+
+    @Mock
     private EntityManager entityManager;
 
-    @InjectMocks
+    @Mock
+    private SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator;
+
+    @Mock
+    private SurveyParticipationTimeValidationService surveyParticipationTimeValidationService;
+
+    @Mock
+    private SensorDataRepository sensorDataRepository;
+
+    @Mock
+    private IdentityUserRepository identityUserRepository;
+
+    @Mock
+    private LocalizationDataRepository localizationDataRepository;
+
     private SurveyResponsesServiceImpl surveyResponsesService;
+
     private Survey survey;
     private IdentityUser user;
     private List<QuestionAnswer> questionAnswerList;
-    private LocalizationData localizationDataList;
+    private LocalizationData localizationData;
     private SurveyParticipation surveyParticipation;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
+        assertNotNull(surveyParticipationRepository);
+
+        surveyResponsesService = new SurveyResponsesServiceImpl(
+                surveyParticipationRepository,
+                surveyRepository,
+                optionRepository,
+                questionRepository,
+                claimsPrincipalServiceImpl,
+                modelMapper,
+                entityManager,
+                sendSurveyResponseDtoValidator,
+                surveyParticipationTimeValidationService,
+                sensorDataRepository,
+                identityUserRepository,
+                localizationDataRepository
+        );
+
         survey = createSurvey();
         user = createIdentityUser();
         questionAnswerList = createQuestionAnswerList();
-        localizationDataList = createLocalizationDataList();
+        localizationData = createLocalizationData();
         surveyParticipation = createSurveyParticipation();
     }
 
     @Test
     void getSurveyResults_shouldReturnAllSurveyResults_WhenNoParams() {
-        CriteriaBuilder mockCriteriaBuilder = Mockito.mock(CriteriaBuilder.class);
-        CriteriaQuery<SurveyParticipation> mockCriteriaQuery = Mockito.mock(CriteriaQuery.class);
-        Root<SurveyParticipation> mockRoot = Mockito.mock(Root.class);
-        TypedQuery<SurveyParticipation> mockTypedQuery = Mockito.mock(TypedQuery.class);
+        // given
+        when(surveyParticipationRepository.findByFiltersWithFetch(null, null, null, null, null))
+                .thenReturn(List.of(surveyParticipation));
 
-        when(entityManager.getCriteriaBuilder()).thenReturn(mockCriteriaBuilder);
-        when(mockCriteriaBuilder.createQuery(SurveyParticipation.class)).thenReturn(mockCriteriaQuery);
-        when(mockCriteriaQuery.from(SurveyParticipation.class)).thenReturn(mockRoot);
-
-        when(mockCriteriaQuery.select(mockRoot)).thenReturn(mockCriteriaQuery);
-        when(mockCriteriaQuery.where((Predicate) Mockito.any())).thenReturn(mockCriteriaQuery);
-
-        when(entityManager.createQuery(mockCriteriaQuery)).thenReturn(mockTypedQuery);
-        when(mockTypedQuery.getResultList()).thenReturn(List.of(surveyParticipation));
-
+        // when
         List<SurveyResultDto> results = surveyResponsesService.getSurveyResults(null, null, null, null, null);
 
+        // then
         assertFalse(results.isEmpty());
         assertEquals(SURVEY_NAME, results.get(0).getSurveyName());
+        assertEquals(user.getId(), results.get(0).getRespondentId());
     }
 
     private SurveyParticipation createSurveyParticipation() {
         SurveyParticipation participation = new SurveyParticipation();
+        participation.setId(UUID.randomUUID());
         participation.setSurvey(survey);
         participation.setDate(OffsetDateTime.now(ZoneOffset.UTC));
         participation.setIdentityUser(user);
         participation.setQuestionAnswers(questionAnswerList);
-        participation.setLocalizationData(localizationDataList);
+        participation.setLocalizationData(localizationData);
         return participation;
     }
 
@@ -104,11 +145,13 @@ class SurveyResponsesServiceImplTest {
         return user;
     }
 
-    private LocalizationData createLocalizationDataList(){
+    private LocalizationData createLocalizationData() {
         LocalizationData localizationData = new LocalizationData();
         localizationData.setLatitude(VALID_LATITUDE);
         localizationData.setLongitude(VALID_LONGITUDE);
         localizationData.setDateTime(OffsetDateTime.now());
+        localizationData.setOutsideResearchArea(false);
+        localizationData.setAccuracyMeters(BigDecimal.ONE);
         return localizationData;
     }
 

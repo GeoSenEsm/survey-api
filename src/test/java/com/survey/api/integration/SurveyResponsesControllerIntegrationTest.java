@@ -308,6 +308,66 @@ public class SurveyResponsesControllerIntegrationTest {
         assertThat(response.get(0).getSurveyName()).isEqualTo(SURVEY_NAME_1);
     }
 
+    @Test
+    void getResponsesResults_shouldReturnNoDuplicates_WhenParticipationHasMultipleRelations() {
+        // given: admin i respondent
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD_1);
+        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD_1);
+
+        IdentityUser respondent2 = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD_2);
+        String respondentToken2 = testUtils.authenticateAndGenerateToken(respondent2, RESPONDENT_PASSWORD_2);
+
+        ResponseSurveyDto survey = saveSurvey(createSurveyDto(SURVEY_NAME_1));
+        saveSurveySendingPolicy(survey.getId());
+
+        SensorDataDto sensorData = createSensorDataDto();
+        SendOnlineSurveyResponseDto surveyResponseWithSensor = createSendSurveyResponseOnline(survey, sensorData);
+
+        webTestClient.post()
+                .uri("/api/surveyresponses")
+                .header("Authorization", "Bearer " + respondentToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(surveyResponseWithSensor)
+                .exchange()
+                .expectStatus()
+                .isCreated();
+
+        SendOnlineSurveyResponseDto surveyResponseWithoutSensor = createSendSurveyResponseOnline(survey, null);
+
+        webTestClient.post()
+                .uri("/api/surveyresponses")
+                .header("Authorization", "Bearer " + respondentToken2)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(surveyResponseWithoutSensor)
+                .exchange()
+                .expectStatus()
+                .isCreated();
+
+        var response = webTestClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/api/surveyresponses/results")
+                        .queryParam("surveyId", survey.getId())
+                        .build())
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(SurveyResultDto.class)
+                .returnResult().getResponseBody();
+
+        assertThat(response).isNotNull();
+        assertThat(response).hasSize(2)
+                .as("Should return exactly 2 results without duplicates, even with LEFT JOIN FETCH on relations");
+
+        assertThat(response).allMatch(result -> result.getSurveyName().equals(SURVEY_NAME_1));
+
+        long resultsWithSensorData = response.stream()
+                .filter(result -> result.getSensorData() != null)
+                .count();
+        assertThat(resultsWithSensorData).isEqualTo(1)
+                .as("Exactly one result should have sensor data");
+    }
+
     private <T extends SendSurveyResponseDto> void populateSurveyResponseBase(T responseDto, ResponseSurveyDto survey, SensorDataDto sensorData) {
         SelectedOptionDto selectedOption = new SelectedOptionDto();
         selectedOption.setOptionId(survey.getSections().get(0).getQuestions().get(0).getOptions().get(0).getId());
