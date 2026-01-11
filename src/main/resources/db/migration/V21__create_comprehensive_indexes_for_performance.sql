@@ -115,7 +115,7 @@ GO
 
 CREATE NONCLUSTERED INDEX IX_question_section
 ON [dbo].[question] ([section_id] ASC, [order] ASC)
-INCLUDE ([content], [question_type], [is_required])
+INCLUDE ([content], [question_type], [required])
 WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON);
 GO
 
@@ -125,7 +125,7 @@ GO
 
 CREATE NONCLUSTERED INDEX IX_option_question
 ON [dbo].[option] ([question_id] ASC, [order] ASC)
-INCLUDE ([label], [image_name])
+INCLUDE ([label], [image_path])
 WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON);
 GO
 
