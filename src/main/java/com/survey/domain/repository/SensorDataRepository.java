@@ -21,4 +21,9 @@ public interface SensorDataRepository extends JpaRepository<SensorData, UUID> {
     Optional<OffsetDateTime> findDateOfLastEntryForRespondent(UUID respondentId);
 
     List<SensorData> findAllByRespondent(IdentityUser respondent);
+
+    @Query("SELECT DISTINCT sd FROM SensorData sd " +
+            "LEFT JOIN FETCH sd.surveyParticipation " +
+            "WHERE sd.respondent.id IN :respondentIds")
+    List<SensorData> findAllByRespondentIdsWithFetch(List<UUID> respondentIds);
 }

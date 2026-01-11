@@ -7,6 +7,7 @@ import com.survey.domain.models.SurveyParticipation;
 import com.survey.domain.repository.LocalizationDataRepository;
 import com.survey.domain.repository.SurveyParticipationRepository;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,23 +60,46 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime dateFrom, OffsetDateTime dateTo, UUID identityUserId, UUID surveyId, Boolean outsideResearchArea) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Build query for data
         CriteriaQuery<LocalizationData> cq = cb.createQuery(LocalizationData.class);
-
         Root<LocalizationData> root = cq.from(LocalizationData.class);
-        root.fetch("surveyParticipation", JoinType.LEFT);
 
+        // Add fetch joins to eagerly load associations and avoid N+1 queries
+        root.fetch("surveyParticipation", JoinType.LEFT);
+        root.fetch("identityUser", JoinType.INNER);
+
+        List<Predicate> predicates = buildPredicates(cb, root, dateFrom, dateTo, identityUserId, surveyId, outsideResearchArea);
+
+        cq.select(root)
+                .distinct(true)  // IMPORTANT: Prevents Hibernate from generating massive IN clause
+                .where(cb.and(predicates.toArray(new Predicate[0])))
+                .orderBy(cb.asc(root.get("dateTime")));
+
+        // Create typed query - no pagination, fetch all results
+        TypedQuery<LocalizationData> query = entityManager.createQuery(cq);
+
+        // Add query hints for better performance with large result sets
+        query.setHint("org.hibernate.fetchSize", 1000);
+        query.setHint("org.hibernate.readOnly", true);
+        query.setHint("org.hibernate.cacheable", false);
+
+        List<LocalizationData> dbEntityList = query.getResultList();
+
+        return dbEntityList.stream()
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    private List<Predicate> buildPredicates(CriteriaBuilder cb, Root<LocalizationData> root,
+                                           OffsetDateTime dateFrom, OffsetDateTime dateTo,
+                                           UUID identityUserId, UUID surveyId, Boolean outsideResearchArea) {
         List<Predicate> predicates = new ArrayList<>();
 
-        if (surveyId != null) {
-            predicates.add(cb.equal(root.get("surveyParticipation").get("survey").get("id"), surveyId));
-        }
-
-        if(identityUserId != null){
-            predicates.add(cb.equal(root.get("identityUser").get("id"), identityUserId));
-        }
-
+        // Date filter - ALWAYS present (most selective)
         if (dateFrom != null && dateTo != null) {
             if (dateFrom.isAfter(dateTo)){
                 throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
@@ -87,25 +111,22 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
             predicates.add(cb.lessThanOrEqualTo(root.get("dateTime"), dateTo));
         }
 
-        if (outsideResearchArea != null){
-            if (outsideResearchArea == Boolean.TRUE){
-                predicates.add(cb.equal(root.get("outsideResearchArea"), Boolean.TRUE));
-            }
-            else {
-                predicates.add(cb.equal(root.get("outsideResearchArea"), Boolean.FALSE));
-            }
+        // Survey ID filter - second most common
+        if (surveyId != null) {
+            predicates.add(cb.equal(root.get("surveyParticipation").get("survey").get("id"), surveyId));
         }
 
-        cq.select(root)
-                .where(cb.and(predicates.toArray(new Predicate[0])))
-                .orderBy(cb.asc(root.get("dateTime")));
+        // Identity user filter - optional
+        if(identityUserId != null){
+            predicates.add(cb.equal(root.get("identityUser").get("id"), identityUserId));
+        }
 
-        List<LocalizationData> dbEntityList = entityManager.createQuery(cq)
-                .getResultList();
+        // Outside research area filter - optional
+        if (outsideResearchArea != null){
+            predicates.add(cb.equal(root.get("outsideResearchArea"), outsideResearchArea));
+        }
 
-        return dbEntityList.stream()
-                .map(this::mapToDto)
-                .toList();
+        return predicates;
     }
 
 

@@ -8,12 +8,13 @@ import com.survey.domain.models.SensorData;
 import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.SensorDataRepository;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.*;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,11 +63,39 @@ public class SensorDataServiceImpl implements SensorDataService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ResponseSensorDataDto> getSensorData(OffsetDateTime dateFrom, OffsetDateTime dateTo, UUID identityUserId) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Build query for data with fetch join and distinct to prevent massive IN clause
         CriteriaQuery<SensorData> cq = cb.createQuery(SensorData.class);
         Root<SensorData> root = cq.from(SensorData.class);
 
+        // Add fetch join to eagerly load respondent and avoid N+1 queries
+        root.fetch("respondent", JoinType.INNER);
+
+        List<Predicate> predicates = buildPredicates(cb, root, dateFrom, dateTo, identityUserId);
+
+        cq.select(root)
+                .distinct(true)  // IMPORTANT: Prevents Hibernate from generating massive IN clause
+                .where(cb.and(predicates.toArray(new Predicate[0])))
+                .orderBy(cb.asc(root.get("dateTime")));
+
+        // Create typed query - no pagination, fetch all results
+        TypedQuery<SensorData> query = entityManager.createQuery(cq);
+
+        // Add query hints for better performance with large result sets
+        query.setHint("org.hibernate.fetchSize", 1000);
+        query.setHint("org.hibernate.readOnly", true);
+        query.setHint("org.hibernate.cacheable", false);
+
+        List<SensorData> sensorDataList = query.getResultList();
+
+        return mapToResponseDtoList(sensorDataList);
+    }
+
+    private List<Predicate> buildPredicates(CriteriaBuilder cb, Root<SensorData> root,
+                                           OffsetDateTime dateFrom, OffsetDateTime dateTo, UUID identityUserId) {
         List<Predicate> predicates = new ArrayList<>();
 
         if (dateFrom != null && dateTo != null) {
@@ -84,11 +113,7 @@ public class SensorDataServiceImpl implements SensorDataService {
             predicates.add(cb.equal(root.get("respondent").get("id"), identityUserId));
         }
 
-        cq.select(root).where(cb.and(predicates.toArray(new Predicate[0])));
-
-        List<SensorData> sensorDataList = entityManager.createQuery(cq).getResultList();
-
-        return mapToResponseDtoList(sensorDataList);
+        return predicates;
     }
 
     @Override

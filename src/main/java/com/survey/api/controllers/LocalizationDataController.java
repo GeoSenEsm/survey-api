@@ -78,9 +78,10 @@ public class LocalizationDataController {
     @Operation(
             summary = "Fetch a list of localization data points.",
             description = """
-                    - Fetch a list of localization data points that meed filtering criteria.
+                    - Fetch a list of localization data points that meet filtering criteria.
                     - `dateTime` is in UTC.
-                    - All filters are optional. If no filters are set, all available data will be returned.
+                    - **Optional filters:** from, to, respondentId, surveyId, outsideResearchArea
+                    - Optimized with internal batching to handle large datasets.
                     - **Access:**
                         - ADMIN
                     """
