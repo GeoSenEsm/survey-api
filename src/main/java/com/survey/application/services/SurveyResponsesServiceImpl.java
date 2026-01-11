@@ -223,14 +223,48 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     public List<AllResultsDto> getAllSurveyResults() {
         List<IdentityUser> identityUserList = identityUserRepository.findByRole(Role.RESPONDENT.getRoleName());
 
-        return identityUserList.stream()
-                .map(identityUser -> {
-                    List<LocalizationData> localizationDataList = fetchLocalizationDataForUser(identityUser);
-                    List<SensorData> sensorDataList = fetchSensorDataForUser(identityUser);
-                    List<SurveyParticipation> surveyParticipationList = fetchSurveyParticipationForUser(identityUser);
-                    return mapIdentityUserToDto(identityUser, localizationDataList, sensorDataList, surveyParticipationList);
-                })
-                .collect(Collectors.toList());
+        if (identityUserList.isEmpty()) {
+            return List.of();
+        }
+
+        // Batch users to prevent "query too long" error with IN clause
+        // 500 UUIDs ≈ 20,000 chars (safe limit, leaving room for SQL)
+        int batchSize = 500;
+        List<AllResultsDto> allResults = new ArrayList<>();
+
+        for (int i = 0; i < identityUserList.size(); i += batchSize) {
+            List<IdentityUser> batchUsers = identityUserList.subList(i, Math.min(i + batchSize, identityUserList.size()));
+            List<UUID> batchUserIds = batchUsers.stream()
+                    .map(IdentityUser::getId)
+                    .toList();
+
+            // Fetch all data for this batch with optimized queries using fetch joins
+            List<LocalizationData> localizationDataList = localizationDataRepository.findAllByIdentityUserIdsWithFetch(batchUserIds);
+            List<SensorData> sensorDataList = sensorDataRepository.findAllByRespondentIdsWithFetch(batchUserIds);
+            List<SurveyParticipation> surveyParticipationList = surveyParticipationRepository.findAllByIdentityUserIdsWithFetch(batchUserIds);
+
+            // Group data by user ID for efficient lookup
+            Map<UUID, List<LocalizationData>> localizationByUser = localizationDataList.stream()
+                    .collect(Collectors.groupingBy(ld -> ld.getIdentityUser().getId()));
+            Map<UUID, List<SensorData>> sensorByUser = sensorDataList.stream()
+                    .collect(Collectors.groupingBy(sd -> sd.getRespondent().getId()));
+            Map<UUID, List<SurveyParticipation>> participationByUser = surveyParticipationList.stream()
+                    .collect(Collectors.groupingBy(sp -> sp.getIdentityUser().getId()));
+
+            // Map each user to DTO
+            for (IdentityUser user : batchUsers) {
+                UUID userId = user.getId();
+                AllResultsDto dto = mapIdentityUserToDto(
+                        user,
+                        localizationByUser.getOrDefault(userId, List.of()),
+                        sensorByUser.getOrDefault(userId, List.of()),
+                        participationByUser.getOrDefault(userId, List.of())
+                );
+                allResults.add(dto);
+            }
+        }
+
+        return allResults;
     }
 
     private List<SurveyParticipation> fetchSurveyParticipationForUser(IdentityUser identityUser) {

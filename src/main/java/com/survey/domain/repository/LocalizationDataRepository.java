@@ -22,4 +22,8 @@ public interface LocalizationDataRepository extends JpaRepository<LocalizationDa
 
     List<LocalizationData> findAllByIdentityUser(IdentityUser identityUser);
 
+    @Query("SELECT DISTINCT ld FROM LocalizationData ld " +
+            "LEFT JOIN FETCH ld.surveyParticipation " +
+            "WHERE ld.identityUser.id IN :identityUserIds")
+    List<LocalizationData> findAllByIdentityUserIdsWithFetch(List<UUID> identityUserIds);
 }

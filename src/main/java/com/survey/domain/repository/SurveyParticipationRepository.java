@@ -25,4 +25,10 @@ public interface SurveyParticipationRepository extends JpaRepository<SurveyParti
     boolean existsBySurveyIdAndIdentityUserIdAndDateBetween(UUID surveyId, UUID identityUserId, OffsetDateTime startDate, OffsetDateTime endDate);
 
     List<SurveyParticipation> findAllByIdentityUser(IdentityUser identityUser);
+
+    @Query("SELECT DISTINCT sp FROM SurveyParticipation sp " +
+            "LEFT JOIN FETCH sp.survey " +
+            "LEFT JOIN FETCH sp.questionAnswers " +
+            "WHERE sp.identityUser.id IN :identityUserIds")
+    List<SurveyParticipation> findAllByIdentityUserIdsWithFetch(List<UUID> identityUserIds);
 }

@@ -29,7 +29,10 @@ public class SurveyParticipationRepositoryCustomImpl implements SurveyParticipat
             return List.of();
         }
 
-        int batchSize = 5000;
+        // Reduced batch size to prevent "query too long" error with IN clause
+        // 1000 UUIDs ≈ 36,000 chars + SQL = ~40,000 chars (safe limit)
+        // 5000 UUIDs ≈ 180,000 chars + SQL = exceeds database limits
+        int batchSize = 1000;
 
         List<SurveyParticipation> result = new ArrayList<>(ids.size());
         Set<UUID> seen = new HashSet<>(Math.min(ids.size(), 65536));

@@ -80,6 +80,7 @@ public class SensorDataController {
             description = """
                     - Allows to fetch sensor readings filtered by date and respondentId.
                     - Date and time must be passed in UTC.
+                    - Optimized with internal batching to handle large datasets.
                     - **Access:**
                         - ADMIN
                     """)
