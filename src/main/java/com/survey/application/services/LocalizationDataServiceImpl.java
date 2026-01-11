@@ -1,5 +1,6 @@
 package com.survey.application.services;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.application.dtos.LocalizationDataDto;
 import com.survey.application.dtos.ResponseLocalizationDto;
 import com.survey.domain.models.LocalizationData;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.OutputStream;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,14 +27,16 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
     private final LocalizationDataRepository localizationDataRepository;
     private final SurveyParticipationRepository surveyParticipationRepository;
     private final ModelMapper modelMapper;
+    private final ObjectMapper objectMapper;
     private final ClaimsPrincipalService claimsPrincipalService;
     private final EntityManager entityManager;
 
     @Autowired
-    public LocalizationDataServiceImpl(LocalizationDataRepository localizationDataRepository, SurveyParticipationRepository surveyParticipationRepository, ModelMapper modelMapper, ClaimsPrincipalService claimsPrincipalService, EntityManager entityManager) {
+    public LocalizationDataServiceImpl(LocalizationDataRepository localizationDataRepository, SurveyParticipationRepository surveyParticipationRepository, ModelMapper modelMapper, ObjectMapper objectMapper, ClaimsPrincipalService claimsPrincipalService, EntityManager entityManager) {
         this.localizationDataRepository = localizationDataRepository;
         this.surveyParticipationRepository = surveyParticipationRepository;
         this.modelMapper = modelMapper;
+        this.objectMapper = objectMapper;
         this.claimsPrincipalService = claimsPrincipalService;
         this.entityManager = entityManager;
     }
@@ -69,7 +73,7 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
         List<ResponseLocalizationDto> allResults = new ArrayList<>();
 
         while (true) {
-            List<ResponseLocalizationDto> batch = fetchLocalizationDataBatch(dateFrom, dateTo, identityUserId, surveyId, outsideResearchArea, offset, batchSize);
+            List<ResponseLocalizationDto> batch = getLocalizationDataBatch(dateFrom, dateTo, identityUserId, surveyId, outsideResearchArea, offset, batchSize);
 
             if (batch.isEmpty()) {
                 break; // No more data
@@ -92,9 +96,11 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
         return allResults;
     }
 
-    private List<ResponseLocalizationDto> fetchLocalizationDataBatch(OffsetDateTime dateFrom, OffsetDateTime dateTo,
-                                                                      UUID identityUserId, UUID surveyId, Boolean outsideResearchArea,
-                                                                      int offset, int limit) {
+    @Override
+    @Transactional(readOnly = true)
+    public List<ResponseLocalizationDto> getLocalizationDataBatch(OffsetDateTime dateFrom, OffsetDateTime dateTo,
+                                                                   UUID identityUserId, UUID surveyId, Boolean outsideResearchArea,
+                                                                   int offset, int limit) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<LocalizationData> cq = cb.createQuery(LocalizationData.class);
         Root<LocalizationData> root = cq.from(LocalizationData.class);
@@ -176,6 +182,58 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
         }
 
         return entity;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void streamLocalizationData(OutputStream outputStream, OffsetDateTime from, OffsetDateTime to, UUID identityUserId, UUID surveyId, Boolean outsideResearchArea) throws Exception {
+        // Start JSON array
+        outputStream.write("[".getBytes());
+        outputStream.flush();
+
+        // TRUE STREAMING: Fetch and write in batches, not all at once
+        int batchSize = 1000;
+        int offset = 0;
+        boolean first = true;
+
+        while (true) {
+            // Fetch one batch at a time
+            List<ResponseLocalizationDto> batch = getLocalizationDataBatch(
+                    from, to, identityUserId, surveyId, outsideResearchArea, offset, batchSize);
+
+            if (batch.isEmpty()) {
+                break; // No more data
+            }
+
+            // Write this batch to stream immediately
+            for (ResponseLocalizationDto dto : batch) {
+                if (!first) {
+                    outputStream.write(",".getBytes());
+                }
+                first = false;
+
+                String json = objectMapper.writeValueAsString(dto);
+                outputStream.write(json.getBytes());
+            }
+
+            // Flush after each batch to keep connection alive
+            outputStream.flush();
+
+            if (batch.size() < batchSize) {
+                break; // Last batch
+            }
+
+            offset += batchSize;
+
+            // Safety limit
+            if (offset > 100000) {
+                break;
+            }
+        }
+
+        // Close JSON array
+        outputStream.write("]".getBytes());
+        outputStream.flush();
     }
 
     private ResponseLocalizationDto mapToDto(LocalizationData entity){
