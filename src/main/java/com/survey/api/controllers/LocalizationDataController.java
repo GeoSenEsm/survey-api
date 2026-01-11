@@ -8,6 +8,7 @@ import com.survey.application.dtos.LocalizationDataDto;
 import com.survey.application.dtos.ResponseLocalizationDto;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.LocalizationDataService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -19,10 +20,13 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -35,11 +39,13 @@ public class LocalizationDataController {
 
     private final LocalizationDataService localizationDataService;
     private final ClaimsPrincipalService claimsPrincipalService;
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public LocalizationDataController(LocalizationDataService localizationDataService, ClaimsPrincipalService claimsPrincipalService) {
+    public LocalizationDataController(LocalizationDataService localizationDataService, ClaimsPrincipalService claimsPrincipalService, ObjectMapper objectMapper) {
         this.localizationDataService = localizationDataService;
         this.claimsPrincipalService = claimsPrincipalService;
+        this.objectMapper = objectMapper;
     }
 
 
@@ -74,14 +80,15 @@ public class LocalizationDataController {
     }
 
 
-    @GetMapping
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(
             summary = "Fetch a list of localization data points.",
             description = """
                     - Fetch a list of localization data points that meet filtering criteria.
                     - `dateTime` is in UTC.
                     - **Optional filters:** from, to, respondentId, surveyId, outsideResearchArea
-                    - Optimized with internal batching to handle large datasets.
+                    - Uses streaming to handle large datasets efficiently.
+                    - Prevents client timeout by sending data progressively.
                     - **Access:**
                         - ADMIN
                     """
@@ -97,7 +104,7 @@ public class LocalizationDataController {
     @CommonApiResponse400
     @CommonApiResponse401
     @CommonApiResponse403
-    public ResponseEntity<List<ResponseLocalizationDto>> getLocalizationData(
+    public ResponseEntity<StreamingResponseBody> getLocalizationData(
             @RequestParam(value = "from", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime from,
             @RequestParam(value = "to", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime to,
             @RequestParam(value = "respondentId", required = false) UUID identityUserId,
@@ -106,8 +113,41 @@ public class LocalizationDataController {
 
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
 
-        List<ResponseLocalizationDto> dtoList = localizationDataService.getLocalizationData(from, to, identityUserId, surveyId, outsideResearchArea);
-        return ResponseEntity.status(HttpStatus.OK).body(dtoList);
+        StreamingResponseBody stream = outputStream -> {
+            try {
+                // Start JSON array
+                outputStream.write("[".getBytes());
+                outputStream.flush();
+
+                List<ResponseLocalizationDto> dtoList = localizationDataService.getLocalizationData(from, to, identityUserId, surveyId, outsideResearchArea);
+
+                for (int i = 0; i < dtoList.size(); i++) {
+                    // Write each object as JSON
+                    String json = objectMapper.writeValueAsString(dtoList.get(i));
+                    outputStream.write(json.getBytes());
+
+                    // Add comma between elements (but not after last)
+                    if (i < dtoList.size() - 1) {
+                        outputStream.write(",".getBytes());
+                    }
+
+                    // Flush every 100 items to keep connection alive
+                    if (i % 100 == 0) {
+                        outputStream.flush();
+                    }
+                }
+
+                // Close JSON array
+                outputStream.write("]".getBytes());
+                outputStream.flush();
+            } catch (IOException e) {
+                throw new RuntimeException("Error streaming localization data", e);
+            }
+        };
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(stream);
     }
 
 
