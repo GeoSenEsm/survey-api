@@ -1,5 +1,6 @@
 package com.survey.application.services;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.application.dtos.LastSensorEntryDateDto;
 import com.survey.application.dtos.ResponseSensorDataDto;
 import com.survey.application.dtos.SensorDataDto;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.OutputStream;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,14 +28,16 @@ import java.util.UUID;
 public class SensorDataServiceImpl implements SensorDataService {
     private final ClaimsPrincipalService claimsPrincipalService;
     private final ModelMapper modelMapper;
+    private final ObjectMapper objectMapper;
     private final SensorDataRepository sensorDataRepository;
     private final IdentityUserRepository identityUserRepository;
     private final EntityManager entityManager;
 
     @Autowired
-    public SensorDataServiceImpl(ClaimsPrincipalService claimsPrincipalService, ModelMapper modelMapper, SensorDataRepository sensorDataRepository, IdentityUserRepository identityUserRepository, EntityManager entityManager) {
+    public SensorDataServiceImpl(ClaimsPrincipalService claimsPrincipalService, ModelMapper modelMapper, ObjectMapper objectMapper, SensorDataRepository sensorDataRepository, IdentityUserRepository identityUserRepository, EntityManager entityManager) {
         this.claimsPrincipalService = claimsPrincipalService;
         this.modelMapper = modelMapper;
+        this.objectMapper = objectMapper;
         this.sensorDataRepository = sensorDataRepository;
         this.identityUserRepository = identityUserRepository;
         this.entityManager = entityManager;
@@ -69,7 +73,7 @@ public class SensorDataServiceImpl implements SensorDataService {
         List<ResponseSensorDataDto> allResults = new ArrayList<>();
 
         while (true) {
-            List<ResponseSensorDataDto> batch = fetchSensorDataBatch(dateFrom, dateTo, identityUserId, offset, batchSize);
+            List<ResponseSensorDataDto> batch = getSensorDataBatch(dateFrom, dateTo, identityUserId, offset, batchSize);
 
             if (batch.isEmpty()) {
                 break; // No more data
@@ -92,8 +96,10 @@ public class SensorDataServiceImpl implements SensorDataService {
         return allResults;
     }
 
-    private List<ResponseSensorDataDto> fetchSensorDataBatch(OffsetDateTime dateFrom, OffsetDateTime dateTo,
-                                                              UUID identityUserId, int offset, int limit) {
+    @Override
+    @Transactional(readOnly = true)
+    public List<ResponseSensorDataDto> getSensorDataBatch(OffsetDateTime dateFrom, OffsetDateTime dateTo,
+                                                           UUID identityUserId, int offset, int limit) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<SensorData> cq = cb.createQuery(SensorData.class);
         Root<SensorData> root = cq.from(SensorData.class);
@@ -119,9 +125,9 @@ public class SensorDataServiceImpl implements SensorDataService {
         query.setHint("jakarta.persistence.query.timeout", 120000); // 2 minutes per batch
 
         List<SensorData> sensorDataList = query.getResultList();
-
         return mapToResponseDtoList(sensorDataList);
     }
+
 
     private List<Predicate> buildPredicates(CriteriaBuilder cb, Root<SensorData> root,
                                            OffsetDateTime dateFrom, OffsetDateTime dateTo, UUID identityUserId) {
@@ -156,6 +162,57 @@ public class SensorDataServiceImpl implements SensorDataService {
                 .orElseThrow(() -> new NoSuchElementException("No sensor data available for the specified respondent"));
 
         return new LastSensorEntryDateDto(lastSensorData);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void streamSensorData(OutputStream outputStream, OffsetDateTime from, OffsetDateTime to, UUID identityUserId) throws Exception {
+        // Start JSON array
+        outputStream.write("[".getBytes());
+        outputStream.flush();
+
+        // TRUE STREAMING: Fetch and write in batches, not all at once
+        int batchSize = 1000;
+        int offset = 0;
+        boolean first = true;
+
+        while (true) {
+            // Fetch one batch at a time
+            List<ResponseSensorDataDto> batch = getSensorDataBatch(from, to, identityUserId, offset, batchSize);
+
+            if (batch.isEmpty()) {
+                break; // No more data
+            }
+
+            // Write this batch to stream immediately
+            for (ResponseSensorDataDto dto : batch) {
+                if (!first) {
+                    outputStream.write(",".getBytes());
+                }
+                first = false;
+
+                String json = objectMapper.writeValueAsString(dto);
+                outputStream.write(json.getBytes());
+            }
+
+            // Flush after each batch to keep connection alive
+            outputStream.flush();
+
+            if (batch.size() < batchSize) {
+                break; // Last batch
+            }
+
+            offset += batchSize;
+
+            // Safety limit
+            if (offset > 100000) {
+                break;
+            }
+        }
+
+        // Close JSON array
+        outputStream.write("]".getBytes());
+        outputStream.flush();
     }
 
     private List<ResponseSensorDataDto> mapToResponseDtoList (List<SensorData> entityList){

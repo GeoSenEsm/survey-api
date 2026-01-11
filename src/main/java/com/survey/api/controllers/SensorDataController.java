@@ -9,7 +9,6 @@ import com.survey.application.dtos.ResponseSensorDataDto;
 import com.survey.application.dtos.SensorDataDto;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.SensorDataService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -27,7 +26,6 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -40,13 +38,11 @@ public class SensorDataController {
 
     private final SensorDataService sensorDataService;
     private final ClaimsPrincipalService claimsPrincipalService;
-    private final ObjectMapper objectMapper;
 
     @Autowired
-    public SensorDataController(SensorDataService sensorDataService, ClaimsPrincipalService claimsPrincipalService, ObjectMapper objectMapper) {
+    public SensorDataController(SensorDataService sensorDataService, ClaimsPrincipalService claimsPrincipalService) {
         this.sensorDataService = sensorDataService;
         this.claimsPrincipalService = claimsPrincipalService;
-        this.objectMapper = objectMapper;
     }
 
 
@@ -85,7 +81,7 @@ public class SensorDataController {
             description = """
                     - Allows to fetch sensor readings filtered by date and respondentId.
                     - Date and time must be passed in UTC.
-                    - Uses streaming to handle large datasets efficiently.
+                    - Uses true streaming to handle large datasets efficiently.
                     - Prevents client timeout by sending data progressively.
                     - **Access:**
                         - ADMIN
@@ -110,32 +106,8 @@ public class SensorDataController {
 
         StreamingResponseBody stream = outputStream -> {
             try {
-                // Start JSON array
-                outputStream.write("[".getBytes());
-                outputStream.flush();
-
-                List<ResponseSensorDataDto> dtos = sensorDataService.getSensorData(from, to, identityUserId);
-
-                for (int i = 0; i < dtos.size(); i++) {
-                    // Write each object as JSON
-                    String json = objectMapper.writeValueAsString(dtos.get(i));
-                    outputStream.write(json.getBytes());
-
-                    // Add comma between elements (but not after last)
-                    if (i < dtos.size() - 1) {
-                        outputStream.write(",".getBytes());
-                    }
-
-                    // Flush every 100 items to keep connection alive
-                    if (i % 100 == 0) {
-                        outputStream.flush();
-                    }
-                }
-
-                // Close JSON array
-                outputStream.write("]".getBytes());
-                outputStream.flush();
-            } catch (IOException e) {
+                sensorDataService.streamSensorData(outputStream, from, to, identityUserId);
+            } catch (Exception e) {
                 throw new RuntimeException("Error streaming sensor data", e);
             }
         };

@@ -8,7 +8,6 @@ import com.survey.application.dtos.LocalizationDataDto;
 import com.survey.application.dtos.ResponseLocalizationDto;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.LocalizationDataService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -26,7 +25,6 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -39,13 +37,11 @@ public class LocalizationDataController {
 
     private final LocalizationDataService localizationDataService;
     private final ClaimsPrincipalService claimsPrincipalService;
-    private final ObjectMapper objectMapper;
 
     @Autowired
-    public LocalizationDataController(LocalizationDataService localizationDataService, ClaimsPrincipalService claimsPrincipalService, ObjectMapper objectMapper) {
+    public LocalizationDataController(LocalizationDataService localizationDataService, ClaimsPrincipalService claimsPrincipalService) {
         this.localizationDataService = localizationDataService;
         this.claimsPrincipalService = claimsPrincipalService;
-        this.objectMapper = objectMapper;
     }
 
 
@@ -87,7 +83,7 @@ public class LocalizationDataController {
                     - Fetch a list of localization data points that meet filtering criteria.
                     - `dateTime` is in UTC.
                     - **Optional filters:** from, to, respondentId, surveyId, outsideResearchArea
-                    - Uses streaming to handle large datasets efficiently.
+                    - Uses true streaming to handle large datasets efficiently.
                     - Prevents client timeout by sending data progressively.
                     - **Access:**
                         - ADMIN
@@ -115,32 +111,8 @@ public class LocalizationDataController {
 
         StreamingResponseBody stream = outputStream -> {
             try {
-                // Start JSON array
-                outputStream.write("[".getBytes());
-                outputStream.flush();
-
-                List<ResponseLocalizationDto> dtoList = localizationDataService.getLocalizationData(from, to, identityUserId, surveyId, outsideResearchArea);
-
-                for (int i = 0; i < dtoList.size(); i++) {
-                    // Write each object as JSON
-                    String json = objectMapper.writeValueAsString(dtoList.get(i));
-                    outputStream.write(json.getBytes());
-
-                    // Add comma between elements (but not after last)
-                    if (i < dtoList.size() - 1) {
-                        outputStream.write(",".getBytes());
-                    }
-
-                    // Flush every 100 items to keep connection alive
-                    if (i % 100 == 0) {
-                        outputStream.flush();
-                    }
-                }
-
-                // Close JSON array
-                outputStream.write("]".getBytes());
-                outputStream.flush();
-            } catch (IOException e) {
+                localizationDataService.streamLocalizationData(outputStream, from, to, identityUserId, surveyId, outsideResearchArea);
+            } catch (Exception e) {
                 throw new RuntimeException("Error streaming localization data", e);
             }
         };
