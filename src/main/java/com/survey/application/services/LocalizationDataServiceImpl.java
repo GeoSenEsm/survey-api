@@ -62,9 +62,40 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
     @Override
     @Transactional(readOnly = true)
     public List<ResponseLocalizationDto> getLocalizationData(OffsetDateTime dateFrom, OffsetDateTime dateTo, UUID identityUserId, UUID surveyId, Boolean outsideResearchArea) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        // Internal pagination to handle large datasets
+        // Fetches data in batches of 5000 to prevent memory issues and timeouts
+        int batchSize = 5000;
+        int offset = 0;
+        List<ResponseLocalizationDto> allResults = new ArrayList<>();
 
-        // Build query for data
+        while (true) {
+            List<ResponseLocalizationDto> batch = fetchLocalizationDataBatch(dateFrom, dateTo, identityUserId, surveyId, outsideResearchArea, offset, batchSize);
+
+            if (batch.isEmpty()) {
+                break; // No more data
+            }
+
+            allResults.addAll(batch);
+
+            if (batch.size() < batchSize) {
+                break; // Last batch (partial)
+            }
+
+            offset += batchSize;
+
+            // Safety limit to prevent runaway queries
+            if (offset > 100000) {
+                break;
+            }
+        }
+
+        return allResults;
+    }
+
+    private List<ResponseLocalizationDto> fetchLocalizationDataBatch(OffsetDateTime dateFrom, OffsetDateTime dateTo,
+                                                                      UUID identityUserId, UUID surveyId, Boolean outsideResearchArea,
+                                                                      int offset, int limit) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<LocalizationData> cq = cb.createQuery(LocalizationData.class);
         Root<LocalizationData> root = cq.from(LocalizationData.class);
 
@@ -79,13 +110,15 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
                 .where(cb.and(predicates.toArray(new Predicate[0])))
                 .orderBy(cb.asc(root.get("dateTime")));
 
-        // Create typed query - no pagination, fetch all results
         TypedQuery<LocalizationData> query = entityManager.createQuery(cq);
+        query.setFirstResult(offset);
+        query.setMaxResults(limit);
 
         // Add query hints for better performance with large result sets
         query.setHint("org.hibernate.fetchSize", 1000);
         query.setHint("org.hibernate.readOnly", true);
         query.setHint("org.hibernate.cacheable", false);
+        query.setHint("jakarta.persistence.query.timeout", 120000); // 2 minutes per batch
 
         List<LocalizationData> dbEntityList = query.getResultList();
 

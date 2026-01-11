@@ -12,9 +12,6 @@ import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,9 +62,39 @@ public class SensorDataServiceImpl implements SensorDataService {
     @Override
     @Transactional(readOnly = true)
     public List<ResponseSensorDataDto> getSensorData(OffsetDateTime dateFrom, OffsetDateTime dateTo, UUID identityUserId) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        // Internal pagination to handle large datasets
+        // Fetches data in batches of 5000 to prevent memory issues and timeouts
+        int batchSize = 5000;
+        int offset = 0;
+        List<ResponseSensorDataDto> allResults = new ArrayList<>();
 
-        // Build query for data with fetch join and distinct to prevent massive IN clause
+        while (true) {
+            List<ResponseSensorDataDto> batch = fetchSensorDataBatch(dateFrom, dateTo, identityUserId, offset, batchSize);
+
+            if (batch.isEmpty()) {
+                break; // No more data
+            }
+
+            allResults.addAll(batch);
+
+            if (batch.size() < batchSize) {
+                break; // Last batch (partial)
+            }
+
+            offset += batchSize;
+
+            // Safety limit to prevent runaway queries
+            if (offset > 100000) {
+                break;
+            }
+        }
+
+        return allResults;
+    }
+
+    private List<ResponseSensorDataDto> fetchSensorDataBatch(OffsetDateTime dateFrom, OffsetDateTime dateTo,
+                                                              UUID identityUserId, int offset, int limit) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<SensorData> cq = cb.createQuery(SensorData.class);
         Root<SensorData> root = cq.from(SensorData.class);
 
@@ -81,13 +108,15 @@ public class SensorDataServiceImpl implements SensorDataService {
                 .where(cb.and(predicates.toArray(new Predicate[0])))
                 .orderBy(cb.asc(root.get("dateTime")));
 
-        // Create typed query - no pagination, fetch all results
         TypedQuery<SensorData> query = entityManager.createQuery(cq);
+        query.setFirstResult(offset);
+        query.setMaxResults(limit);
 
-        // Add query hints for better performance with large result sets
+        // Query hints for better performance
         query.setHint("org.hibernate.fetchSize", 1000);
         query.setHint("org.hibernate.readOnly", true);
         query.setHint("org.hibernate.cacheable", false);
+        query.setHint("jakarta.persistence.query.timeout", 120000); // 2 minutes per batch
 
         List<SensorData> sensorDataList = query.getResultList();
 
