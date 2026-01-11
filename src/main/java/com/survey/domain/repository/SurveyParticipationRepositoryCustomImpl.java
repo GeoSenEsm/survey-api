@@ -52,6 +52,79 @@ public class SurveyParticipationRepositoryCustomImpl implements SurveyParticipat
         return result;
     }
 
+    @Override
+    public List<SurveyParticipation> findByFiltersWithFetchBatch(
+            UUID surveyId,
+            UUID identityUserId,
+            OffsetDateTime dateFrom,
+            OffsetDateTime dateTo,
+            Boolean outsideResearchArea,
+            int offset,
+            int limit) {
+
+        // First, get the IDs matching the filters with pagination
+        List<UUID> ids = findIdsByFiltersWithPagination(surveyId, identityUserId, dateFrom, dateTo, outsideResearchArea, offset, limit);
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+
+        // Fetch entities with relations
+        return fetchWithRelationsByIds(ids);
+    }
+
+    private List<UUID> findIdsByFiltersWithPagination(
+            UUID surveyId,
+            UUID identityUserId,
+            OffsetDateTime dateFrom,
+            OffsetDateTime dateTo,
+            Boolean outsideResearchArea,
+            int offset,
+            int limit) {
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<UUID> q = cb.createQuery(UUID.class);
+        Root<SurveyParticipation> sp = q.from(SurveyParticipation.class);
+
+        List<Predicate> predicates = new ArrayList<>();
+
+        if (surveyId != null) {
+            predicates.add(cb.equal(sp.get("survey").get("id"), surveyId));
+        }
+        if (identityUserId != null) {
+            predicates.add(cb.equal(sp.get("identityUser").get("id"), identityUserId));
+        }
+
+        if (dateFrom != null && dateTo != null) {
+            predicates.add(cb.between(sp.get("date"), dateFrom, dateTo));
+        } else if (dateFrom != null) {
+            predicates.add(cb.greaterThanOrEqualTo(sp.get("date"), dateFrom));
+        } else if (dateTo != null) {
+            predicates.add(cb.lessThanOrEqualTo(sp.get("date"), dateTo));
+        }
+
+        if (outsideResearchArea != null) {
+            Join<Object, Object> ldJoin = sp.join("localizationData", JoinType.LEFT);
+            predicates.add(cb.equal(ldJoin.get("outsideResearchArea"), outsideResearchArea));
+            q.distinct(true);
+        }
+
+        q.select(sp.get("id"));
+        if (!predicates.isEmpty()) {
+            q.where(cb.and(predicates.toArray(new Predicate[0])));
+        }
+
+        // Order by date for consistent pagination
+        q.orderBy(cb.asc(sp.get("date")));
+
+        TypedQuery<UUID> tq = entityManager.createQuery(q);
+        tq.setFirstResult(offset);
+        tq.setMaxResults(limit);
+        tq.setHint("jakarta.persistence.query.timeout", 60000);
+        tq.setHint("org.hibernate.readOnly", true);
+
+        return tq.getResultList();
+    }
+
     private List<UUID> findIdsByFilters(
             UUID surveyId,
             UUID identityUserId,

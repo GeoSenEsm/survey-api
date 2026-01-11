@@ -192,7 +192,7 @@ public class LocalizationDataServiceImpl implements LocalizationDataService{
         outputStream.flush();
 
         // TRUE STREAMING: Fetch and write in batches, not all at once
-        int batchSize = 1000;
+        int batchSize = 5000;
         int offset = 0;
         boolean first = true;
 
