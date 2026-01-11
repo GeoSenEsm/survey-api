@@ -21,10 +21,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.annotation.RequestScope;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import javax.management.InvalidAttributeValueException;
 import java.time.OffsetDateTime;
@@ -115,6 +117,8 @@ public class SurveyResponsesController {
                     - `respondentId`: Filter results by a specific respondent's ID.
                     - `dateFrom` and `dateTo`: Specify a date range for the results.
                     - `outsideResearchArea`: Specify if you want to get answers only from research area, or outside research area.
+                - Uses true streaming to handle large datasets efficiently.
+                - Prevents client timeout by sending data progressively.
                 - **Access:**
                   - ADMIN
                 """)
@@ -129,7 +133,7 @@ public class SurveyResponsesController {
     })
     @CommonApiResponse401
     @CommonApiResponse403
-    public ResponseEntity<List<SurveyResultDto>> getSurveyResults(
+    public ResponseEntity<StreamingResponseBody> getSurveyResults(
             @RequestParam(value = "surveyId", required = false) UUID surveyId,
             @RequestParam(value = "respondentId", required = false) UUID identityUserId,
             @RequestParam(value = "dateFrom", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime dateFrom,
@@ -137,8 +141,18 @@ public class SurveyResponsesController {
             @RequestParam(value = "outsideResearchArea", required = false) Boolean outsideResearchArea) {
 
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
-        List<SurveyResultDto> results = surveyResponsesService.getSurveyResults(surveyId, identityUserId, dateFrom, dateTo, outsideResearchArea);
-        return ResponseEntity.status(HttpStatus.OK).body(results);
+
+        StreamingResponseBody stream = outputStream -> {
+            try {
+                surveyResponsesService.streamSurveyResults(outputStream, surveyId, identityUserId, dateFrom, dateTo, outsideResearchArea);
+            } catch (Exception e) {
+                throw new RuntimeException("Error streaming survey results", e);
+            }
+        };
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(stream);
     }
 
     @GetMapping("/results/all")

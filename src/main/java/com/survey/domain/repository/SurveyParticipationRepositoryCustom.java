@@ -14,5 +14,15 @@ public interface SurveyParticipationRepositoryCustom {
             OffsetDateTime dateTo,
             Boolean outsideResearchArea
     );
+
+    List<SurveyParticipation> findByFiltersWithFetchBatch(
+            UUID surveyId,
+            UUID identityUserId,
+            OffsetDateTime dateFrom,
+            OffsetDateTime dateTo,
+            Boolean outsideResearchArea,
+            int offset,
+            int limit
+    );
 }
 

@@ -1,5 +1,6 @@
 package com.survey.application.services;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.api.security.Role;
 import com.survey.api.validation.SendSurveyResponseDtoValidator;
 import com.survey.application.dtos.*;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.annotation.RequestScope;
 
 import javax.management.InvalidAttributeValueException;
+import java.io.OutputStream;
 import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -29,6 +31,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final QuestionRepository questionRepository;
     private final ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl;
     private final ModelMapper modelMapper;
+    private final ObjectMapper objectMapper;
     private final EntityManager entityManager;
     private final SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator;
     private final SurveyParticipationTimeValidationService surveyParticipationTimeValidationService;
@@ -45,6 +48,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             QuestionRepository questionRepository,
             ClaimsPrincipalServiceImpl claimsPrincipalServiceImpl,
             ModelMapper modelMapper,
+            ObjectMapper objectMapper,
             EntityManager entityManager,
             SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator,
             SurveyParticipationTimeValidationService surveyParticipationTimeValidationService,
@@ -57,6 +61,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         this.questionRepository = questionRepository;
         this.claimsPrincipalServiceImpl = claimsPrincipalServiceImpl;
         this.modelMapper = modelMapper;
+        this.objectMapper = objectMapper;
         this.entityManager = entityManager;
         this.sendSurveyResponseDtoValidator = sendSurveyResponseDtoValidator;
         this.surveyParticipationTimeValidationService = surveyParticipationTimeValidationService;
@@ -216,6 +221,68 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         return participationList.stream()
                 .flatMap(this::mapParticipationToDto)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SurveyResultDto> getSurveyResultsBatch(UUID surveyId, UUID identityUserId, OffsetDateTime dateFrom, OffsetDateTime dateTo, Boolean outsideResearchArea, int offset, int limit) {
+        List<SurveyParticipation> participationList = surveyParticipationRepository
+                .findByFiltersWithFetchBatch(surveyId, identityUserId, dateFrom, dateTo, outsideResearchArea, offset, limit);
+
+        return participationList.stream()
+                .flatMap(this::mapParticipationToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void streamSurveyResults(OutputStream outputStream, UUID surveyId, UUID identityUserId, OffsetDateTime dateFrom, OffsetDateTime dateTo, Boolean outsideResearchArea) throws Exception {
+        // Start JSON array
+        outputStream.write("[".getBytes());
+        outputStream.flush();
+
+        // TRUE STREAMING: Fetch and write in batches, not all at once
+        int batchSize = 5000;
+        int offset = 0;
+        boolean first = true;
+
+        while (true) {
+            // Fetch one batch at a time
+            List<SurveyResultDto> batch = getSurveyResultsBatch(surveyId, identityUserId, dateFrom, dateTo, outsideResearchArea, offset, batchSize);
+
+            if (batch.isEmpty()) {
+                break; // No more data
+            }
+
+            // Write this batch to stream immediately
+            for (SurveyResultDto dto : batch) {
+                if (!first) {
+                    outputStream.write(",".getBytes());
+                }
+                first = false;
+
+                String json = objectMapper.writeValueAsString(dto);
+                outputStream.write(json.getBytes());
+            }
+
+            // Flush after each batch to keep connection alive
+            outputStream.flush();
+
+            if (batch.size() < batchSize) {
+                break; // Last batch
+            }
+
+            offset += batchSize;
+
+            // Safety limit
+            if (offset > 100000) {
+                break;
+            }
+        }
+
+        // Close JSON array
+        outputStream.write("]".getBytes());
+        outputStream.flush();
     }
 
     @Override
