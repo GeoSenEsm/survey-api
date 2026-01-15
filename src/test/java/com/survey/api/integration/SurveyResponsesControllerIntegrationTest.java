@@ -1,5 +1,7 @@
 package com.survey.api.integration;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.survey.api.TestUtils;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.CreateSurveySendingPolicyDto;
@@ -76,8 +78,16 @@ public class SurveyResponsesControllerIntegrationTest {
     void SetUp(){
         sensorDataRepository.deleteAll();
         surveyParticipationRepository.deleteAll();
-        userRepository.deleteAll();
         surveyRepository.deleteAll();
+        userRepository.deleteAll();
+    }
+
+    // Helper method to parse streaming JSON response
+    private List<SurveyResultDto> parseStreamingResponse(String jsonResponse) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        return objectMapper.readValue(jsonResponse,
+                objectMapper.getTypeFactory().constructCollectionType(List.class, SurveyResultDto.class));
     }
 
     @Test
@@ -188,7 +198,7 @@ public class SurveyResponsesControllerIntegrationTest {
         assertThat(response.get(0).getSurveyId()).isEqualTo(survey.getId());
     }
     @Test
-    void getResponsesResults_shouldReturnAllResults_WhenNoParams() {
+    void getResponsesResults_shouldReturnAllResults_WhenNoParams() throws Exception {
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD_1);
@@ -198,13 +208,18 @@ public class SurveyResponsesControllerIntegrationTest {
         saveSurveySendingPolicy(survey.getId());
         saveSurveyResponse(survey, respondentToken);
 
-        var response = webTestClient.get()
+        String jsonResponse = webTestClient.get()
                 .uri("/api/surveyresponses/results")
                 .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBodyList(SurveyResultDto.class)
+                .expectBody(String.class)
                 .returnResult().getResponseBody();
+
+        assertThat(jsonResponse).isNotNull();
+
+        // Parse JSON array from streaming response
+        List<SurveyResultDto> response = parseStreamingResponse(jsonResponse);
 
         assertThat(response).isNotNull();
         assertThat(response).hasSize(1);
@@ -213,7 +228,7 @@ public class SurveyResponsesControllerIntegrationTest {
     }
 
     @Test
-    void getResponsesResults_shouldReturnResults_WithParamSurveyId() {
+    void getResponsesResults_shouldReturnResults_WithParamSurveyId() throws Exception {
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD_1);
@@ -227,15 +242,17 @@ public class SurveyResponsesControllerIntegrationTest {
         saveSurveySendingPolicy(survey2.getId());
         saveSurveyResponse(survey2, respondentToken);
 
-        var response = webTestClient.get()
+        String jsonResponse = webTestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/api/surveyresponses/results")
                         .queryParam("surveyId", survey1.getId())
                         .build())
                 .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBodyList(SurveyResultDto.class)
+                .expectBody(String.class)
                 .returnResult().getResponseBody();
+
+        List<SurveyResultDto> response = parseStreamingResponse(jsonResponse);
 
         assertThat(response).isNotNull();
         assertThat(response).hasSize(1);
@@ -244,7 +261,7 @@ public class SurveyResponsesControllerIntegrationTest {
     }
 
     @Test
-    void getResponsesResults_shouldReturnResults_WithParamRespondentId() {
+    void getResponsesResults_shouldReturnResults_WithParamRespondentId() throws Exception {
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
@@ -259,15 +276,17 @@ public class SurveyResponsesControllerIntegrationTest {
         saveSurveyResponse(survey1, respondentToken1);
         saveSurveyResponse(survey1, respondentToken2);
 
-        var response = webTestClient.get()
+        String jsonResponse = webTestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/api/surveyresponses/results")
                         .queryParam("respondentId", respondent1.getId())
                         .build())
                 .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBodyList(SurveyResultDto.class)
+                .expectBody(String.class)
                 .returnResult().getResponseBody();
+
+        List<SurveyResultDto> response = parseStreamingResponse(jsonResponse);
 
         assertThat(response).isNotNull();
         assertThat(response).hasSize(1);
@@ -276,7 +295,7 @@ public class SurveyResponsesControllerIntegrationTest {
     }
 
     @Test
-    void getResponsesResults_shouldReturnCorrectResult_WithAllParams() {
+    void getResponsesResults_shouldReturnCorrectResult_WithAllParams() throws Exception {
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD_1);
@@ -289,7 +308,7 @@ public class SurveyResponsesControllerIntegrationTest {
         OffsetDateTime from = OffsetDateTime.now(UTC).minusYears(1);
         OffsetDateTime to = OffsetDateTime.now(UTC).plusYears(1);
 
-        var response = webTestClient.get()
+        String jsonResponse = webTestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/api/surveyresponses/results")
                         .queryParam("surveyId", survey.getId())
                         .queryParam("respondentId", respondent.getId())
@@ -299,8 +318,10 @@ public class SurveyResponsesControllerIntegrationTest {
                 .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBodyList(SurveyResultDto.class)
+                .expectBody(String.class)
                 .returnResult().getResponseBody();
+
+        List<SurveyResultDto> response = parseStreamingResponse(jsonResponse);
 
         assertThat(response).isNotNull();
         assertThat(response).hasSize(1);
@@ -309,7 +330,7 @@ public class SurveyResponsesControllerIntegrationTest {
     }
 
     @Test
-    void getResponsesResults_shouldReturnNoDuplicates_WhenParticipationHasMultipleRelations() {
+    void getResponsesResults_shouldReturnNoDuplicates_WhenParticipationHasMultipleRelations() throws Exception {
         // given: admin i respondent
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
@@ -345,15 +366,17 @@ public class SurveyResponsesControllerIntegrationTest {
                 .expectStatus()
                 .isCreated();
 
-        var response = webTestClient.get()
+        String jsonResponse = webTestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/api/surveyresponses/results")
                         .queryParam("surveyId", survey.getId())
                         .build())
                 .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBodyList(SurveyResultDto.class)
+                .expectBody(String.class)
                 .returnResult().getResponseBody();
+
+        List<SurveyResultDto> response = parseStreamingResponse(jsonResponse);
 
         assertThat(response).isNotNull();
         assertThat(response).hasSize(2)

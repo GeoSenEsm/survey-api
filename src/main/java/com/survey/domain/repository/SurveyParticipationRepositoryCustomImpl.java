@@ -125,7 +125,8 @@ public class SurveyParticipationRepositoryCustomImpl implements SurveyParticipat
 
         List<Predicate> predicates = buildPredicates(cb, sp, surveyId, identityUserId, dateFrom, dateTo, outsideResearchArea);
 
-        q.select(sp.get("id")).distinct(true);
+        // No need for distinct when selecting IDs (they are already unique by definition)
+        q.select(sp.get("id"));
         if (!predicates.isEmpty()) {
             q.where(cb.and(predicates.toArray(new Predicate[0])));
         }

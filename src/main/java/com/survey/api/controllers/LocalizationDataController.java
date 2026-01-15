@@ -109,6 +109,11 @@ public class LocalizationDataController {
 
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
 
+        // Validate date range BEFORE starting the stream
+        if (from != null && to != null && from.isAfter(to)) {
+            throw new IllegalArgumentException("The 'from' date must be before 'to' date.");
+        }
+
         StreamingResponseBody stream = outputStream -> {
             try {
                 localizationDataService.streamLocalizationData(outputStream, from, to, identityUserId, surveyId, outsideResearchArea);
