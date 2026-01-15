@@ -286,17 +286,24 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<AllResultsDto> getAllSurveyResults() {
+    public void streamAllSurveyResults(OutputStream outputStream) throws Exception {
+        // Start JSON array
+        outputStream.write("[".getBytes());
+        outputStream.flush();
+
         List<IdentityUser> identityUserList = identityUserRepository.findByRole(Role.RESPONDENT.getRoleName());
 
         if (identityUserList.isEmpty()) {
-            return List.of();
+            // Close empty JSON array
+            outputStream.write("]".getBytes());
+            outputStream.flush();
+            return;
         }
 
         // Batch users to prevent "query too long" error with IN clause
         // 500 UUIDs ≈ 20,000 chars (safe limit, leaving room for SQL)
         int batchSize = 500;
-        List<AllResultsDto> allResults = new ArrayList<>();
+        boolean first = true;
 
         for (int i = 0; i < identityUserList.size(); i += batchSize) {
             List<IdentityUser> batchUsers = identityUserList.subList(i, Math.min(i + batchSize, identityUserList.size()));
@@ -317,7 +324,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             Map<UUID, List<SurveyParticipation>> participationByUser = surveyParticipationList.stream()
                     .collect(Collectors.groupingBy(sp -> sp.getIdentityUser().getId()));
 
-            // Map each user to DTO
+            // Stream each user's data immediately
             for (IdentityUser user : batchUsers) {
                 UUID userId = user.getId();
                 AllResultsDto dto = mapIdentityUserToDto(
@@ -326,11 +333,23 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                         sensorByUser.getOrDefault(userId, List.of()),
                         participationByUser.getOrDefault(userId, List.of())
                 );
-                allResults.add(dto);
+
+                if (!first) {
+                    outputStream.write(",".getBytes());
+                }
+                first = false;
+
+                String json = objectMapper.writeValueAsString(dto);
+                outputStream.write(json.getBytes());
             }
+
+            // Flush after each batch to keep connection alive
+            outputStream.flush();
         }
 
-        return allResults;
+        // Close JSON array
+        outputStream.write("]".getBytes());
+        outputStream.flush();
     }
 
     private AllResultsDto mapIdentityUserToDto(IdentityUser identityUser, List<LocalizationData> localizationDataList, List<SensorData> sensorDataList, List<SurveyParticipation> surveyParticipationList) {

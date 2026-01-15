@@ -18,5 +18,5 @@ public interface SurveyResponsesService {
     List<SurveyResultDto> getSurveyResults(UUID surveyId, UUID identityUserId, OffsetDateTime dateFrom, OffsetDateTime dateTo, Boolean outsideResearchArea);
     List<SurveyResultDto> getSurveyResultsBatch(UUID surveyId, UUID identityUserId, OffsetDateTime dateFrom, OffsetDateTime dateTo, Boolean outsideResearchArea, int offset, int limit);
     void streamSurveyResults(OutputStream outputStream, UUID surveyId, UUID identityUserId, OffsetDateTime dateFrom, OffsetDateTime dateTo, Boolean outsideResearchArea) throws Exception;
-    List<AllResultsDto> getAllSurveyResults();
+    void streamAllSurveyResults(OutputStream outputStream) throws Exception;
 }
