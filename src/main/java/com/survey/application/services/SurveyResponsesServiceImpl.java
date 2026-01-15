@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.annotation.RequestScope;
 
-import javax.management.InvalidAttributeValueException;
 import java.io.OutputStream;
 import java.time.OffsetDateTime;
 import java.util.*;
@@ -242,7 +241,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         outputStream.flush();
 
         // TRUE STREAMING: Fetch and write in batches, not all at once
-        int batchSize = 5000;
+        int batchSize = 1000;
         int offset = 0;
         boolean first = true;
 
@@ -334,17 +333,6 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         return allResults;
     }
 
-    private List<SurveyParticipation> fetchSurveyParticipationForUser(IdentityUser identityUser) {
-        return surveyParticipationRepository.findAllByIdentityUser(identityUser);
-    }
-
-    private List<LocalizationData> fetchLocalizationDataForUser(IdentityUser identityUser) {
-        return localizationDataRepository.findAllByIdentityUser(identityUser);
-    }
-
-    private List<SensorData> fetchSensorDataForUser(IdentityUser identityUser) {
-        return sensorDataRepository.findAllByRespondent(identityUser);
-    }
     private AllResultsDto mapIdentityUserToDto(IdentityUser identityUser, List<LocalizationData> localizationDataList, List<SensorData> sensorDataList, List<SurveyParticipation> surveyParticipationList) {
         AllResultsDto allResultsDto = new AllResultsDto();
         allResultsDto.setRespondentId(identityUser.getId());
