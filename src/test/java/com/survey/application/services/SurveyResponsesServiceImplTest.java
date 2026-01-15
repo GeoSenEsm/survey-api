@@ -91,6 +91,7 @@ class SurveyResponsesServiceImplTest {
                 questionRepository,
                 claimsPrincipalServiceImpl,
                 modelMapper,
+                new com.fasterxml.jackson.databind.ObjectMapper(),
                 entityManager,
                 sendSurveyResponseDtoValidator,
                 surveyParticipationTimeValidationService,
