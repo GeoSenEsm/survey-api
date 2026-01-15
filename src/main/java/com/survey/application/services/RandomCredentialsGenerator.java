@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class RandomCredentialsGenerator implements CredentialsGenerator{
-    private static final String WORDS_FILE_PATH = "data/polish_words.txt";
+    private static final String WORDS_FILE_PATH = "data/english_words.txt";
     private final ResourceLoader resourceLoader;
     private List<String> words;
 

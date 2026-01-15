@@ -160,6 +160,8 @@ public class SurveyResponsesController {
             summary = "Fetch all results.",
             description = """
                 - Allows an administrator to fetch all survey results, localization data and sensor data for all respondents.
+                - Uses true streaming to handle large datasets efficiently.
+                - Prevents client timeout by sending data progressively.
                 - **Access:**
                   - ADMIN
                 """)
@@ -174,9 +176,19 @@ public class SurveyResponsesController {
     })
     @CommonApiResponse401
     @CommonApiResponse403
-    public ResponseEntity<List<AllResultsDto>> getAllSurveyResults() {
+    public ResponseEntity<StreamingResponseBody> getAllSurveyResults() {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
-        List<AllResultsDto> results = surveyResponsesService.getAllSurveyResults();
-        return ResponseEntity.status(HttpStatus.OK).body(results);
+
+        StreamingResponseBody stream = outputStream -> {
+            try {
+                surveyResponsesService.streamAllSurveyResults(outputStream);
+            } catch (Exception e) {
+                throw new RuntimeException("Error streaming all survey results", e);
+            }
+        };
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(stream);
     }
 }
