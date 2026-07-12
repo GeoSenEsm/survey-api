@@ -31,4 +31,23 @@ public interface SurveyParticipationRepository extends JpaRepository<SurveyParti
             "LEFT JOIN FETCH sp.questionAnswers " +
             "WHERE sp.identityUser.id IN :identityUserIds")
     List<SurveyParticipation> findAllByIdentityUserIdsWithFetch(List<UUID> identityUserIds);
+
+    /**
+     * One row per respondent that has at least one participation:
+     * {@code [respondentId, username, minDate, maxDate, count]}. Used by
+     * the statistics service.
+     */
+    @Query("SELECT sp.identityUser.id, sp.identityUser.username, " +
+            "MIN(sp.date), MAX(sp.date), COUNT(sp) " +
+            "FROM SurveyParticipation sp " +
+            "GROUP BY sp.identityUser.id, sp.identityUser.username")
+    List<Object[]> aggregateParticipationsPerRespondent();
+
+    @Query("SELECT sp.date FROM SurveyParticipation sp " +
+            "WHERE sp.identityUser.id = :respondentId " +
+            "ORDER BY sp.date")
+    List<OffsetDateTime> findDatesByRespondentId(UUID respondentId);
+
+    @Query("SELECT sp.date FROM SurveyParticipation sp ORDER BY sp.date")
+    List<OffsetDateTime> findAllDatesOrdered();
 }

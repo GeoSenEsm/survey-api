@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,4 +27,16 @@ public interface LocalizationDataRepository extends JpaRepository<LocalizationDa
             "LEFT JOIN FETCH ld.surveyParticipation " +
             "WHERE ld.identityUser.id IN :identityUserIds")
     List<LocalizationData> findAllByIdentityUserIdsWithFetch(List<UUID> identityUserIds);
+
+    long countByIdentityUserId(UUID identityUserId);
+
+    @Query("SELECT ld.dateTime FROM LocalizationData ld " +
+            "WHERE ld.identityUser.id = :respondentId " +
+            "AND ld.dateTime BETWEEN :from AND :to")
+    List<OffsetDateTime> findDateTimesForRespondentInWindow(
+            UUID respondentId, OffsetDateTime from, OffsetDateTime to);
+
+    @Query("SELECT ld.dateTime FROM LocalizationData ld " +
+            "WHERE ld.dateTime BETWEEN :from AND :to")
+    List<OffsetDateTime> findAllDateTimesInWindow(OffsetDateTime from, OffsetDateTime to);
 }

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.modelmapper.ModelMapper;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -72,6 +73,9 @@ class SurveyResponsesServiceImplTest {
     @Mock
     private LocalizationDataRepository localizationDataRepository;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private SurveyResponsesServiceImpl surveyResponsesService;
 
     private Survey survey;
@@ -97,7 +101,8 @@ class SurveyResponsesServiceImplTest {
                 surveyParticipationTimeValidationService,
                 sensorDataRepository,
                 identityUserRepository,
-                localizationDataRepository
+                localizationDataRepository,
+                eventPublisher
         );
 
         survey = createSurvey();
