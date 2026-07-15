@@ -1,9 +1,11 @@
 package com.survey.application.services;
 
+import com.survey.application.dtos.statistics.DailyCompletionOverviewDto;
 import com.survey.application.dtos.statistics.GlobalStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDto;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,4 +23,11 @@ public interface StatisticsService {
 
     /** Overall study aggregates + daily series across all respondents. */
     GlobalStatsDetailDto getGlobalDetail();
+
+    /**
+     * Full-day completion overview for {@code date} (interpreted as a UTC
+     * calendar day). Lists every time slot that overlaps the day and, for
+     * every respondent account, which of those slots were already filled.
+     */
+    DailyCompletionOverviewDto getDailyCompletion(LocalDate date);
 }

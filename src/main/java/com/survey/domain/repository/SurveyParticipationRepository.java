@@ -50,4 +50,14 @@ public interface SurveyParticipationRepository extends JpaRepository<SurveyParti
 
     @Query("SELECT sp.date FROM SurveyParticipation sp ORDER BY sp.date")
     List<OffsetDateTime> findAllDatesOrdered();
+
+    /**
+     * One row per participation whose {@code date} falls in {@code [from, to]}:
+     * {@code [respondentId, surveyId, date]}. Used by the daily-completion
+     * overview to map filled slots to respondents without hydrating full
+     * entity graphs.
+     */
+    @Query("SELECT sp.identityUser.id, sp.survey.id, sp.date FROM SurveyParticipation sp " +
+            "WHERE sp.date BETWEEN :from AND :to")
+    List<Object[]> findRespondentSurveyDateTuplesInWindow(OffsetDateTime from, OffsetDateTime to);
 }

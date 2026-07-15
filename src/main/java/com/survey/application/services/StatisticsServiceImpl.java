@@ -1,10 +1,17 @@
 package com.survey.application.services;
 
+import com.survey.application.dtos.statistics.DailyCompletionOverviewDto;
+import com.survey.application.dtos.statistics.DailyCompletionRespondentDto;
+import com.survey.application.dtos.statistics.DailyCompletionTimeSlotDto;
 import com.survey.application.dtos.statistics.GlobalStatsDetailDto;
 import com.survey.application.dtos.statistics.GlobalStatsDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDto;
 import com.survey.application.dtos.statistics.TimeSeriesPointDto;
+import com.survey.api.security.Role;
+import com.survey.domain.models.IdentityUser;
+import com.survey.domain.models.SurveyParticipationTimeSlot;
+import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.LocalizationDataRepository;
 import com.survey.domain.repository.SensorDataRepository;
 import com.survey.domain.repository.SurveyParticipationRepository;
@@ -19,9 +26,12 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -57,10 +67,19 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     private static final int TOP_PARTICIPANTS_LIMIT = 20;
 
+    /**
+     * Same tolerance the participation-time validation applies when
+     * accepting a submission "just after" a slot's finish. We use it
+     * here to decide whether a persisted {@code SurveyParticipation.date}
+     * belongs to a given time slot.
+     */
+    private static final int SLOT_LATE_TOLERANCE_MINUTES = 5;
+
     private final SurveyParticipationRepository participationRepository;
     private final LocalizationDataRepository localizationDataRepository;
     private final SensorDataRepository sensorDataRepository;
     private final SurveyParticipationTimeSlotRepository timeSlotRepository;
+    private final IdentityUserRepository identityUserRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -158,6 +177,99 @@ public class StatisticsServiceImpl implements StatisticsService {
                 bucketByDay(sensorDates, from, to),
                 topParticipants
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DailyCompletionOverviewDto getDailyCompletion(LocalDate date) {
+        OffsetDateTime dayStart = date.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime();
+        OffsetDateTime dayEnd = dayStart.plusDays(1);
+
+        List<SurveyParticipationTimeSlot> slots =
+                timeSlotRepository.findOverlappingWindowWithSurvey(dayStart, dayEnd);
+
+        List<DailyCompletionTimeSlotDto> timeSlotDtos = slots.stream()
+                .map(slot -> new DailyCompletionTimeSlotDto(
+                        slot.getId(),
+                        slot.getSurveySendingPolicy().getSurvey().getId(),
+                        slot.getSurveySendingPolicy().getSurvey().getName(),
+                        slot.getStart(),
+                        slot.getFinish()))
+                .toList();
+
+        List<IdentityUser> respondents = identityUserRepository.findByRole(Role.RESPONDENT.getRoleName());
+        Map<UUID, Set<UUID>> completedByRespondent = findCompletedSlotsByRespondent(slots);
+
+        List<DailyCompletionRespondentDto> respondentDtos = respondents.stream()
+                .map(user -> toRespondentDto(user, completedByRespondent.getOrDefault(user.getId(), Set.of())))
+                .sorted(Comparator.comparingInt(DailyCompletionRespondentDto::completedCount).reversed()
+                        .thenComparing(dto -> dto.username() == null ? "" : dto.username(),
+                                String.CASE_INSENSITIVE_ORDER))
+                .toList();
+
+        return new DailyCompletionOverviewDto(date, timeSlotDtos, respondentDtos);
+    }
+
+    private Map<UUID, Set<UUID>> findCompletedSlotsByRespondent(List<SurveyParticipationTimeSlot> slots) {
+        if (slots.isEmpty()) {
+            return Map.of();
+        }
+
+        // Widen the participation lookup by SLOT_LATE_TOLERANCE_MINUTES to
+        // cover submissions accepted just after a slot's finish — otherwise
+        // a legitimately late submission would look "missed".
+        OffsetDateTime lookupFrom = slots.stream()
+                .map(SurveyParticipationTimeSlot::getStart)
+                .min(Comparator.naturalOrder())
+                .orElseThrow();
+        OffsetDateTime lookupTo = slots.stream()
+                .map(SurveyParticipationTimeSlot::getFinish)
+                .max(Comparator.naturalOrder())
+                .orElseThrow()
+                .plusMinutes(SLOT_LATE_TOLERANCE_MINUTES);
+
+        List<Object[]> tuples = participationRepository
+                .findRespondentSurveyDateTuplesInWindow(lookupFrom, lookupTo);
+
+        Map<UUID, List<SurveyParticipationTimeSlot>> slotsBySurvey = slots.stream()
+                .collect(Collectors.groupingBy(slot ->
+                        slot.getSurveySendingPolicy().getSurvey().getId()));
+
+        Map<UUID, Set<UUID>> completedByRespondent = new HashMap<>();
+        for (Object[] tuple : tuples) {
+            UUID respondentId = (UUID) tuple[0];
+            UUID surveyId = (UUID) tuple[1];
+            OffsetDateTime participationDate = (OffsetDateTime) tuple[2];
+
+            List<SurveyParticipationTimeSlot> candidates = slotsBySurvey.get(surveyId);
+            if (candidates == null) continue;
+
+            for (SurveyParticipationTimeSlot slot : candidates) {
+                if (isParticipationInSlot(participationDate, slot)) {
+                    completedByRespondent
+                            .computeIfAbsent(respondentId, ignored -> new HashSet<>())
+                            .add(slot.getId());
+                    break;
+                }
+            }
+        }
+        return completedByRespondent;
+    }
+
+    private static boolean isParticipationInSlot(OffsetDateTime participationDate,
+                                                 SurveyParticipationTimeSlot slot) {
+        return !participationDate.isBefore(slot.getStart())
+                && !participationDate.isAfter(slot.getFinish().plusMinutes(SLOT_LATE_TOLERANCE_MINUTES));
+    }
+
+    private static DailyCompletionRespondentDto toRespondentDto(IdentityUser user,
+                                                                Set<UUID> completedSlotIds) {
+        List<UUID> orderedIds = completedSlotIds.stream()
+                .sorted(Comparator.comparing(UUID::toString))
+                .toList();
+        return new DailyCompletionRespondentDto(
+                user.getId(), user.getUsername(),
+                orderedIds, orderedIds.size());
     }
 
     private ParticipantStatsDto toParticipantStats(Object[] row) {
