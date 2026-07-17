@@ -7,5 +7,6 @@ public record ParticipantStatsDetailDto(
         ParticipantStatsDto stats,
         List<TimeSeriesPointDto> participationsPerDay,
         List<TimeSeriesPointDto> locationDataPerDay,
-        List<TimeSeriesPointDto> sensorDataPerDay
+        List<TimeSeriesPointDto> sensorDataPerDay,
+        List<TimeSeriesPointDto> participationsOutsideAreaPerDay
 ) {}

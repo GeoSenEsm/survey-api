@@ -1,10 +1,13 @@
 package com.survey.application.services;
 
+import com.survey.application.dtos.statistics.DailyCompletionCompletedSlotDto;
 import com.survey.application.dtos.statistics.DailyCompletionOverviewDto;
 import com.survey.application.dtos.statistics.DailyCompletionRespondentDto;
 import com.survey.application.dtos.statistics.DailyCompletionTimeSlotDto;
+import com.survey.application.dtos.statistics.DailyStatsDetailDto;
 import com.survey.application.dtos.statistics.GlobalStatsDetailDto;
 import com.survey.application.dtos.statistics.GlobalStatsDto;
+import com.survey.application.dtos.statistics.HourlySeriesPointDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDto;
 import com.survey.application.dtos.statistics.TimeSeriesPointDto;
@@ -65,8 +68,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class StatisticsServiceImpl implements StatisticsService {
 
-    private static final int TOP_PARTICIPANTS_LIMIT = 20;
-
     /**
      * Same tolerance the participation-time validation applies when
      * accepting a submission "just after" a slot's finish. We use it
@@ -74,6 +75,14 @@ public class StatisticsServiceImpl implements StatisticsService {
      * belongs to a given time slot.
      */
     private static final int SLOT_LATE_TOLERANCE_MINUTES = 5;
+
+    /**
+     * Length of the trailing "recently active" window used by the daily
+     * detail view. A respondent is considered active for the selected
+     * day if they submitted at least one survey during the previous
+     * {@value} calendar days ending at the end of that day (inclusive).
+     */
+    private static final int DAILY_ACTIVE_WINDOW_DAYS = 3;
 
     private final SurveyParticipationRepository participationRepository;
     private final LocalizationDataRepository localizationDataRepository;
@@ -111,6 +120,11 @@ public class StatisticsServiceImpl implements StatisticsService {
                         respondentId,
                         stats.firstParticipationDate(),
                         stats.lastParticipationDate());
+        List<OffsetDateTime> outsideAreaDates =
+                participationRepository.findDatesOutsideResearchAreaForRespondentInWindow(
+                        respondentId,
+                        stats.firstParticipationDate(),
+                        stats.lastParticipationDate());
 
         LocalDate from = toUtcDate(stats.firstParticipationDate());
         LocalDate to = toUtcDate(stats.lastParticipationDate());
@@ -119,7 +133,8 @@ public class StatisticsServiceImpl implements StatisticsService {
                 stats,
                 bucketByDay(participationDates, from, to),
                 bucketByDay(locationDates, from, to),
-                bucketByDay(sensorDates, from, to)
+                bucketByDay(sensorDates, from, to),
+                bucketByDay(outsideAreaDates, from, to)
         );
     }
 
@@ -130,7 +145,7 @@ public class StatisticsServiceImpl implements StatisticsService {
 
         if (all.isEmpty()) {
             return new GlobalStatsDetailDto(
-                    new GlobalStatsDto(null, null, 0, 0, 0, 0, 0),
+                    new GlobalStatsDto(null, null, 0, 0, 0, 0, 0, 0),
                     List.of(), List.of(), List.of(), List.of());
         }
 
@@ -151,12 +166,16 @@ public class StatisticsServiceImpl implements StatisticsService {
         long surveysAvailable = all.stream().mapToLong(ParticipantStatsDto::surveysAvailable).sum();
         long locationDataCount = all.stream().mapToLong(ParticipantStatsDto::locationDataCount).sum();
         long sensorDataCount = all.stream().mapToLong(ParticipantStatsDto::sensorDataCount).sum();
+        long outsideResearchAreaCount = all.stream()
+                .mapToLong(ParticipantStatsDto::outsideResearchAreaCount).sum();
 
         List<OffsetDateTime> participationDates = participationRepository.findAllDatesOrdered();
         List<OffsetDateTime> locationDates =
                 localizationDataRepository.findAllDateTimesInWindow(firstDate, lastDate);
         List<OffsetDateTime> sensorDates =
                 sensorDataRepository.findAllDateTimesInWindow(firstDate, lastDate);
+        List<OffsetDateTime> outsideAreaDates =
+                participationRepository.findDatesOutsideResearchAreaInWindow(firstDate, lastDate);
 
         LocalDate from = toUtcDate(firstDate);
         LocalDate to = toUtcDate(lastDate);
@@ -164,18 +183,70 @@ public class StatisticsServiceImpl implements StatisticsService {
         GlobalStatsDto stats = new GlobalStatsDto(
                 firstDate, lastDate,
                 all.size(), surveysFilled, surveysAvailable,
-                locationDataCount, sensorDataCount);
-
-        List<ParticipantStatsDto> topParticipants = all.stream()
-                .limit(TOP_PARTICIPANTS_LIMIT)
-                .toList();
+                locationDataCount, sensorDataCount,
+                outsideResearchAreaCount);
 
         return new GlobalStatsDetailDto(
                 stats,
                 bucketByDay(participationDates, from, to),
                 bucketByDay(locationDates, from, to),
                 bucketByDay(sensorDates, from, to),
-                topParticipants
+                bucketByDay(outsideAreaDates, from, to)
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DailyStatsDetailDto getDailyDetail(LocalDate date) {
+        OffsetDateTime dayStart = date.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime();
+        OffsetDateTime dayEnd = dayStart.plusDays(1);
+
+        List<Object[]> participationTuples =
+                participationRepository.findRespondentSurveyDateTuplesInWindow(dayStart, dayEnd);
+        List<OffsetDateTime> locationDates =
+                localizationDataRepository.findAllDateTimesInWindow(dayStart, dayEnd);
+        List<OffsetDateTime> sensorDates =
+                sensorDataRepository.findAllDateTimesInWindow(dayStart, dayEnd);
+        List<OffsetDateTime> outsideAreaDates =
+                participationRepository.findDatesOutsideResearchAreaInWindow(dayStart, dayEnd);
+
+        long surveysFilled = participationTuples.size();
+        // Available = one opportunity per (respondent account × time slot on the day).
+        // Matches the natural "how many surveys could users have filled today" reading.
+        long slotsThatDay = timeSlotRepository.countOverlappingWindow(dayStart, dayEnd);
+        long surveysAvailable = (long) identityUserRepository.countRespondents() * slotsThatDay;
+
+        Set<UUID> respondentsWithSubmission = new HashSet<>();
+        List<OffsetDateTime> participationDates = new ArrayList<>(participationTuples.size());
+        for (Object[] tuple : participationTuples) {
+            respondentsWithSubmission.add((UUID) tuple[0]);
+            participationDates.add((OffsetDateTime) tuple[2]);
+        }
+
+        OffsetDateTime activeWindowStart = dayEnd.minusDays(DAILY_ACTIVE_WINDOW_DAYS);
+        Set<UUID> activeRespondentIds = new HashSet<>(
+                participationRepository.findActiveRespondentIdsInWindow(activeWindowStart, dayEnd));
+        long surveysFilledActive = participationTuples.stream()
+                .filter(tuple -> activeRespondentIds.contains((UUID) tuple[0]))
+                .count();
+        long surveysAvailableActive = (long) activeRespondentIds.size() * slotsThatDay;
+
+        return new DailyStatsDetailDto(
+                date,
+                respondentsWithSubmission.size(),
+                surveysFilled,
+                surveysAvailable,
+                surveysFilledActive,
+                surveysAvailableActive,
+                activeRespondentIds.size(),
+                DAILY_ACTIVE_WINDOW_DAYS,
+                locationDates.size(),
+                sensorDates.size(),
+                outsideAreaDates.size(),
+                bucketByHour(participationDates),
+                bucketByHour(locationDates),
+                bucketByHour(sensorDates),
+                bucketByHour(outsideAreaDates)
         );
     }
 
@@ -199,9 +270,20 @@ public class StatisticsServiceImpl implements StatisticsService {
 
         List<IdentityUser> respondents = identityUserRepository.findByRole(Role.RESPONDENT.getRoleName());
         Map<UUID, Set<UUID>> completedByRespondent = findCompletedSlotsByRespondent(slots);
+        Map<UUID, List<OffsetDateTime>> locationDatesByRespondent = findExtraDataDatesByRespondent(
+                slots, localizationDataRepository::findRespondentDateTimesInWindow);
+        Map<UUID, List<OffsetDateTime>> sensorDatesByRespondent = findExtraDataDatesByRespondent(
+                slots, sensorDataRepository::findRespondentDateTimesInWindow);
+        Map<UUID, OffsetDateTime> lastSubmissionByRespondent = findLastSubmissionByRespondent();
 
         List<DailyCompletionRespondentDto> respondentDtos = respondents.stream()
-                .map(user -> toRespondentDto(user, completedByRespondent.getOrDefault(user.getId(), Set.of())))
+                .map(user -> toRespondentDto(
+                        user,
+                        completedByRespondent.getOrDefault(user.getId(), Set.of()),
+                        slots,
+                        locationDatesByRespondent.getOrDefault(user.getId(), List.of()),
+                        sensorDatesByRespondent.getOrDefault(user.getId(), List.of()),
+                        lastSubmissionByRespondent.get(user.getId())))
                 .sorted(Comparator.comparingInt(DailyCompletionRespondentDto::completedCount).reversed()
                         .thenComparing(dto -> dto.username() == null ? "" : dto.username(),
                                 String.CASE_INSENSITIVE_ORDER))
@@ -256,20 +338,79 @@ public class StatisticsServiceImpl implements StatisticsService {
         return completedByRespondent;
     }
 
+    /**
+     * Groups every timestamp returned by {@code query(from, to)} for the
+     * overall slot window under its respondent id, so we can later check
+     * per-slot membership in O(n) without new DB round-trips. The tuples
+     * are expected to be {@code [respondentId, OffsetDateTime]}.
+     */
+    private static Map<UUID, List<OffsetDateTime>> findExtraDataDatesByRespondent(
+            List<SurveyParticipationTimeSlot> slots,
+            java.util.function.BiFunction<OffsetDateTime, OffsetDateTime, List<Object[]>> query) {
+        if (slots.isEmpty()) {
+            return Map.of();
+        }
+        OffsetDateTime lookupFrom = slots.stream()
+                .map(SurveyParticipationTimeSlot::getStart)
+                .min(Comparator.naturalOrder())
+                .orElseThrow();
+        OffsetDateTime lookupTo = slots.stream()
+                .map(SurveyParticipationTimeSlot::getFinish)
+                .max(Comparator.naturalOrder())
+                .orElseThrow();
+
+        Map<UUID, List<OffsetDateTime>> byRespondent = new HashMap<>();
+        for (Object[] tuple : query.apply(lookupFrom, lookupTo)) {
+            UUID respondentId = (UUID) tuple[0];
+            OffsetDateTime moment = (OffsetDateTime) tuple[1];
+            byRespondent.computeIfAbsent(respondentId, ignored -> new ArrayList<>()).add(moment);
+        }
+        return byRespondent;
+    }
+
     private static boolean isParticipationInSlot(OffsetDateTime participationDate,
                                                  SurveyParticipationTimeSlot slot) {
         return !participationDate.isBefore(slot.getStart())
                 && !participationDate.isAfter(slot.getFinish().plusMinutes(SLOT_LATE_TOLERANCE_MINUTES));
     }
 
-    private static DailyCompletionRespondentDto toRespondentDto(IdentityUser user,
-                                                                Set<UUID> completedSlotIds) {
-        List<UUID> orderedIds = completedSlotIds.stream()
-                .sorted(Comparator.comparing(UUID::toString))
+    private static boolean anyTimestampInSlot(
+            List<OffsetDateTime> timestamps, SurveyParticipationTimeSlot slot) {
+        for (OffsetDateTime moment : timestamps) {
+            if (!moment.isBefore(slot.getStart()) && !moment.isAfter(slot.getFinish())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static DailyCompletionRespondentDto toRespondentDto(
+            IdentityUser user,
+            Set<UUID> completedSlotIds,
+            List<SurveyParticipationTimeSlot> slots,
+            List<OffsetDateTime> locationDates,
+            List<OffsetDateTime> sensorDates,
+            OffsetDateTime lastSubmissionAt) {
+        List<DailyCompletionCompletedSlotDto> completedSlots = slots.stream()
+                .filter(slot -> completedSlotIds.contains(slot.getId()))
+                .sorted(Comparator.comparing(SurveyParticipationTimeSlot::getStart))
+                .map(slot -> new DailyCompletionCompletedSlotDto(
+                        slot.getId(),
+                        anyTimestampInSlot(locationDates, slot),
+                        anyTimestampInSlot(sensorDates, slot)))
                 .toList();
         return new DailyCompletionRespondentDto(
                 user.getId(), user.getUsername(),
-                orderedIds, orderedIds.size());
+                completedSlots, completedSlots.size(),
+                lastSubmissionAt);
+    }
+
+    private Map<UUID, OffsetDateTime> findLastSubmissionByRespondent() {
+        Map<UUID, OffsetDateTime> byRespondent = new HashMap<>();
+        for (Object[] tuple : participationRepository.findLastSubmissionDatePerRespondent()) {
+            byRespondent.put((UUID) tuple[0], (OffsetDateTime) tuple[1]);
+        }
+        return byRespondent;
     }
 
     private ParticipantStatsDto toParticipantStats(Object[] row) {
@@ -281,11 +422,14 @@ public class StatisticsServiceImpl implements StatisticsService {
         long surveysAvailable = timeSlotRepository.countOverlappingWindow(firstDate, lastDate);
         long locationDataCount = localizationDataRepository.countByIdentityUserId(respondentId);
         long sensorDataCount = sensorDataRepository.countByRespondentId(respondentId);
+        long outsideResearchAreaCount =
+                participationRepository.countOutsideResearchAreaByRespondentId(respondentId);
         return new ParticipantStatsDto(
                 respondentId, username,
                 firstDate, lastDate,
                 surveysFilled, surveysAvailable,
-                locationDataCount, sensorDataCount);
+                locationDataCount, sensorDataCount,
+                outsideResearchAreaCount);
     }
 
     private static LocalDate toUtcDate(OffsetDateTime moment) {
@@ -309,6 +453,22 @@ public class StatisticsServiceImpl implements StatisticsService {
         List<TimeSeriesPointDto> series = new ArrayList<>();
         for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
             series.add(new TimeSeriesPointDto(day, counts.getOrDefault(day, 0L)));
+        }
+        return series;
+    }
+
+    /**
+     * Groups {@code timestamps} by UTC hour-of-day and produces exactly
+     * 24 points ({@code hour} = 0..23) with 0 for empty hours.
+     */
+    private static List<HourlySeriesPointDto> bucketByHour(List<OffsetDateTime> timestamps) {
+        long[] counts = new long[24];
+        for (OffsetDateTime moment : timestamps) {
+            counts[moment.withOffsetSameInstant(ZoneOffset.UTC).getHour()]++;
+        }
+        List<HourlySeriesPointDto> series = new ArrayList<>(24);
+        for (int hour = 0; hour < 24; hour++) {
+            series.add(new HourlySeriesPointDto(hour, counts[hour]));
         }
         return series;
     }

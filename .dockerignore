@@ -1,6 +1,7 @@
-./target/*
-./src/test/*
-./logs
-./.git
-./.idea
-./.github
+target
+.mvn
+.idea
+.vscode
+.github
+.git
+*.log

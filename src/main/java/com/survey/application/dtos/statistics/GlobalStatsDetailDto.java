@@ -9,8 +9,10 @@ public record GlobalStatsDetailDto(
         List<TimeSeriesPointDto> locationDataPerDay,
         List<TimeSeriesPointDto> sensorDataPerDay,
         /**
-         * Top participants by surveys filled, for the "filled vs available"
-         * comparison bar chart. Bounded server-side to keep payloads small.
+         * Daily count of survey participations that were submitted from
+         * outside the configured research area (via the linked
+         * {@code localization_data.outsideResearchArea} flag). Empty when
+         * no research area polygon is defined.
          */
-        List<ParticipantStatsDto> topParticipants
+        List<TimeSeriesPointDto> participationsOutsideAreaPerDay
 ) {}

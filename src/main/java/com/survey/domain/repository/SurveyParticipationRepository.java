@@ -60,4 +60,63 @@ public interface SurveyParticipationRepository extends JpaRepository<SurveyParti
     @Query("SELECT sp.identityUser.id, sp.survey.id, sp.date FROM SurveyParticipation sp " +
             "WHERE sp.date BETWEEN :from AND :to")
     List<Object[]> findRespondentSurveyDateTuplesInWindow(OffsetDateTime from, OffsetDateTime to);
+
+    /**
+     * One row per respondent that has ever submitted a survey:
+     * {@code [respondentId, MAX(sp.date)]}. Feeds the admin "active in
+     * last X days" filter without a per-respondent round trip.
+     */
+    @Query("SELECT sp.identityUser.id, MAX(sp.date) FROM SurveyParticipation sp " +
+            "GROUP BY sp.identityUser.id")
+    List<Object[]> findLastSubmissionDatePerRespondent();
+
+    /**
+     * Submission timestamps of participations whose linked localization
+     * data was captured outside the configured research area polygon.
+     * The join relies on {@code LocalizationData.surveyParticipation}
+     * (unique per participation since V14) and its precomputed
+     * {@code outsideResearchArea} bit. Participations without any linked
+     * localization row are naturally excluded.
+     */
+    @Query("SELECT sp.date FROM SurveyParticipation sp " +
+            "JOIN LocalizationData ld ON ld.surveyParticipation = sp " +
+            "WHERE ld.outsideResearchArea = true " +
+            "AND sp.date BETWEEN :from AND :to " +
+            "ORDER BY sp.date")
+    List<OffsetDateTime> findDatesOutsideResearchAreaInWindow(
+            OffsetDateTime from, OffsetDateTime to);
+
+    /**
+     * Per-respondent version of {@link #findDatesOutsideResearchAreaInWindow}
+     * used for the per-participant time series in the statistics view.
+     */
+    @Query("SELECT sp.date FROM SurveyParticipation sp " +
+            "JOIN LocalizationData ld ON ld.surveyParticipation = sp " +
+            "WHERE ld.outsideResearchArea = true " +
+            "AND sp.identityUser.id = :respondentId " +
+            "AND sp.date BETWEEN :from AND :to " +
+            "ORDER BY sp.date")
+    List<OffsetDateTime> findDatesOutsideResearchAreaForRespondentInWindow(
+            UUID respondentId, OffsetDateTime from, OffsetDateTime to);
+
+    /**
+     * Total number of participations by {@code respondentId} whose linked
+     * localization was captured outside the research area polygon.
+     * Feeds the per-participant KPI card.
+     */
+    @Query("SELECT COUNT(sp) FROM SurveyParticipation sp " +
+            "JOIN LocalizationData ld ON ld.surveyParticipation = sp " +
+            "WHERE ld.outsideResearchArea = true " +
+            "AND sp.identityUser.id = :respondentId")
+    long countOutsideResearchAreaByRespondentId(UUID respondentId);
+
+    /**
+     * IDs of respondents that submitted at least one survey inside
+     * {@code [from, to)}. Used by the daily "active in last N days"
+     * KPI so the frontend can restrict the filled/available ratio to
+     * respondents currently engaged with the study.
+     */
+    @Query("SELECT DISTINCT sp.identityUser.id FROM SurveyParticipation sp " +
+            "WHERE sp.date >= :from AND sp.date < :to")
+    List<UUID> findActiveRespondentIdsInWindow(OffsetDateTime from, OffsetDateTime to);
 }

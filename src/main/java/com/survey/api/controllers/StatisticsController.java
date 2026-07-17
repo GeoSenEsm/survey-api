@@ -5,6 +5,7 @@ import com.survey.api.configuration.CommonApiResponse401;
 import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.statistics.DailyCompletionOverviewDto;
+import com.survey.application.dtos.statistics.DailyStatsDetailDto;
 import com.survey.application.dtos.statistics.GlobalStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDto;
@@ -79,6 +80,25 @@ public class StatisticsController {
     public ResponseEntity<GlobalStatsDetailDto> getGlobal() {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         return ResponseEntity.ok(statisticsService.getGlobalDetail());
+    }
+
+    @GetMapping("/daily")
+    @Operation(
+            summary = "Fetch aggregates + hourly time series for one UTC day.",
+            description = """
+                Same shape as `/global` but with 24 hour buckets instead of
+                one bucket per day. Counts include only data whose timestamp
+                falls in the requested UTC day.
+                - **Access:** ADMIN
+                """)
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Daily stats.")})
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<DailyStatsDetailDto> getDailyDetail(
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        return ResponseEntity.ok(statisticsService.getDailyDetail(date));
     }
 
     @GetMapping("/daily-completion")

@@ -39,4 +39,8 @@ public interface LocalizationDataRepository extends JpaRepository<LocalizationDa
     @Query("SELECT ld.dateTime FROM LocalizationData ld " +
             "WHERE ld.dateTime BETWEEN :from AND :to")
     List<OffsetDateTime> findAllDateTimesInWindow(OffsetDateTime from, OffsetDateTime to);
+
+    @Query("SELECT ld.identityUser.id, ld.dateTime FROM LocalizationData ld " +
+            "WHERE ld.dateTime BETWEEN :from AND :to")
+    List<Object[]> findRespondentDateTimesInWindow(OffsetDateTime from, OffsetDateTime to);
 }

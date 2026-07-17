@@ -15,5 +15,6 @@ public record GlobalStatsDto(
         long surveysFilled,
         long surveysAvailable,
         long locationDataCount,
-        long sensorDataCount
+        long sensorDataCount,
+        long outsideResearchAreaCount
 ) {}

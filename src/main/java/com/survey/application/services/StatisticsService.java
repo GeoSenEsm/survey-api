@@ -1,6 +1,7 @@
 package com.survey.application.services;
 
 import com.survey.application.dtos.statistics.DailyCompletionOverviewDto;
+import com.survey.application.dtos.statistics.DailyStatsDetailDto;
 import com.survey.application.dtos.statistics.GlobalStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDto;
@@ -27,7 +28,16 @@ public interface StatisticsService {
     /**
      * Full-day completion overview for {@code date} (interpreted as a UTC
      * calendar day). Lists every time slot that overlaps the day and, for
-     * every respondent account, which of those slots were already filled.
+     * every respondent account, which of those slots were already filled
+     * together with whether GPS and sensor data was also collected for
+     * that slot.
      */
     DailyCompletionOverviewDto getDailyCompletion(LocalDate date);
+
+    /**
+     * Aggregates + hourly time series for one UTC calendar day. Same
+     * shape as {@link #getGlobalDetail()} but with 24 hour buckets
+     * instead of one bucket per study-window day.
+     */
+    DailyStatsDetailDto getDailyDetail(LocalDate date);
 }
