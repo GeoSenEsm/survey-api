@@ -274,7 +274,7 @@ public class StatisticsServiceImpl implements StatisticsService {
                 slots, localizationDataRepository::findRespondentDateTimesInWindow);
         Map<UUID, List<OffsetDateTime>> sensorDatesByRespondent = findExtraDataDatesByRespondent(
                 slots, sensorDataRepository::findRespondentDateTimesInWindow);
-        Map<UUID, OffsetDateTime> lastSubmissionByRespondent = findLastSubmissionByRespondent();
+        Map<UUID, OffsetDateTime> lastSubmissionByRespondent = findLastSubmissionByRespondent(dayEnd);
 
         List<DailyCompletionRespondentDto> respondentDtos = respondents.stream()
                 .map(user -> toRespondentDto(
@@ -405,9 +405,16 @@ public class StatisticsServiceImpl implements StatisticsService {
                 lastSubmissionAt);
     }
 
-    private Map<UUID, OffsetDateTime> findLastSubmissionByRespondent() {
+    /**
+     * Latest submission strictly before {@code cutoff} per respondent.
+     * The daily-completion "active in last X days" filter feeds this the
+     * end of the currently displayed calendar day so that a submission
+     * made <em>after</em> that day does not push the respondent out of
+     * the trailing window.
+     */
+    private Map<UUID, OffsetDateTime> findLastSubmissionByRespondent(OffsetDateTime cutoff) {
         Map<UUID, OffsetDateTime> byRespondent = new HashMap<>();
-        for (Object[] tuple : participationRepository.findLastSubmissionDatePerRespondent()) {
+        for (Object[] tuple : participationRepository.findLastSubmissionDatePerRespondentBefore(cutoff)) {
             byRespondent.put((UUID) tuple[0], (OffsetDateTime) tuple[1]);
         }
         return byRespondent;

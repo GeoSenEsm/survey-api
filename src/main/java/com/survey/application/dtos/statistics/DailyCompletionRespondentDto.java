@@ -10,10 +10,13 @@ import java.util.UUID;
  * sensor data was also collected during that slot's window.
  * {@code completedSlots} references entries in
  * {@link DailyCompletionOverviewDto#timeSlots()}. {@code lastSubmissionAt}
- * is the timestamp of the respondent's most recent {@code SurveyParticipation}
- * across the entire study (not just this day) or {@code null} if they have
- * never submitted anything — used by the admin panel to filter out
- * inactive accounts.
+ * is the timestamp of the respondent's most recent
+ * {@code SurveyParticipation} that happened at or before the end of the
+ * day currently displayed by the admin panel, or {@code null} if they
+ * have never submitted anything before that day. Clipping to the
+ * selected day (rather than reporting the all-time maximum) is what
+ * lets the "active in last X days" filter behave correctly when the
+ * admin browses past dates.
  */
 public record DailyCompletionRespondentDto(
         UUID respondentId,

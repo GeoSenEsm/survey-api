@@ -62,13 +62,17 @@ public interface SurveyParticipationRepository extends JpaRepository<SurveyParti
     List<Object[]> findRespondentSurveyDateTuplesInWindow(OffsetDateTime from, OffsetDateTime to);
 
     /**
-     * One row per respondent that has ever submitted a survey:
-     * {@code [respondentId, MAX(sp.date)]}. Feeds the admin "active in
-     * last X days" filter without a per-respondent round trip.
+     * One row per respondent whose most recent submission is strictly
+     * before {@code cutoff}: {@code [respondentId, MAX(sp.date)]}. The
+     * admin "active in last X days" filter passes the end of the day
+     * currently displayed in the calendar so that respondents who
+     * submitted after that day do not incorrectly disappear when the
+     * viewer looks at a past date.
      */
     @Query("SELECT sp.identityUser.id, MAX(sp.date) FROM SurveyParticipation sp " +
+            "WHERE sp.date < :cutoff " +
             "GROUP BY sp.identityUser.id")
-    List<Object[]> findLastSubmissionDatePerRespondent();
+    List<Object[]> findLastSubmissionDatePerRespondentBefore(OffsetDateTime cutoff);
 
     /**
      * Submission timestamps of participations whose linked localization
