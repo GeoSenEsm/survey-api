@@ -284,9 +284,9 @@ public class StatisticsServiceImpl implements StatisticsService {
                         locationDatesByRespondent.getOrDefault(user.getId(), List.of()),
                         sensorDatesByRespondent.getOrDefault(user.getId(), List.of()),
                         lastSubmissionByRespondent.get(user.getId())))
-                .sorted(Comparator.comparingInt(DailyCompletionRespondentDto::completedCount).reversed()
-                        .thenComparing(dto -> dto.username() == null ? "" : dto.username(),
-                                String.CASE_INSENSITIVE_ORDER))
+                .sorted(Comparator.comparing(
+                        (DailyCompletionRespondentDto dto) -> dto.username() == null ? "" : dto.username(),
+                        String.CASE_INSENSITIVE_ORDER))
                 .toList();
 
         return new DailyCompletionOverviewDto(date, timeSlotDtos, respondentDtos);
