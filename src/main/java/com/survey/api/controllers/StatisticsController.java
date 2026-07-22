@@ -151,8 +151,6 @@ public class StatisticsController {
                   percentages for either each respondent's assigned survey
                   window (`rangeMode=survey_window`) or a shared custom
                   date range (`rangeMode=custom` with `from`/`to`).
-                - Also returns counts of respondents below 80% in each
-                  category.
                 - **Access:** ADMIN
                 """)
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Issues overview.")})

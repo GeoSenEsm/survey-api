@@ -458,11 +458,7 @@ public class StatisticsServiceImpl implements StatisticsService {
                 dto -> dto.username() == null ? "" : dto.username(),
                 String.CASE_INSENSITIVE_ORDER));
 
-        long below80Survey = rows.stream().filter(r -> isBelowThreshold(r.surveyCompletionPercent(), 80.0)).count();
-        long below80Gps = rows.stream().filter(r -> isBelowThreshold(r.gpsCompletionPercent(), 80.0)).count();
-        long below80Sensor = rows.stream().filter(r -> isBelowThreshold(r.sensorCompletionPercent(), 80.0)).count();
-
-        return new IssuesOverviewDto(rows, below80Survey, below80Gps, below80Sensor, rows.size());
+        return new IssuesOverviewDto(rows, rows.size());
     }
 
     private static long countSlotsOverlapping(
@@ -483,10 +479,6 @@ public class StatisticsServiceImpl implements StatisticsService {
             return null;
         }
         return (filled * 100.0) / available;
-    }
-
-    private static boolean isBelowThreshold(Double percent, double threshold) {
-        return percent != null && percent < threshold;
     }
 
     private record ParticipationRow(UUID id, OffsetDateTime date) {}
