@@ -421,14 +421,23 @@ public class StatisticsServiceImpl implements StatisticsService {
                 windowStart = user.getSurveyStartDate();
                 windowEnd = user.getSurveyEndDate();
             } else {
-                windowStart = from;
-                windowEnd = to;
+                LocalDate intersectionStart = maxDate(from, user.getSurveyStartDate());
+                LocalDate intersectionEnd = minDate(to, user.getSurveyEndDate());
+                if (intersectionEnd.isBefore(intersectionStart)) {
+                    continue;
+                }
+                windowStart = intersectionStart;
+                windowEnd = intersectionEnd;
             }
 
             OffsetDateTime windowStartOd = windowStart.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime();
             OffsetDateTime windowEndOd = windowEnd.atTime(23, 59, 59).atOffset(ZoneOffset.UTC);
 
             long available = countSlotsOverlapping(slotWindows, windowStartOd, windowEndOd);
+            if (rangeMode == IssuesRangeMode.custom && available == 0) {
+                continue;
+            }
+
             List<ParticipationRow> inWindow = byRespondent
                     .getOrDefault(user.getId(), List.of())
                     .stream()
@@ -460,6 +469,14 @@ public class StatisticsServiceImpl implements StatisticsService {
                 String.CASE_INSENSITIVE_ORDER));
 
         return new IssuesOverviewDto(rows, rows.size());
+    }
+
+    private static LocalDate maxDate(LocalDate a, LocalDate b) {
+        return a.isAfter(b) ? a : b;
+    }
+
+    private static LocalDate minDate(LocalDate a, LocalDate b) {
+        return a.isBefore(b) ? a : b;
     }
 
     private static long countSlotsOverlapping(

@@ -8,8 +8,9 @@ public enum IssuesRangeMode {
     /** Use each respondent's assigned survey_start_date / survey_end_date. */
     survey_window,
     /**
-     * Use one admin-selected from/to range for every respondent that
-     * already has a survey window assigned.
+     * Use one admin-selected from/to range intersected with each
+     * respondent's assigned survey window. Respondents without a window,
+     * without overlap, or with no survey slots in the intersection are omitted.
      */
     custom
 }

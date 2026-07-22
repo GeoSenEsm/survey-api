@@ -152,7 +152,10 @@ public class StatisticsController {
                   window (`rangeMode=survey_window`) or a shared custom
                   date range (`rangeMode=custom` with `from`/`to`).
                 - Only respondents with both survey start and end dates
-                  assigned are included in either mode.
+                  assigned are included.
+                - For `custom`, each respondent's evaluation interval is the
+                  intersection of the selected dates and their survey window;
+                  respondents with no overlapping survey slots are omitted.
                 - **Access:** ADMIN
                 """)
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Issues overview.")})
