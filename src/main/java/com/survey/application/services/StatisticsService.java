@@ -2,6 +2,7 @@ package com.survey.application.services;
 
 import com.survey.application.dtos.statistics.DailyCompletionOverviewDto;
 import com.survey.application.dtos.statistics.DailyStatsDetailDto;
+import com.survey.application.dtos.statistics.DailyStatsRowDto;
 import com.survey.application.dtos.statistics.GlobalStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDto;
@@ -40,4 +41,11 @@ public interface StatisticsService {
      * instead of one bucket per study-window day.
      */
     DailyStatsDetailDto getDailyDetail(LocalDate date);
+
+    /**
+     * One KPI row per UTC day across the global study window (same
+     * window as {@link #getGlobalDetail()}). Used for CSV export from
+     * the daily statistics view.
+     */
+    List<DailyStatsRowDto> listDailyStatsRows();
 }

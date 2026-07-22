@@ -4,7 +4,9 @@ import com.survey.api.configuration.CommonApiResponse400;
 import com.survey.api.configuration.CommonApiResponse401;
 import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
+import com.survey.application.dtos.AssignSurveyWindowDto;
 import com.survey.application.dtos.CreateRespondentDataDto;
+import com.survey.application.dtos.SurveyWindowActivityPointDto;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.RespondentDataService;
 import com.survey.domain.models.enums.RespondentFilterOption;
@@ -249,5 +251,41 @@ public class RespondentDataController {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         Map<String, Object> response = respondentDataService.updateRespondent(dto, identityUserId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+
+    @PutMapping("/survey-window")
+    @Operation(
+            summary = "Batch-assign survey start/end dates to respondents.",
+            description = """
+                    - Sets the study window for every listed respondent id.
+                    - Pass both dates as null to clear the window.
+                    - **Access:** ADMIN
+                    """)
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<Map<String, Object>> assignSurveyWindow(
+            @Validated @RequestBody AssignSurveyWindowDto dto) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        int updated = respondentDataService.assignSurveyWindow(dto);
+        return ResponseEntity.ok(Map.of("updated", updated));
+    }
+
+
+    @GetMapping("/survey-window/activity")
+    @Operation(
+            summary = "Active respondents over time based on assigned survey windows.",
+            description = """
+                    - Returns a daily series of how many respondents have an assigned
+                      window covering each day, from the earliest survey creation /
+                      assigned start date through the latest assigned end date or today.
+                    - **Access:** ADMIN
+                    """)
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<List<SurveyWindowActivityPointDto>> getSurveyWindowActivity() {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        return ResponseEntity.ok(respondentDataService.getSurveyWindowActivity());
     }
 }

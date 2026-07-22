@@ -62,19 +62,6 @@ public interface SurveyParticipationRepository extends JpaRepository<SurveyParti
     List<Object[]> findRespondentSurveyDateTuplesInWindow(OffsetDateTime from, OffsetDateTime to);
 
     /**
-     * One row per respondent whose most recent submission is strictly
-     * before {@code cutoff}: {@code [respondentId, MAX(sp.date)]}. The
-     * admin "active in last X days" filter passes the end of the day
-     * currently displayed in the calendar so that respondents who
-     * submitted after that day do not incorrectly disappear when the
-     * viewer looks at a past date.
-     */
-    @Query("SELECT sp.identityUser.id, MAX(sp.date) FROM SurveyParticipation sp " +
-            "WHERE sp.date < :cutoff " +
-            "GROUP BY sp.identityUser.id")
-    List<Object[]> findLastSubmissionDatePerRespondentBefore(OffsetDateTime cutoff);
-
-    /**
      * Submission timestamps of participations whose linked localization
      * data was captured outside the configured research area polygon.
      * The join relies on {@code LocalizationData.surveyParticipation}
@@ -113,14 +100,4 @@ public interface SurveyParticipationRepository extends JpaRepository<SurveyParti
             "WHERE ld.outsideResearchArea = true " +
             "AND sp.identityUser.id = :respondentId")
     long countOutsideResearchAreaByRespondentId(UUID respondentId);
-
-    /**
-     * IDs of respondents that submitted at least one survey inside
-     * {@code [from, to)}. Used by the daily "active in last N days"
-     * KPI so the frontend can restrict the filled/available ratio to
-     * respondents currently engaged with the study.
-     */
-    @Query("SELECT DISTINCT sp.identityUser.id FROM SurveyParticipation sp " +
-            "WHERE sp.date >= :from AND sp.date < :to")
-    List<UUID> findActiveRespondentIdsInWindow(OffsetDateTime from, OffsetDateTime to);
 }

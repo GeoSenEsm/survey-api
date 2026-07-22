@@ -1,6 +1,8 @@
 package com.survey.application.services;
 
+import com.survey.application.dtos.AssignSurveyWindowDto;
 import com.survey.application.dtos.CreateRespondentDataDto;
+import com.survey.application.dtos.SurveyWindowActivityPointDto;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.RespondentFilterOption;
 import com.survey.domain.models.enums.SurveyState;
@@ -17,7 +19,9 @@ import org.springframework.web.context.annotation.RequestScope;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InvalidAttributeValueException;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -34,12 +38,13 @@ public class RespondentDataServiceImpl implements RespondentDataService{
     private final RespondentGroupRepository respondentGroupRepository;
     private final RespondentToGroupRepository respondentToGroupRepository;
     private final IdentityUserRepository identityUserRepository;
+    private final SurveyRepository surveyRepository;
 
 
 
     @Autowired
     public RespondentDataServiceImpl(RespondentDataRepository respondentDataRepository,
-                                     ClaimsPrincipalService claimsPrincipalService, EntityManager entityManager, InitialSurveyRepository initialSurveyRepository, InitialSurveyQuestionRepository initialSurveyQuestionRepository, InitialSurveyOptionRepository initialSurveyOptionRepository, RespondentGroupRepository respondentGroupRepository, RespondentToGroupRepository respondentToGroupRepository, IdentityUserRepository identityUserRepository) {
+                                     ClaimsPrincipalService claimsPrincipalService, EntityManager entityManager, InitialSurveyRepository initialSurveyRepository, InitialSurveyQuestionRepository initialSurveyQuestionRepository, InitialSurveyOptionRepository initialSurveyOptionRepository, RespondentGroupRepository respondentGroupRepository, RespondentToGroupRepository respondentToGroupRepository, IdentityUserRepository identityUserRepository, SurveyRepository surveyRepository) {
         this.respondentDataRepository = respondentDataRepository;
         this.claimsPrincipalService = claimsPrincipalService;
         this.entityManager = entityManager;
@@ -49,6 +54,7 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         this.respondentGroupRepository = respondentGroupRepository;
         this.respondentToGroupRepository = respondentToGroupRepository;
         this.identityUserRepository = identityUserRepository;
+        this.surveyRepository = surveyRepository;
     }
 
     @Override
@@ -355,8 +361,11 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
     private Map<String, Object> mapRespondentDataToResponse(RespondentData respondentData) {
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("id", respondentData.getIdentityUser().getId());
+        IdentityUser user = respondentData.getIdentityUser();
+        response.put("id", user.getId());
         response.put("username", respondentData.getUsername());
+        response.put("surveyStartDate", user.getSurveyStartDate());
+        response.put("surveyEndDate", user.getSurveyEndDate());
 
         mapQuestionsAndOptions(respondentData, response);
    
@@ -368,6 +377,8 @@ public class RespondentDataServiceImpl implements RespondentDataService{
 
         response.put("id", identityUserId);
         response.put("username", identityUser.getUsername());
+        response.put("surveyStartDate", identityUser.getSurveyStartDate());
+        response.put("surveyEndDate", identityUser.getSurveyEndDate());
 
         RespondentData respondentData = respondentDataRepository.findByIdentityUserId(identityUserId);
 
@@ -376,6 +387,74 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         }
         return response;
     }
+
+    @Override
+    @Transactional
+    public int assignSurveyWindow(AssignSurveyWindowDto dto) {
+        LocalDate start = dto.surveyStartDate();
+        LocalDate end = dto.surveyEndDate();
+        boolean clearing = start == null && end == null;
+        if (!clearing) {
+            if (start == null || end == null) {
+                throw new IllegalArgumentException("Both surveyStartDate and surveyEndDate are required, or both must be null to clear.");
+            }
+            if (end.isBefore(start)) {
+                throw new IllegalArgumentException("surveyEndDate must be on or after surveyStartDate.");
+            }
+        }
+
+        List<IdentityUser> users = identityUserRepository.findAllById(dto.respondentIds());
+        if (users.size() != dto.respondentIds().size()) {
+            throw new NoSuchElementException("One or more respondent ids were not found.");
+        }
+        for (IdentityUser user : users) {
+            if (!"Respondent".equals(user.getRole())) {
+                throw new IllegalArgumentException("User " + user.getId() + " is not a respondent.");
+            }
+            user.setSurveyStartDate(start);
+            user.setSurveyEndDate(end);
+        }
+        identityUserRepository.saveAll(users);
+        return users.size();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SurveyWindowActivityPointDto> getSurveyWindowActivity() {
+        List<IdentityUser> withWindow = identityUserRepository.findRespondentsWithSurveyWindow();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+
+        LocalDate chartStart = identityUserRepository.findEarliestSurveyStartDate();
+        OffsetDateTime earliestSurvey = surveyRepository.findEarliestCreationDate();
+        if (earliestSurvey != null) {
+            LocalDate surveyDay = earliestSurvey.withOffsetSameInstant(ZoneOffset.UTC).toLocalDate();
+            chartStart = chartStart == null || surveyDay.isBefore(chartStart) ? surveyDay : chartStart;
+        }
+
+        LocalDate chartEnd = identityUserRepository.findLatestSurveyEndDate();
+        if (chartEnd == null || chartEnd.isBefore(today)) {
+            chartEnd = today;
+        }
+        if (chartStart == null) {
+            chartStart = today;
+        }
+        if (chartStart.isAfter(chartEnd)) {
+            return List.of();
+        }
+
+        List<SurveyWindowActivityPointDto> series = new ArrayList<>();
+        for (LocalDate day = chartStart; !day.isAfter(chartEnd); day = day.plusDays(1)) {
+            long active = 0;
+            for (IdentityUser user : withWindow) {
+                if (user.isActiveOn(day)) {
+                    active++;
+                }
+            }
+            series.add(new SurveyWindowActivityPointDto(day, active));
+        }
+        return series;
+    }
+
     private void mapQuestionsAndOptions(RespondentData respondentData, Map<String, Object> response) {
         respondentData.getRespondentDataQuestions().forEach(question -> {
             String questionContent = question.getQuestion().getContent();

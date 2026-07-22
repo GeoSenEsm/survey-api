@@ -6,6 +6,7 @@ import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.statistics.DailyCompletionOverviewDto;
 import com.survey.application.dtos.statistics.DailyStatsDetailDto;
+import com.survey.application.dtos.statistics.DailyStatsRowDto;
 import com.survey.application.dtos.statistics.GlobalStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDto;
@@ -99,6 +100,23 @@ public class StatisticsController {
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         return ResponseEntity.ok(statisticsService.getDailyDetail(date));
+    }
+
+    @GetMapping("/daily/rows")
+    @Operation(
+            summary = "Daily KPI rows for the whole study window.",
+            description = """
+                One row per UTC day across the global study window, containing
+                the same box numbers as the daily statistics view (no hourly
+                series). Used for CSV export.
+                - **Access:** ADMIN
+                """)
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Daily KPI rows.")})
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<List<DailyStatsRowDto>> listDailyStatsRows() {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        return ResponseEntity.ok(statisticsService.listDailyStatsRows());
     }
 
     @GetMapping("/daily-completion")

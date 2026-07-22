@@ -1,6 +1,8 @@
 package com.survey.application.services;
 
+import com.survey.application.dtos.AssignSurveyWindowDto;
 import com.survey.application.dtos.CreateRespondentDataDto;
+import com.survey.application.dtos.SurveyWindowActivityPointDto;
 import com.survey.domain.models.enums.RespondentFilterOption;
 import org.apache.coyote.BadRequestException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -18,4 +20,8 @@ public interface RespondentDataService {
     List<Map<String, Object>> getAll(RespondentFilterOption filterOption, Integer amount, OffsetDateTime from, OffsetDateTime to);
     Map<String, Object> getFromUserContext();
     Map<String, Object> updateRespondent(List<CreateRespondentDataDto> dto, UUID identityUserId);
+
+    int assignSurveyWindow(AssignSurveyWindowDto dto);
+
+    List<SurveyWindowActivityPointDto> getSurveyWindowActivity();
 }

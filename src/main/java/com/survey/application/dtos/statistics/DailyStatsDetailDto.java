@@ -5,25 +5,20 @@ import java.util.List;
 
 /**
  * Aggregate stats + hourly time series for a single UTC calendar day.
- * Same shape as {@link GlobalStatsDetailDto} but bucketed by hour of
- * that day rather than by day of the whole study window.
+ * {@code surveysAvailable} counts opportunities for respondents with no
+ * assigned window or whose window covers {@code date}.
+ * {@code surveysAvailableActive} / {@code activeRespondentCount} restrict
+ * that set to respondents that have both dates assigned and whose window
+ * covers {@code date} ("Available (set dates)" in the admin UI).
  */
 public record DailyStatsDetailDto(
         LocalDate date,
         long totalParticipants,
         long surveysFilled,
         long surveysAvailable,
-        /**
-         * Filled/available restricted to "active" respondents — those
-         * who submitted at least one survey inside the trailing window
-         * ending at the end of {@code date} (see
-         * {@link com.survey.application.services.StatisticsServiceImpl}
-         * for the exact window length).
-         */
         long surveysFilledActive,
         long surveysAvailableActive,
         int activeRespondentCount,
-        int activeWindowDays,
         long locationDataCount,
         long sensorDataCount,
         long participationsOutsideAreaCount,
