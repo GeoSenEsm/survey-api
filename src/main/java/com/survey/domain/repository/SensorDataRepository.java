@@ -42,4 +42,8 @@ public interface SensorDataRepository extends JpaRepository<SensorData, UUID> {
     @Query("SELECT sd.respondent.id, sd.dateTime FROM SensorData sd " +
             "WHERE sd.dateTime BETWEEN :from AND :to")
     List<Object[]> findRespondentDateTimesInWindow(OffsetDateTime from, OffsetDateTime to);
+
+    @Query("SELECT sd.surveyParticipation.id FROM SensorData sd " +
+            "WHERE sd.surveyParticipation IS NOT NULL")
+    List<UUID> findLinkedParticipationIds();
 }

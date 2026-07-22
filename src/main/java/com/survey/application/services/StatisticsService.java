@@ -4,8 +4,10 @@ import com.survey.application.dtos.statistics.DailyCompletionOverviewDto;
 import com.survey.application.dtos.statistics.DailyStatsDetailDto;
 import com.survey.application.dtos.statistics.DailyStatsRowDto;
 import com.survey.application.dtos.statistics.GlobalStatsDetailDto;
+import com.survey.application.dtos.statistics.IssuesOverviewDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDto;
+import com.survey.domain.models.enums.IssuesRangeMode;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -48,4 +50,11 @@ public interface StatisticsService {
      * the daily statistics view.
      */
     List<DailyStatsRowDto> listDailyStatsRows();
+
+    /**
+     * Per-respondent fulfillment metrics for the Issues tab.
+     * {@code survey_window} uses each respondent's assigned dates;
+     * {@code custom} uses the shared {@code from}/{@code to} range.
+     */
+    IssuesOverviewDto getIssuesOverview(IssuesRangeMode rangeMode, LocalDate from, LocalDate to);
 }

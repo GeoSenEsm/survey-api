@@ -9,12 +9,15 @@ import com.survey.application.dtos.statistics.DailyStatsRowDto;
 import com.survey.application.dtos.statistics.GlobalStatsDetailDto;
 import com.survey.application.dtos.statistics.GlobalStatsDto;
 import com.survey.application.dtos.statistics.HourlySeriesPointDto;
+import com.survey.application.dtos.statistics.IssuesOverviewDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDto;
+import com.survey.application.dtos.statistics.RespondentIssueDto;
 import com.survey.application.dtos.statistics.TimeSeriesPointDto;
 import com.survey.api.security.Role;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.SurveyParticipationTimeSlot;
+import com.survey.domain.models.enums.IssuesRangeMode;
 import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.LocalizationDataRepository;
 import com.survey.domain.repository.SensorDataRepository;
@@ -372,6 +375,121 @@ public class StatisticsServiceImpl implements StatisticsService {
 
         return new DailyCompletionOverviewDto(date, timeSlotDtos, respondentDtos);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public IssuesOverviewDto getIssuesOverview(IssuesRangeMode rangeMode, LocalDate from, LocalDate to) {
+        if (rangeMode == IssuesRangeMode.custom) {
+            if (from == null || to == null) {
+                throw new IllegalArgumentException("'from' and 'to' are required when rangeMode=custom.");
+            }
+            if (to.isBefore(from)) {
+                throw new IllegalArgumentException("'to' must be on or after 'from'.");
+            }
+        }
+
+        List<IdentityUser> respondents = identityUserRepository.findByRole(Role.RESPONDENT.getRoleName());
+        List<Object[]> slotWindows = timeSlotRepository.findAllActiveSlotWindows();
+        Set<UUID> gpsLinked = new HashSet<>(localizationDataRepository.findLinkedParticipationIds());
+        Set<UUID> sensorLinked = new HashSet<>(sensorDataRepository.findLinkedParticipationIds());
+
+        List<Object[]> participationTuples = rangeMode == IssuesRangeMode.custom
+                ? participationRepository.findRespondentParticipationTuplesInWindow(
+                        from.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime(),
+                        to.atTime(23, 59, 59).atOffset(ZoneOffset.UTC))
+                : participationRepository.findAllRespondentParticipationTuples();
+
+        Map<UUID, List<ParticipationRow>> byRespondent = new HashMap<>();
+        for (Object[] row : participationTuples) {
+            UUID respondentId = (UUID) row[0];
+            UUID participationId = (UUID) row[1];
+            OffsetDateTime date = (OffsetDateTime) row[2];
+            byRespondent
+                    .computeIfAbsent(respondentId, ignored -> new ArrayList<>())
+                    .add(new ParticipationRow(participationId, date));
+        }
+
+        List<RespondentIssueDto> rows = new ArrayList<>();
+        for (IdentityUser user : respondents) {
+            LocalDate windowStart;
+            LocalDate windowEnd;
+            if (rangeMode == IssuesRangeMode.survey_window) {
+                if (!user.hasSurveyWindow()) {
+                    continue;
+                }
+                windowStart = user.getSurveyStartDate();
+                windowEnd = user.getSurveyEndDate();
+            } else {
+                windowStart = from;
+                windowEnd = to;
+            }
+
+            OffsetDateTime windowStartOd = windowStart.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime();
+            OffsetDateTime windowEndOd = windowEnd.atTime(23, 59, 59).atOffset(ZoneOffset.UTC);
+
+            long available = countSlotsOverlapping(slotWindows, windowStartOd, windowEndOd);
+            List<ParticipationRow> inWindow = byRespondent
+                    .getOrDefault(user.getId(), List.of())
+                    .stream()
+                    .filter(p -> !p.date().isBefore(windowStartOd) && !p.date().isAfter(windowEndOd))
+                    .toList();
+
+            long filled = inWindow.size();
+            long gpsFilled = inWindow.stream().filter(p -> gpsLinked.contains(p.id())).count();
+            long sensorFilled = inWindow.stream().filter(p -> sensorLinked.contains(p.id())).count();
+            long skipped = Math.max(0, available - filled);
+
+            rows.add(new RespondentIssueDto(
+                    user.getId(),
+                    user.getUsername(),
+                    windowStart,
+                    windowEnd,
+                    filled,
+                    available,
+                    gpsFilled,
+                    sensorFilled,
+                    skipped,
+                    percentOrNull(filled, available),
+                    percentOrNull(gpsFilled, available),
+                    percentOrNull(sensorFilled, available)));
+        }
+
+        rows.sort(Comparator.comparing(
+                dto -> dto.username() == null ? "" : dto.username(),
+                String.CASE_INSENSITIVE_ORDER));
+
+        long below80Survey = rows.stream().filter(r -> isBelowThreshold(r.surveyCompletionPercent(), 80.0)).count();
+        long below80Gps = rows.stream().filter(r -> isBelowThreshold(r.gpsCompletionPercent(), 80.0)).count();
+        long below80Sensor = rows.stream().filter(r -> isBelowThreshold(r.sensorCompletionPercent(), 80.0)).count();
+
+        return new IssuesOverviewDto(rows, below80Survey, below80Gps, below80Sensor, rows.size());
+    }
+
+    private static long countSlotsOverlapping(
+            List<Object[]> slotWindows, OffsetDateTime windowStart, OffsetDateTime windowEnd) {
+        long count = 0;
+        for (Object[] slot : slotWindows) {
+            OffsetDateTime start = (OffsetDateTime) slot[0];
+            OffsetDateTime finish = (OffsetDateTime) slot[1];
+            if (!start.isAfter(windowEnd) && !finish.isBefore(windowStart)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static Double percentOrNull(long filled, long available) {
+        if (available <= 0) {
+            return null;
+        }
+        return (filled * 100.0) / available;
+    }
+
+    private static boolean isBelowThreshold(Double percent, double threshold) {
+        return percent != null && percent < threshold;
+    }
+
+    private record ParticipationRow(UUID id, OffsetDateTime date) {}
 
     private Map<UUID, Set<UUID>> findCompletedSlotsByRespondent(List<SurveyParticipationTimeSlot> slots) {
         if (slots.isEmpty()) {

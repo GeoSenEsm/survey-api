@@ -40,4 +40,8 @@ public interface SurveyParticipationTimeSlotRepository extends JpaRepository<Sur
             "ORDER BY ts.start")
     List<SurveyParticipationTimeSlot> findOverlappingWindowWithSurvey(
             OffsetDateTime windowStart, OffsetDateTime windowEnd);
+
+    @Query("SELECT ts.start, ts.finish FROM SurveyParticipationTimeSlot ts " +
+            "WHERE ts.isDeleted = false")
+    List<Object[]> findAllActiveSlotWindows();
 }

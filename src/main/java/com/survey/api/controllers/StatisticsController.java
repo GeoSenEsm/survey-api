@@ -8,10 +8,12 @@ import com.survey.application.dtos.statistics.DailyCompletionOverviewDto;
 import com.survey.application.dtos.statistics.DailyStatsDetailDto;
 import com.survey.application.dtos.statistics.DailyStatsRowDto;
 import com.survey.application.dtos.statistics.GlobalStatsDetailDto;
+import com.survey.application.dtos.statistics.IssuesOverviewDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDetailDto;
 import com.survey.application.dtos.statistics.ParticipantStatsDto;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.StatisticsService;
+import com.survey.domain.models.enums.IssuesRangeMode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -139,5 +141,31 @@ public class StatisticsController {
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         return ResponseEntity.ok(statisticsService.getDailyCompletion(date));
+    }
+
+    @GetMapping("/issues")
+    @Operation(
+            summary = "Respondent fulfillment issues overview.",
+            description = """
+                - Returns per-respondent survey / GPS / sensor fulfillment
+                  percentages for either each respondent's assigned survey
+                  window (`rangeMode=survey_window`) or a shared custom
+                  date range (`rangeMode=custom` with `from`/`to`).
+                - Also returns counts of respondents below 80% in each
+                  category.
+                - **Access:** ADMIN
+                """)
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Issues overview.")})
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<IssuesOverviewDto> getIssuesOverview(
+            @RequestParam("rangeMode") IssuesRangeMode rangeMode,
+            @RequestParam(value = "from", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(value = "to", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        return ResponseEntity.ok(statisticsService.getIssuesOverview(rangeMode, from, to));
     }
 }

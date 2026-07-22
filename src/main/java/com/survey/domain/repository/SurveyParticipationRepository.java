@@ -62,6 +62,17 @@ public interface SurveyParticipationRepository extends JpaRepository<SurveyParti
     List<Object[]> findRespondentSurveyDateTuplesInWindow(OffsetDateTime from, OffsetDateTime to);
 
     /**
+     * Lightweight participation rows for Issues fulfillment:
+     * {@code [respondentId, participationId, date]}.
+     */
+    @Query("SELECT sp.identityUser.id, sp.id, sp.date FROM SurveyParticipation sp")
+    List<Object[]> findAllRespondentParticipationTuples();
+
+    @Query("SELECT sp.identityUser.id, sp.id, sp.date FROM SurveyParticipation sp " +
+            "WHERE sp.date BETWEEN :from AND :to")
+    List<Object[]> findRespondentParticipationTuplesInWindow(OffsetDateTime from, OffsetDateTime to);
+
+    /**
      * Submission timestamps of participations whose linked localization
      * data was captured outside the configured research area polygon.
      * The join relies on {@code LocalizationData.surveyParticipation}
