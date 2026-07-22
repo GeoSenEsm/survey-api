@@ -151,6 +151,8 @@ public class StatisticsController {
                   percentages for either each respondent's assigned survey
                   window (`rangeMode=survey_window`) or a shared custom
                   date range (`rangeMode=custom` with `from`/`to`).
+                - Only respondents with both survey start and end dates
+                  assigned are included in either mode.
                 - **Access:** ADMIN
                 """)
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Issues overview.")})

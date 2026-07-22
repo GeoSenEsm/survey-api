@@ -411,12 +411,13 @@ public class StatisticsServiceImpl implements StatisticsService {
 
         List<RespondentIssueDto> rows = new ArrayList<>();
         for (IdentityUser user : respondents) {
+            if (!user.hasSurveyWindow()) {
+                continue;
+            }
+
             LocalDate windowStart;
             LocalDate windowEnd;
             if (rangeMode == IssuesRangeMode.survey_window) {
-                if (!user.hasSurveyWindow()) {
-                    continue;
-                }
                 windowStart = user.getSurveyStartDate();
                 windowEnd = user.getSurveyEndDate();
             } else {
