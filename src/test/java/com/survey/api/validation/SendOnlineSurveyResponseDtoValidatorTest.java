@@ -551,7 +551,11 @@ class SendOnlineSurveyResponseDtoValidatorTest {
     void shouldNotFailWhenTheRequiredQuestionWasForAnotherRespondentsGroup(){
         UUID surveyID = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        IdentityUser identityUser = new IdentityUser(userId, "John", "password", "Respondent");
+        IdentityUser identityUser = new IdentityUser()
+                .setId(userId)
+                .setUsername("John")
+                .setPasswordHash("password")
+                .setRole("Respondent");
         RespondentData respondent = new RespondentData();
         respondent.setIdentityUserId(userId);
         Survey survey = new Survey();
@@ -594,7 +598,11 @@ class SendOnlineSurveyResponseDtoValidatorTest {
     void shouldFailWhenTheRequiredQuestionWasForRespondentsGroupOfTheRespondentAndAnswerIsNotGIven(){
         UUID surveyID = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        IdentityUser identityUser = new IdentityUser(userId, "John", "password", "Respondent");
+        IdentityUser identityUser = new IdentityUser()
+                .setId(userId)
+                .setUsername("John")
+                .setPasswordHash("password")
+                .setRole("Respondent");
         RespondentData respondent = new RespondentData();
         respondent.setIdentityUserId(userId);
         Survey survey = new Survey();

@@ -49,7 +49,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Throwable.class)
-    public ResponseEntity<String> handleThrowable(RuntimeException ex) {
+    public ResponseEntity<String> handleThrowable(Throwable ex) {
         LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         return ResponseEntity.internalServerError().body("Something went wrong: " + ex.getMessage());
     }

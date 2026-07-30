@@ -4,13 +4,18 @@ import com.survey.api.configuration.CommonApiResponse400;
 import com.survey.api.configuration.CommonApiResponse401;
 import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
+import com.survey.application.dtos.PagedResponseDto;
 import com.survey.application.dtos.SurveyResultDto;
 import com.survey.application.dtos.AllResultsDto;
 import com.survey.application.dtos.surveyDtos.SendOfflineSurveyResponseDto;
 import com.survey.application.dtos.surveyDtos.SendOnlineSurveyResponseDto;
 import com.survey.application.dtos.surveyDtos.SurveyParticipationDto;
 import com.survey.application.services.ClaimsPrincipalService;
+import com.survey.application.services.SurveyResponseDocumentService;
 import com.survey.application.services.SurveyResponsesService;
+import com.survey.infrastructure.mongo.documents.SurveyResponseDocument;
+import org.springframework.http.HttpHeaders;
+import java.util.NoSuchElementException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -40,11 +45,15 @@ import java.util.UUID;
 @Tag(name = "Survey responses", description = "Endpoints for sending survey responses and fetching results.")
 public class SurveyResponsesController {
     private final SurveyResponsesService surveyResponsesService;
+    private final SurveyResponseDocumentService surveyResponseDocumentService;
     private final ClaimsPrincipalService claimsPrincipalService;
 
     @Autowired
-    public SurveyResponsesController(SurveyResponsesService surveyResponsesService, ClaimsPrincipalService claimsPrincipalService){
+    public SurveyResponsesController(SurveyResponsesService surveyResponsesService,
+                                     SurveyResponseDocumentService surveyResponseDocumentService,
+                                     ClaimsPrincipalService claimsPrincipalService){
         this.surveyResponsesService = surveyResponsesService;
+        this.surveyResponseDocumentService = surveyResponseDocumentService;
         this.claimsPrincipalService = claimsPrincipalService;
     }
 
@@ -189,6 +198,102 @@ public class SurveyResponsesController {
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
+                .body(stream);
+    }
+
+    @GetMapping("/documents")
+    @Operation(
+            summary = "List full response documents stored in MongoDB.",
+            description = """
+                - Every survey response is mirrored to MongoDB as a denormalized document
+                  after the SQL transaction commits.
+                - Returns a paginated list of documents, newest first.
+                - **Filters (all optional):**
+                    - `surveyId`, `respondentId`
+                    - `dateFrom`, `dateTo` (participation date range, UTC)
+                - **Access:** ADMIN
+                """)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Response documents retrieved successfully.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = PagedResponseDto.class)
+                    )
+            )
+    })
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<PagedResponseDto<SurveyResponseDocument>> listResponseDocuments(
+            @RequestParam(value = "surveyId", required = false) UUID surveyId,
+            @RequestParam(value = "respondentId", required = false) UUID respondentId,
+            @RequestParam(value = "dateFrom", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime dateFrom,
+            @RequestParam(value = "dateTo", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime dateTo,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        int cappedSize = Math.min(Math.max(size, 1), 200);
+        int safePage = Math.max(page, 0);
+        return ResponseEntity.ok(surveyResponseDocumentService.find(
+                surveyId, respondentId, dateFrom, dateTo, safePage, cappedSize));
+    }
+
+    @GetMapping("/documents/{participationId}/download")
+    @Operation(
+            summary = "Download a single response document as JSON.",
+            description = "Returns the raw MongoDB document with a Content-Disposition attachment header. **Access:** ADMIN")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Document retrieved successfully."),
+            @ApiResponse(responseCode = "404", description = "Document not found.")
+    })
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<SurveyResponseDocument> downloadResponseDocument(
+            @PathVariable("participationId") UUID participationId) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        SurveyResponseDocument document = surveyResponseDocumentService.findById(participationId)
+                .orElseThrow(() -> new NoSuchElementException("Response document not found"));
+
+        String filename = "survey-response-" + participationId + ".json";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(document);
+    }
+
+    @GetMapping("/documents/export")
+    @Operation(
+            summary = "Export all filtered response documents as a ZIP archive.",
+            description = """
+                - Streams a ZIP archive containing one JSON entry per matching document.
+                - Filters mirror `/documents` (all optional): `surveyId`, `respondentId`,
+                  `dateFrom`, `dateTo`.
+                - **Access:** ADMIN
+                """)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "ZIP archive streamed successfully.")
+    })
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<StreamingResponseBody> exportResponseDocuments(
+            @RequestParam(value = "surveyId", required = false) UUID surveyId,
+            @RequestParam(value = "respondentId", required = false) UUID respondentId,
+            @RequestParam(value = "dateFrom", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime dateFrom,
+            @RequestParam(value = "dateTo", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") OffsetDateTime dateTo) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+
+        String filename = "survey-responses-"
+                + OffsetDateTime.now(java.time.ZoneOffset.UTC)
+                        .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss'Z'"))
+                + ".zip";
+
+        StreamingResponseBody stream = out -> surveyResponseDocumentService
+                .exportZip(surveyId, respondentId, dateFrom, dateTo, out);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType("application/zip"))
                 .body(stream);
     }
 }

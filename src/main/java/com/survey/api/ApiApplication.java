@@ -5,10 +5,17 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
 @SpringBootApplication
-@ComponentScan(basePackages = {"com.survey.application", "com.survey.domain", "com.survey.api"})
+@ComponentScan(basePackages = {
+        "com.survey.application",
+        "com.survey.domain",
+        "com.survey.api",
+        "com.survey.infrastructure"
+})
 @EnableJpaRepositories("com.survey.domain.repository")
+@EnableMongoRepositories("com.survey.infrastructure.mongo.repository")
 @EntityScan("com.survey.domain.models")
 public class ApiApplication {
 

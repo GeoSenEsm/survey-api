@@ -5,18 +5,22 @@ import com.survey.api.security.Role;
 import com.survey.api.validation.SendSurveyResponseDtoValidator;
 import com.survey.application.dtos.*;
 import com.survey.application.dtos.surveyDtos.*;
+import com.survey.application.events.SurveyResponseSubmittedEvent;
 import com.survey.domain.models.*;
 import com.survey.domain.models.enums.QuestionType;
 import com.survey.domain.repository.*;
+import com.survey.infrastructure.mongo.documents.SurveyResponseDocument;
 import jakarta.persistence.EntityManager;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.annotation.RequestScope;
 
 import java.io.OutputStream;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -37,6 +41,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final SensorDataRepository sensorDataRepository;
     private final IdentityUserRepository identityUserRepository;
     private final LocalizationDataRepository localizationDataRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
 
     @Autowired
@@ -53,7 +58,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             SurveyParticipationTimeValidationService surveyParticipationTimeValidationService,
             SensorDataRepository sensorDataRepository,
             IdentityUserRepository identityUserRepository,
-            LocalizationDataRepository localizationDataRepository) {
+            LocalizationDataRepository localizationDataRepository,
+            ApplicationEventPublisher eventPublisher) {
         this.surveyParticipationRepository = surveyParticipationRepository;
         this.surveyRepository = surveyRepository;
         this.optionRepository = optionRepository;
@@ -67,6 +73,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         this.sensorDataRepository = sensorDataRepository;
         this.identityUserRepository = identityUserRepository;
         this.localizationDataRepository = localizationDataRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     Survey findSurveyById(UUID surveyId) {
@@ -187,7 +194,9 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         SurveyParticipation finalSurveyParticipation = mapQuestionAnswers(sendOnlineSurveyResponseDto, surveyParticipation, survey);
         surveyParticipationRepository.save(finalSurveyParticipation);
         saveSensorData(sendOnlineSurveyResponseDto, finalSurveyParticipation, identityUser);
-        return mapToDto(finalSurveyParticipation, sendOnlineSurveyResponseDto, identityUser);
+        SurveyParticipationDto dto = mapToDto(finalSurveyParticipation, sendOnlineSurveyResponseDto, identityUser);
+        publishResponseSubmittedEvent(finalSurveyParticipation, identityUser, survey, sendOnlineSurveyResponseDto);
+        return dto;
     }
 
     @Override
@@ -205,10 +214,89 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                     SurveyParticipation finalParticipation = mapQuestionAnswers(dto, participation, survey);
                     surveyParticipationRepository.save(finalParticipation);
                     saveSensorData(dto, finalParticipation, identityUser);
-                    return mapToDto(finalParticipation, dto, identityUser);
+                    SurveyParticipationDto mapped = mapToDto(finalParticipation, dto, identityUser);
+                    publishResponseSubmittedEvent(finalParticipation, identityUser, survey, dto);
+                    return mapped;
                 })
                 .filter(Objects::nonNull)
                 .toList();
+    }
+
+    private void publishResponseSubmittedEvent(
+            SurveyParticipation participation,
+            IdentityUser identityUser,
+            Survey survey,
+            SendSurveyResponseDto submittedDto
+    ) {
+        SurveyResponseDocument document = buildResponseDocument(participation, identityUser, survey, submittedDto);
+        eventPublisher.publishEvent(new SurveyResponseSubmittedEvent(document));
+    }
+
+    private SurveyResponseDocument buildResponseDocument(
+            SurveyParticipation participation,
+            IdentityUser identityUser,
+            Survey survey,
+            SendSurveyResponseDto submittedDto
+    ) {
+        List<SurveyResponseDocument.Answer> answers = participation.getQuestionAnswers() == null
+                ? List.of()
+                : participation.getQuestionAnswers().stream()
+                        .map(this::toDocumentAnswer)
+                        .toList();
+
+        SurveyResponseDocument.SensorReading sensorReading = null;
+        if (submittedDto.getSensorData() != null) {
+            SensorDataDto sensor = submittedDto.getSensorData();
+            sensorReading = SurveyResponseDocument.SensorReading.builder()
+                    .dateTime(sensor.getDateTime())
+                    .temperature(sensor.getTemperature())
+                    .humidity(sensor.getHumidity())
+                    .build();
+        }
+
+        return SurveyResponseDocument.builder()
+                .participationId(participation.getId())
+                .surveyId(survey.getId())
+                .surveyName(survey.getName())
+                .respondentId(identityUser.getId())
+                .respondentUsername(identityUser.getUsername())
+                .participationDate(participation.getDate())
+                .surveyStartDate(submittedDto.getStartDate())
+                .surveyFinishDate(submittedDto.getFinishDate())
+                .answers(answers)
+                .sensorData(sensorReading)
+                .persistedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+    }
+
+    private SurveyResponseDocument.Answer toDocumentAnswer(QuestionAnswer questionAnswer) {
+        Question question = questionAnswer.getQuestion();
+        // Leave a field null when the question type doesn't use it: the doc
+        // marks these @Field(write = NON_NULL) so nulls are omitted from
+        // both the Mongo document and the JSON output.
+        List<SurveyResponseDocument.SelectedOption> selectedOptions = null;
+        if (questionAnswer.getOptionSelections() != null && !questionAnswer.getOptionSelections().isEmpty()) {
+            selectedOptions = questionAnswer.getOptionSelections().stream()
+                    .map(sel -> SurveyResponseDocument.SelectedOption.builder()
+                            .optionId(sel.getOption().getId())
+                            .label(sel.getOption().getLabel())
+                            .build())
+                    .toList();
+        }
+        String textAnswerContent = questionAnswer.getTextAnswer() != null
+                ? questionAnswer.getTextAnswer().getTextAnswerContent()
+                : null;
+        return SurveyResponseDocument.Answer.builder()
+                .questionId(question.getId())
+                .questionContent(question.getContent())
+                .questionType(question.getQuestionType() != null
+                        ? question.getQuestionType().name()
+                        : null)
+                .selectedOptions(selectedOptions)
+                .numericAnswer(questionAnswer.getNumericAnswer())
+                .yesNoAnswer(questionAnswer.getYesNoAnswer())
+                .textAnswer(textAnswerContent)
+                .build();
     }
 
     @Override

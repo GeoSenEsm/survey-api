@@ -12,6 +12,10 @@ If you inspect `main/resources/application.properties` you can see that there ar
 - `JWT_KEY` - key for jwt tokens generation
 - `JWT_EXPIRATION` - days of jwt token lifetime
 
+Optional (defaults shown in `application.properties`):
+- `SPRING_DATA_MONGODB_URI` - MongoDB connection string. Default `mongodb://localhost:27017/survey`.
+- `SPRING_DATA_MONGODB_DATABASE` - MongoDB logical database name. Default `survey`.
+
 The best idea is to configure your IDE, so that it sets those variables always, when you run the application. 
 
 ## IntelliJ Idea instruction
@@ -20,6 +24,64 @@ To configure your IntelliJ Idea to the following:
 - On the top mane open `Run` context menu
 - Go to `Debug` -> `Edit configurations` -> `Edit environmental variables`
 - Add proper variables with values and save changes
+
+# Data stores
+
+Two data stores back this service:
+
+- **MS SQL Server (primary)** — every transactional entity (identities,
+  surveys, questions, options, participations, question answers,
+  sensor/localization data, research area, phone numbers). Managed by
+  Flyway; migrations live in `src/main/resources/db/migration/`.
+- **MongoDB (secondary, response documents)** — every submitted survey
+  response is mirrored to the `surveyResponseDocuments` collection as a
+  denormalized JSON document, written via a Spring
+  `@TransactionalEventListener(AFTER_COMMIT)`, so a Mongo failure can
+  never roll back the primary SQL write. Used by the admin
+  "Response documents" tab.
+
+Locally both containers are managed by `../scripts/dev-up.ps1` (see
+`../scripts/README.md`). For a bare-hands run:
+
+```bash
+docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=Str0ng!Passw0rd" \
+  -p 1433:1433 --name geosenesm-mssql -d mcr.microsoft.com/mssql/server:2022-latest
+
+docker run -p 27017:27017 --name geosenesm-mongo -d mongo:7.0
+```
+
+# Response documents API (ADMIN-only)
+
+Endpoints exposed by `SurveyResponsesController` on top of the Mongo
+collection:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/surveyresponses/documents` | Paginated list. Filters (all optional): `surveyId`, `respondentId`, `dateFrom`, `dateTo` (ISO-8601 UTC, seconds precision). Pagination: `page` (default 0), `size` (default 20, capped 200). |
+| `GET` | `/api/surveyresponses/documents/{participationId}/download` | Single document as JSON with `Content-Disposition: attachment; filename="survey-response-<id>.json"`. |
+| `GET` | `/api/surveyresponses/documents/export` | Streams a ZIP archive of every document matching the same filters. One JSON entry per response, filename `survey-response-<participationId>.json`. |
+
+The document schema (only the fields relevant to each answer are
+persisted — null / empty properties are omitted):
+
+```json
+{
+  "participationId": "<uuid>", "surveyId": "<uuid>", "surveyName": "…",
+  "respondentId":    "<uuid>", "respondentUsername": "…",
+  "participationDate": "2026-07-12T17:27:55Z",
+  "surveyStartDate":   "2026-07-12T17:26:55Z",
+  "surveyFinishDate":  "2026-07-12T17:27:55Z",
+  "answers": [
+    { "questionId": "…", "questionContent": "How do you feel today?",
+      "questionType": "single_choice",
+      "selectedOptions": [{ "optionId": "…", "label": "Great" }] },
+    { "questionId": "…", "questionContent": "Comfort?",
+      "questionType": "linear_scale", "numericAnswer": 3 }
+  ],
+  "sensorData": { "dateTime": "…", "temperature": 21.5, "humidity": 45.0 },
+  "persistedAt": "2026-07-12T17:27:55Z"
+}
+```
 
 # Documentation
 

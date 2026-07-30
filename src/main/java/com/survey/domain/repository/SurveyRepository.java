@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,4 +15,7 @@ public interface SurveyRepository extends JpaRepository<Survey, UUID> {
 
     @Query("SELECT s.name FROM Survey s WHERE s.id = :surveyId")
     String findSurveyNameBySurveyId(UUID surveyId);
+
+    @Query("SELECT MIN(s.creationDate) FROM Survey s")
+    OffsetDateTime findEarliestCreationDate();
 }

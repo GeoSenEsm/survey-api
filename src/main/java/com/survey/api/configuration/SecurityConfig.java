@@ -49,6 +49,8 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.GET, "/api/respondents").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/respondents/all").permitAll();
                     r.requestMatchers(HttpMethod.PUT, "/api/respondents").permitAll();
+                    r.requestMatchers(HttpMethod.PUT, "/api/respondents/survey-window").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/respondents/survey-window/activity").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/surveysendingpolicies").permitAll();
                     r.requestMatchers(HttpMethod.DELETE, "/api/surveysendingpolicies").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/surveys").permitAll();
@@ -61,6 +63,9 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.GET, "/api/summaries/histogram").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/surveyresponses/results").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/surveyresponses/results/all").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/surveyresponses/documents").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/surveyresponses/documents/**").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/statistics/**").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/initialsurvey").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/initialsurvey").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/initialsurvey/state").permitAll();
