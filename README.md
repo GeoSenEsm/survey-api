@@ -1,47 +1,102 @@
-# How to start the project as a developer?
+# survey-api
 
-If you inspect `main/resources/application.properties` you can see that there are some variables used in the application. They are taken from environmental variables, but some of them have default values. Those that don't have default values have to be set by a developer. These are:
-- `SPRING_FLYWAY_USER` - database username for flyway (most likely sa in develobpemnt environment)
-- `SPRING_FLYWAY_PASSWORD` - database password for flyway
-- `SPRING_DATASOURCE_PASSWORD` - database password
-- `SPRING_DATASOURCE_USER` - database username for flyway (most likely sa in develobpemnt environment)
-- `SPRING_DATASOURCE_URL` - database url (a connection string to your database)
-- `ADMIN_USER_PASSWORD` - password for admin user that will be created on first application startup
-- `ALLOWED_ORIGINS` - a comma-separated list of allowed origins for CORS (e.g. `https://*.example.com,http://localhost:*`). If not set, the application will allow all origins by default (`*`),
-- `ENABLE_SWAGGER` - swagger is disabled by default. Set as true to access swagger documentation.
-- `JWT_KEY` - key for jwt tokens generation
-- `JWT_EXPIRATION` - days of jwt token lifetime
+REST backend for the GeoSenEsm platform. Serves the Angular admin panel and
+the Flutter respondent app over a shared JWT-authenticated `/api/**`
+contract.
 
-Optional (defaults shown in `application.properties`):
-- `SPRING_DATA_MONGODB_URI` - MongoDB connection string. Default `mongodb://localhost:27017/survey`.
-- `SPRING_DATA_MONGODB_DATABASE` - MongoDB logical database name. Default `survey`.
 
-The best idea is to configure your IDE, so that it sets those variables always, when you run the application. 
+|                 |                                                                                                                                         |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Stack           | Java 17, Spring Boot 3.2.3, Spring Security + JWT, Spring Data JPA, Flyway, Spring Data MongoDB, Springdoc/Swagger, Lombok, ModelMapper |
+| Default port    | `8080`                                                                                                                                  |
+| Primary store   | MS SQL Server                                                                                                                           |
+| Secondary store | MongoDB (`surveyResponseDocuments`)                                                                                                     |
+| Sibling clients | `survey-admin-panel`, `mobile-app`                                                                                                      |
 
-## IntelliJ Idea instruction
 
-To configure your IntelliJ Idea to the following:
-- On the top mane open `Run` context menu
-- Go to `Debug` -> `Edit configurations` -> `Edit environmental variables`
-- Add proper variables with values and save changes
+---
 
-# Data stores
+## Repository contents
 
-Two data stores back this service:
 
-- **MS SQL Server (primary)** — every transactional entity (identities,
-  surveys, questions, options, participations, question answers,
-  sensor/localization data, research area, phone numbers). Managed by
-  Flyway; migrations live in `src/main/resources/db/migration/`.
-- **MongoDB (secondary, response documents)** — every submitted survey
-  response is mirrored to the `surveyResponseDocuments` collection as a
-  denormalized JSON document, written via a Spring
-  `@TransactionalEventListener(AFTER_COMMIT)`, so a Mongo failure can
-  never roll back the primary SQL write. Used by the admin
-  "Response documents" tab.
+| Path                                        | Purpose                                                              |
+| ------------------------------------------- | -------------------------------------------------------------------- |
+| `src/main/java/com/survey/api/`             | Controllers, security, configuration, validation, exception handlers |
+| `src/main/java/com/survey/application/`     | Application services, DTOs, event listeners                          |
+| `src/main/java/com/survey/domain/`          | JPA entities, repositories, enums                                    |
+| `src/main/java/com/survey/infrastructure/`  | Mongo documents, Mongo repositories, Mongo config                    |
+| `src/main/resources/db/migration/`          | Flyway migrations (`V*.sql` + paired `U*.sql` revert scripts)        |
+| `src/main/resources/application.properties` | Defaults and env-var bindings                                        |
+| `src/test/java/`                            | Unit / integration tests (Testcontainers SQL Server)                 |
+| `Dockerfile`                                | Production image (listens on `8080`)                                 |
+| `pom.xml` / `mvnw`                          | Maven build                                                          |
 
-Locally both containers are managed by `../scripts/dev-up.ps1` (see
-`../scripts/README.md`). For a bare-hands run:
+
+
+
+### Package layout
+
+```
+com.survey/
+├── api/             HTTP boundary — controllers, security, validation
+├── application/     Use cases, DTOs, transactional services, domain events
+├── domain/          JPA entities + Spring Data JPA repositories
+└── infrastructure/  MongoDB documents + repositories (response documents)
+```
+
+Dependencies flow inward (`api` → `application` → `domain`). Controllers
+return DTOs only — never JPA entities. Mongo writes happen after the SQL
+transaction commits via `@TransactionalEventListener(AFTER_COMMIT)`.
+
+---
+
+
+
+## Local development
+
+
+
+### Required environment variables
+
+Set these in your IDE run configuration (or shell). Values without defaults
+must be provided:
+
+
+| Variable                     | Purpose                                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `SPRING_DATASOURCE_URL`      | JDBC URL, e.g. `jdbc:sqlserver://localhost:1433;databaseName=survey;encrypt=true;trustServerCertificate=true` |
+| `SPRING_DATASOURCE_USER`     | DB user (typically `sa` in development)                                                                       |
+| `SPRING_DATASOURCE_PASSWORD` | DB password                                                                                                   |
+| `SPRING_FLYWAY_USER`         | Flyway user (usually same as datasource user)                                                                 |
+| `SPRING_FLYWAY_PASSWORD`     | Flyway password                                                                                               |
+| `ADMIN_USER_PASSWORD`        | Password for the admin account created on first startup                                                       |
+| `JWT_KEY`                    | HMAC signing key for JWTs                                                                                     |
+| `JWT_EXPIRATION`             | Token lifetime in days                                                                                        |
+| `ALLOWED_ORIGINS`            | Comma-separated CORS origins (e.g. `https://*.example.com,http://localhost:*`). Defaults to `*`               |
+| `ENABLE_SWAGGER`             | Set `true` to enable `/swagger-ui.html` (disabled by default)                                                 |
+
+
+Optional (defaults in `application.properties`):
+
+
+| Variable                       | Default                            |
+| ------------------------------ | ---------------------------------- |
+| `SPRING_DATA_MONGODB_URI`      | `mongodb://localhost:27017/survey` |
+| `SPRING_DATA_MONGODB_DATABASE` | `survey`                           |
+
+
+Local MongoDB is started **without authentication** for development
+convenience. Do not expose port `27017` on a shared or public network
+without credentials in the URI.
+
+### IntelliJ IDEA
+
+1. **Run → Edit Configurations…**
+2. Select the Spring Boot run configuration.
+3. Open **Environment variables** and add the required keys above.
+4. Apply and run / debug.
+
+### Manual database containers
 
 ```bash
 docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=Str0ng!Passw0rd" \
@@ -50,51 +105,81 @@ docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=Str0ng!Passw0rd" \
 docker run -p 27017:27017 --name geosenesm-mongo -d mongo:7.0
 ```
 
-# Response documents API (ADMIN-only)
 
-Endpoints exposed by `SurveyResponsesController` on top of the Mongo
-collection:
 
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/surveyresponses/documents` | Paginated list. Filters (all optional): `surveyId`, `respondentId`, `dateFrom`, `dateTo` (ISO-8601 UTC, seconds precision). Pagination: `page` (default 0), `size` (default 20, capped 200). |
-| `GET` | `/api/surveyresponses/documents/{participationId}/download` | Single document as JSON with `Content-Disposition: attachment; filename="survey-response-<id>.json"`. |
-| `GET` | `/api/surveyresponses/documents/export` | Streams a ZIP archive of every document matching the same filters. One JSON entry per response, filename `survey-response-<participationId>.json`. |
+### Run the API
 
-The document schema (only the fields relevant to each answer are
-persisted — null / empty properties are omitted):
+```bash
+./mvnw.cmd spring-boot:run    # Windows
+./mvnw spring-boot:run        # macOS / Linux
+```
+
+- Health: `http://localhost:8080/actuator/health`
+- Swagger (when enabled): `http://localhost:8080/swagger-ui.html`
+
+---
+
+
+
+## Data stores
+
+
+| Store             | Role                                                                                                                                                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **MS SQL Server** | Source of truth for identities, surveys, questions, options, participations, answers, sensor/localization data, research area, phone numbers. Schema managed by Flyway under `src/main/resources/db/migration/`.       |
+| **MongoDB**       | Denormalized snapshot of each submitted survey response (`surveyResponseDocuments`). Written after SQL commit so a Mongo failure never rolls back the primary write. Consumed by the admin **Response Documents** tab. |
+
+
+---
+
+## Response documents 
+
+Document shape (null / empty answer fields are omitted):
 
 ```json
 {
-  "participationId": "<uuid>", "surveyId": "<uuid>", "surveyName": "…",
-  "respondentId":    "<uuid>", "respondentUsername": "…",
+  "participationId": "<uuid>",
+  "surveyId": "<uuid>",
+  "surveyName": "…",
+  "respondentId": "<uuid>",
+  "respondentUsername": "…",
   "participationDate": "2026-07-12T17:27:55Z",
-  "surveyStartDate":   "2026-07-12T17:26:55Z",
-  "surveyFinishDate":  "2026-07-12T17:27:55Z",
+  "surveyStartDate": "2026-07-12T17:26:55Z",
+  "surveyFinishDate": "2026-07-12T17:27:55Z",
   "answers": [
-    { "questionId": "…", "questionContent": "How do you feel today?",
+    {
+      "questionId": "…",
+      "questionContent": "How do you feel today?",
       "questionType": "single_choice",
-      "selectedOptions": [{ "optionId": "…", "label": "Great" }] },
-    { "questionId": "…", "questionContent": "Comfort?",
-      "questionType": "linear_scale", "numericAnswer": 3 }
+      "selectedOptions": [{ "optionId": "…", "label": "Great" }]
+    },
+    {
+      "questionId": "…",
+      "questionContent": "Comfort?",
+      "questionType": "linear_scale",
+      "numericAnswer": 3
+    }
   ],
   "sensorData": { "dateTime": "…", "temperature": 21.5, "humidity": 45.0 },
   "persistedAt": "2026-07-12T17:27:55Z"
 }
 ```
 
-# Documentation
+---
 
-- Remember to set `ENABLE_SWAGGER` environmental variable as true.
-- Run this API
-- Go to http://[host]:[port]/swagger-ui.html
+## API documentation (Swagger)
 
-# Build docker image
+1. Set `ENABLE_SWAGGER=true`.
+2. Start the API.
+3. Open `http://<host>:<port>/swagger-ui.html`.
 
-You are able to build a docker image with this application simply by runnning 
+---
+
+## Docker image
 
 ```bash
-docker build -t your_image_name:your_tag .
+docker build -t survey-api:<tag> .
+docker run -p 8080:8080 --env-file .env survey-api:<tag>
 ```
 
-The interenal docker image port, the applicatoin is listening on, is `8080`.
+The process listens on port `8080` inside the container.
