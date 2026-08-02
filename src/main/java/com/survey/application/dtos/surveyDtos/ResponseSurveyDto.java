@@ -28,6 +28,9 @@ public class ResponseSurveyDto {
     @Schema(description = "A list of sections that make up the survey. The survey must contain at least one section.")
     private List<ResponseSurveySectionDto> sections;
 
+    @Schema(description = "Phone notifications for each time slot of this survey. Defaults to start and 15 minutes before end.")
+    private List<SurveyNotificationDto> notifications;
+
     @Schema(example = "2001")
     private Long rowVersion;
 }

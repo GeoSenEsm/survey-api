@@ -19,5 +19,7 @@ public interface SurveyService {
     void deleteSurvey(UUID surveyId);
     ResponseSurveyDto updateSurvey(UUID surveyId, CreateSurveyDto createSurveyDto, List<MultipartFile> files);
     boolean doesNewerDataExistsInDB(Long maxRowVersionFromMobileApp);
+    List<SurveyNotificationDto> getSurveyNotifications(UUID surveyId);
+    List<SurveyNotificationDto> replaceSurveyNotifications(UUID surveyId, ReplaceSurveyNotificationsDto dto);
 
 }

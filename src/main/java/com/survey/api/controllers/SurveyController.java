@@ -301,4 +301,59 @@ public class SurveyController {
         ResponseSurveyDto responseSurveyDto = surveyService.updateSurvey(surveyId, createSurveyDto, files);
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body(responseSurveyDto);
     }
+
+
+    @GetMapping("/{surveyId}/notifications")
+    @Operation(
+            summary = "Fetch phone notifications configured for a survey.",
+            description = """
+                    - Returns notification rules used by the mobile app for each time slot of the survey.
+                    - Defaults (seeded for existing surveys): at beginning, and 15 minutes before end.
+                    - **Access:**
+                        - ADMIN
+                    """)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Notifications fetched successfully.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = SurveyNotificationDto.class))
+                    ))
+    })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<List<SurveyNotificationDto>> getSurveyNotifications(@PathVariable UUID surveyId) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        return ResponseEntity.ok(surveyService.getSurveyNotifications(surveyId));
+    }
+
+
+    @PutMapping("/{surveyId}/notifications")
+    @Operation(
+            summary = "Replace phone notifications for a survey.",
+            description = """
+                    - Replaces the full notification list for the survey (also allowed after publish).
+                    - Each rule fires relative to the beginning or end of a time slot, `minutesBefore` minutes earlier.
+                    - Empty list disables notifications. Maximum 10 rules.
+                    - **Access:**
+                        - ADMIN
+                    """)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Notifications replaced successfully.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = SurveyNotificationDto.class))
+                    ))
+    })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<List<SurveyNotificationDto>> replaceSurveyNotifications(
+            @PathVariable UUID surveyId,
+            @Validated @RequestBody ReplaceSurveyNotificationsDto dto) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        return ResponseEntity.ok(surveyService.replaceSurveyNotifications(surveyId, dto));
+    }
 }
