@@ -9,6 +9,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.UUID;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -25,4 +27,13 @@ public class SensorMacDtoIn {
     @Schema(description = "MAC address of the sensor, formatted as six pairs of hexadecimal characters separated by colons. Letters can be either uppercase or lowercase. They will be converted to uppercase for database storage.",
             example = "00:1A:2B:3C:4D:5E")
     private String sensorMac;
+
+    @Schema(description = "Sensor type id. When omitted, defaults to Xiaomi.",
+            nullable = true)
+    private UUID sensorTypeId;
+
+    public SensorMacDtoIn(String sensorId, String sensorMac) {
+        this.sensorId = sensorId;
+        this.sensorMac = sensorMac;
+    }
 }

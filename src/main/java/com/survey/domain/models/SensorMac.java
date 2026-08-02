@@ -25,6 +25,12 @@ public class SensorMac {
     @Column(name = "sensor_mac", length = 17, nullable = false, unique = true)
     private String sensorMac;
 
+    @Column(name = "respondent_id", columnDefinition = "uniqueidentifier")
+    private UUID respondentId;
+
+    @Column(name = "sensor_type_id", columnDefinition = "uniqueidentifier", nullable = false)
+    private UUID sensorTypeId;
+
     @Version
     @Column(name = "row_version", insertable = false, updatable = false)
     private byte[] rowVersion;
