@@ -1,0 +1,4 @@
+ALTER TABLE survey_settings DROP CONSTRAINT DF_survey_settings_csv_column_separator;
+ALTER TABLE survey_settings DROP CONSTRAINT DF_survey_settings_csv_decimal_separator;
+ALTER TABLE survey_settings DROP COLUMN csv_column_separator;
+ALTER TABLE survey_settings DROP COLUMN csv_decimal_separator;

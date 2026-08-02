@@ -126,7 +126,7 @@ docker run -p 27017:27017 --name geosenesm-mongo -d mongo:7.0
 
 | Store             | Role                                                                                                                                                                                                                   |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **MS SQL Server** | Source of truth for identities, surveys, questions, options, participations, answers, sensor/localization data, research area, phone numbers. Schema managed by Flyway under `src/main/resources/db/migration/`.       |
+| **MS SQL Server** | Source of truth for identities, surveys, questions, options, participations, answers, sensor/localization data, research area, phone numbers, and study-wide `survey_settings`. Schema managed by Flyway under `src/main/resources/db/migration/`.       |
 | **MongoDB**       | Denormalized snapshot of each submitted survey response (`surveyResponseDocuments`). Written after SQL commit so a Mongo failure never rolls back the primary write. Consumed by the admin **Response Documents** tab. |
 
 
