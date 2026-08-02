@@ -6,8 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -27,9 +28,15 @@ public class SensorData {
     @Column(name = "date_time")
     private OffsetDateTime dateTime;
 
-    private BigDecimal temperature;
+    @ManyToOne
+    @JoinColumn(name = "source_sensor_type_id")
+    private SensorType sourceSensorType;
 
-    private BigDecimal humidity;
+    @Column(name = "source")
+    private String source;
+
+    @OneToMany(mappedBy = "sensorData", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SensorDataParameterValue> values = new ArrayList<>();
 
     @OneToOne
     @JoinColumn(name = "survey_participation_id")

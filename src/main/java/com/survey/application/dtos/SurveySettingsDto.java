@@ -16,5 +16,7 @@ public record SurveySettingsDto(
         @NotBlank
         @Size(min = 1, max = 1)
         @Pattern(regexp = "[.,]", message = "csvDecimalSeparator must be '.' or ','")
-        String csvDecimalSeparator
+        String csvDecimalSeparator,
+
+        String logoPath
 ) {}

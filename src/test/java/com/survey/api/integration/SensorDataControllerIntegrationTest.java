@@ -5,6 +5,7 @@ import com.survey.api.security.Role;
 import com.survey.application.dtos.LastSensorEntryDateDto;
 import com.survey.application.dtos.ResponseSensorDataDto;
 import com.survey.application.dtos.SensorDataDto;
+import com.survey.application.dtos.SensorDataValueDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.SensorDataRepository;
@@ -18,7 +19,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -31,8 +31,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @TestPropertySource(properties = "ADMIN_USER_PASSWORD=testAdminPassword")
 @AutoConfigureWebTestClient
 public class SensorDataControllerIntegrationTest {
-    private static final BigDecimal VALID_TEMPERATURE = new BigDecimal("21.5");
-    private static final BigDecimal VALID_HUMIDITY = new BigDecimal("60.4");
     private static final String ADMIN_PASSWORD = "testAdminPassword";
     private static final String RESPONDENT_PASSWORD = "testRespondentPassword";
 
@@ -63,10 +61,7 @@ public class SensorDataControllerIntegrationTest {
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
-        SensorDataDto entryDto = new SensorDataDto();
-        entryDto.setDateTime(OffsetDateTime.now(UTC));
-        entryDto.setTemperature(VALID_TEMPERATURE);
-        entryDto.setHumidity(VALID_HUMIDITY);
+        SensorDataDto entryDto = createSensorDataDto(OffsetDateTime.now(UTC), "21.5", "60.4");
 
         var response = webTestClient.post()
                 .uri("/api/sensordata")
@@ -80,20 +75,22 @@ public class SensorDataControllerIntegrationTest {
 
         assertThat(response).isNotNull();
         assertThat(response).hasSize(1);
-        assertThat(response.get(0).getTemperature().compareTo(entryDto.getTemperature())).isEqualTo(0);
-        assertThat(response.get(0).getHumidity().compareTo(entryDto.getHumidity())).isEqualTo(0);
+        assertThat(response.get(0).getSource()).isEqualTo("xiaomi");
+        assertThat(response.get(0).getValues())
+                .extracting(SensorDataValueDto::getParameterCode)
+                .containsExactlyInAnyOrder("temperature", "humidity");
         assertThat(response.get(0).getRespondentId()).isEqualTo(respondent.getId());
 
     }
 
     @Test
-    void saveTemperatureData_InvalidInputMissingTemperatureField_ShouldReturnBadRequest(){
+    void saveSensorData_InvalidInputMissingValues_ShouldReturnBadRequest(){
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
         SensorDataDto entryDto = new SensorDataDto();
         entryDto.setDateTime(OffsetDateTime.now(UTC));
-        entryDto.setHumidity(VALID_HUMIDITY);
+        entryDto.setSource("xiaomi");
 
         webTestClient.post()
                 .uri("/api/sensordata")
@@ -110,8 +107,8 @@ public class SensorDataControllerIntegrationTest {
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
         SensorDataDto entryDto = new SensorDataDto();
-        entryDto.setTemperature(VALID_TEMPERATURE);
-        entryDto.setHumidity(VALID_HUMIDITY);
+        entryDto.setSource("xiaomi");
+        entryDto.setValues(List.of(new SensorDataValueDto("temperature", "21.5")));
 
         webTestClient.post()
                 .uri("/api/sensordata")
@@ -123,14 +120,14 @@ public class SensorDataControllerIntegrationTest {
     }
 
     @Test
-    void saveTemperatureData_InvalidTemperatureRange_ShouldReturnBadRequest() {
+    void saveSensorData_InvalidUnknownParameter_ShouldReturnBadRequest() {
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
         SensorDataDto entryDto = new SensorDataDto();
         entryDto.setDateTime(OffsetDateTime.now(UTC));
-        entryDto.setTemperature(BigDecimal.valueOf(100.0));
-        entryDto.setHumidity(VALID_HUMIDITY);
+        entryDto.setSource("xiaomi");
+        entryDto.setValues(List.of(new SensorDataValueDto("unknown", "100.0")));
 
         webTestClient.post()
                 .uri("/api/sensordata")
@@ -169,10 +166,7 @@ public class SensorDataControllerIntegrationTest {
         OffsetDateTime from = OffsetDateTime.now(UTC).minusDays(1);
         OffsetDateTime to = OffsetDateTime.now(UTC).plusDays(1);
 
-        SensorDataDto entryDto = new SensorDataDto();
-        entryDto.setDateTime(OffsetDateTime.now(UTC));
-        entryDto.setTemperature(VALID_TEMPERATURE);
-        entryDto.setHumidity(VALID_HUMIDITY);
+        SensorDataDto entryDto = createSensorDataDto(OffsetDateTime.now(UTC), "21.5", "60.4");
 
         saveSensorData(respondent, entryDto);
 
@@ -189,8 +183,7 @@ public class SensorDataControllerIntegrationTest {
 
         assertThat(response).isNotNull();
         assertThat(response).isNotEmpty();
-        assertThat(response.get(0).getTemperature().compareTo(entryDto.getTemperature())).isEqualTo(0);
-        assertThat(response.get(0).getHumidity().compareTo(entryDto.getHumidity())).isEqualTo(0);
+        assertThat(response.get(0).getValues()).hasSize(2);
         assertThat(response.get(0).getRespondentId()).isEqualTo(respondent.getId());
     }
 
@@ -214,16 +207,10 @@ public class SensorDataControllerIntegrationTest {
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
-        SensorDataDto entryDto1 = new SensorDataDto();
-        entryDto1.setDateTime(OffsetDateTime.now(UTC).minusDays(1));
-        entryDto1.setTemperature(VALID_TEMPERATURE);
-        entryDto1.setHumidity(VALID_HUMIDITY);
+        SensorDataDto entryDto1 = createSensorDataDto(OffsetDateTime.now(UTC).minusDays(1), "21.5", "60.4");
         saveSensorData(respondent, entryDto1);
 
-        SensorDataDto entryDto2 = new SensorDataDto();
-        entryDto2.setDateTime(OffsetDateTime.now(UTC));
-        entryDto2.setTemperature(VALID_TEMPERATURE.add(BigDecimal.ONE));
-        entryDto2.setHumidity(VALID_HUMIDITY);
+        SensorDataDto entryDto2 = createSensorDataDto(OffsetDateTime.now(UTC), "22.5", "60.4");
         saveSensorData(respondent, entryDto2);
 
         var response = webTestClient.get()
@@ -267,6 +254,16 @@ public class SensorDataControllerIntegrationTest {
                 .bodyValue(List.of(entryDto))
                 .exchange()
                 .expectStatus().isCreated();
+    }
+
+    private SensorDataDto createSensorDataDto(OffsetDateTime dateTime, String temperature, String humidity) {
+        SensorDataDto dto = new SensorDataDto();
+        dto.setDateTime(dateTime);
+        dto.setSource("xiaomi");
+        dto.setValues(List.of(
+                new SensorDataValueDto("temperature", temperature),
+                new SensorDataValueDto("humidity", humidity)));
+        return dto;
     }
 
 }

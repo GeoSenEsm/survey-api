@@ -82,8 +82,8 @@ public class SurveyServiceImpl implements SurveyService {
 
     @Override
     public List<ResponseSurveyDto> getSurveysByCompletionDate(LocalDate completionDate) {
-        OffsetDateTime startOfDay = completionDate.atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
-        OffsetDateTime endOfDay = completionDate.plusDays(1).atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
+        OffsetDateTime startOfDay = completionDate.atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime();
+        OffsetDateTime endOfDay = completionDate.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime();
 
         List<SurveyParticipationTimeSlot> timeSlots = surveyParticipationTimeSlotRepository.findByFinishBetween(startOfDay, endOfDay);
 

@@ -25,4 +25,7 @@ public class SurveySettings {
 
     @Column(name = "csv_decimal_separator", nullable = false, length = 1)
     private String csvDecimalSeparator;
+
+    @Column(name = "logo_path")
+    private String logoPath;
 }

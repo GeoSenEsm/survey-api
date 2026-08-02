@@ -272,7 +272,8 @@ public class SensorMacController {
     @Operation(
             summary = "Fetch single sensorId - sensorMac pair.",
             description = """
-                    - Allows admin and respondent to fetch single sensorId - sensorMac pair.
+                    - Allows admin to fetch any single sensorId - sensorMac pair.
+                    - Allows respondents to fetch only their assigned sensor when the sensorId matches.
                     - **Access:**
                         - ADMIN
                         - RESPONDENT
@@ -294,6 +295,12 @@ public class SensorMacController {
     @CommonApiResponse403
     public ResponseEntity<SensorMacDtoOut> getBySensorId(@RequestParam String sensorId){
         claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName(), Role.ADMIN.getRoleName());
+        if (Role.RESPONDENT.getRoleName().equals(claimsPrincipalService.findIdentityUser().getRole())) {
+            return sensorMacService.getAssignedToCurrentRespondent()
+                    .filter(sensor -> sensorId.equals(sensor.getSensorId()))
+                    .map(ResponseEntity::ok)
+                    .orElseGet(() -> ResponseEntity.notFound().build());
+        }
         SensorMacDtoOut responseDto = sensorMacService.getSensorMacBySensorId(sensorId);
         return ResponseEntity.status(HttpStatus.OK).body(responseDto);
     }

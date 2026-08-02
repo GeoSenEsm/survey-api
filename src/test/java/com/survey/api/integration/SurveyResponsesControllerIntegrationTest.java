@@ -6,6 +6,7 @@ import com.survey.api.TestUtils;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.CreateSurveySendingPolicyDto;
 import com.survey.application.dtos.SensorDataDto;
+import com.survey.application.dtos.SensorDataValueDto;
 import com.survey.application.dtos.SurveyParticipationTimeStartFinishDto;
 import com.survey.application.dtos.SurveyResultDto;
 import com.survey.application.dtos.surveyDtos.*;
@@ -420,8 +421,10 @@ public class SurveyResponsesControllerIntegrationTest {
     private SensorDataDto createSensorDataDto() {
         SensorDataDto sensorDataDto = new SensorDataDto();
         sensorDataDto.setDateTime(OffsetDateTime.now(UTC));
-        sensorDataDto.setTemperature(VALID_TEMPERATURE);
-        sensorDataDto.setHumidity(VALID_HUMIDITY);
+        sensorDataDto.setSource("xiaomi");
+        sensorDataDto.setValues(List.of(
+                new SensorDataValueDto("temperature", VALID_TEMPERATURE.toPlainString()),
+                new SensorDataValueDto("humidity", VALID_HUMIDITY.toPlainString())));
         return sensorDataDto;
     }
     private ResponseSurveyDto saveSurvey(CreateSurveyDto createSurveyDto) {

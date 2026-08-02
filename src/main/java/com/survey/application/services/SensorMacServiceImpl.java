@@ -6,12 +6,16 @@ import com.survey.application.dtos.SensorMacDtoIn;
 import com.survey.application.dtos.SensorMacDtoOut;
 import com.survey.application.dtos.SensorTypeDtoOut;
 import com.survey.domain.models.IdentityUser;
+import com.survey.domain.models.SensorDeviceSecret;
 import com.survey.domain.models.SensorMac;
 import com.survey.domain.models.SensorType;
 import com.survey.domain.models.enums.SensorTypeCodes;
 import com.survey.domain.repository.IdentityUserRepository;
+import com.survey.domain.repository.SensorDeviceSecretRepository;
 import com.survey.domain.repository.SensorMacRepository;
+import com.survey.domain.repository.RespondentSensorAssignmentRepository;
 import com.survey.domain.repository.SensorTypeRepository;
+import com.survey.domain.models.RespondentSensorAssignment;
 import jakarta.persistence.EntityManager;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +41,9 @@ public class SensorMacServiceImpl implements SensorMacService{
     private final ClaimsPrincipalService claimsPrincipalService;
     private final ModelMapper modelMapper;
     private final EntityManager entityManager;
+    private final RespondentSensorAssignmentRepository assignmentRepository;
+    private final SensorDeviceSecretRepository secretRepository;
+    private final SensorDeviceSecretService secretService;
 
     @Autowired
     public SensorMacServiceImpl(SensorMacRepository sensorMacRepository,
@@ -44,13 +51,19 @@ public class SensorMacServiceImpl implements SensorMacService{
                                 IdentityUserRepository identityUserRepository,
                                 ClaimsPrincipalService claimsPrincipalService,
                                 ModelMapper modelMapper,
-                                EntityManager entityManager) {
+                                EntityManager entityManager,
+                                RespondentSensorAssignmentRepository assignmentRepository,
+                                SensorDeviceSecretRepository secretRepository,
+                                SensorDeviceSecretService secretService) {
         this.sensorMacRepository = sensorMacRepository;
         this.sensorTypeRepository = sensorTypeRepository;
         this.identityUserRepository = identityUserRepository;
         this.claimsPrincipalService = claimsPrincipalService;
         this.modelMapper = modelMapper;
         this.entityManager = entityManager;
+        this.assignmentRepository = assignmentRepository;
+        this.secretRepository = secretRepository;
+        this.secretService = secretService;
     }
 
     @Override
@@ -60,12 +73,14 @@ public class SensorMacServiceImpl implements SensorMacService{
 
         List<SensorMac> sensorMacEntityList = dtoList.stream()
                 .map(dto -> {
-                    UUID typeId = dto.getSensorTypeId() != null
-                            ? requireType(dto.getSensorTypeId()).getId()
-                            : defaultType.getId();
+                    SensorType type = dto.getSensorTypeId() != null
+                            ? requireType(dto.getSensorTypeId())
+                            : defaultType;
+                    UUID typeId = type.getId();
 
                     return sensorMacRepository.findBySensorId(dto.getSensorId())
                             .map(existing -> {
+                                synchronizeAssignmentType(existing, type);
                                 existing.setSensorMac(dto.getSensorMac().toUpperCase());
                                 existing.setSensorTypeId(typeId);
                                 return existing;
@@ -86,14 +101,18 @@ public class SensorMacServiceImpl implements SensorMacService{
     }
 
     @Override
+    @Transactional
     public void deleteSensorMac(String sensorId) {
         SensorMac sensorMac = sensorMacRepository.findBySensorId(sensorId)
                 .orElseThrow(() -> new NoSuchElementException("Sensor with sensorId " + sensorId + " not found."));
+        assignmentRepository.deleteBySensorMacId(sensorMac.getId());
         sensorMacRepository.delete(sensorMac);
     }
 
     @Override
+    @Transactional
     public void deleteAll() {
+        assignmentRepository.deleteAllDeviceAssignments();
         sensorMacRepository.deleteAll();
     }
 
@@ -104,6 +123,7 @@ public class SensorMacServiceImpl implements SensorMacService{
                 .orElseThrow(() -> new NoSuchElementException("Sensor with sensorId " + sensorId + " not found."));
 
         SensorType type = requireType(updatedSensorMacDtoIn.getSensorTypeId());
+        synchronizeAssignmentType(existingSensorMac, type);
         existingSensorMac.setSensorMac(updatedSensorMacDtoIn.getSensorMac().toUpperCase());
         existingSensorMac.setSensorTypeId(type.getId());
 
@@ -120,6 +140,7 @@ public class SensorMacServiceImpl implements SensorMacService{
 
         UUID respondentId = dto.getRespondentId();
         if (respondentId == null) {
+            assignmentRepository.deleteBySensorMacId(sensor.getId());
             sensor.setRespondentId(null);
             return toDto(sensorMacRepository.save(sensor));
         }
@@ -130,13 +151,23 @@ public class SensorMacServiceImpl implements SensorMacService{
             throw new IllegalArgumentException("User " + respondentId + " is not a respondent.");
         }
 
-        sensorMacRepository.findByRespondentId(respondentId)
-                .filter(other -> !other.getId().equals(sensor.getId()))
-                .ifPresent(other -> {
-                    other.setRespondentId(null);
-                    sensorMacRepository.save(other);
-                });
-
+        assignmentRepository.findBySensorMacId(sensor.getId())
+                .filter(existing -> !existing.getRespondent().getId().equals(respondentId))
+                .ifPresent(assignmentRepository::delete);
+        RespondentSensorAssignment assignment = assignmentRepository
+                .findByRespondentIdAndSensorTypeId(respondentId, sensor.getSensorTypeId())
+                .orElseGet(RespondentSensorAssignment::new);
+        if (assignment.getSensorMac() != null && !assignment.getSensorMac().getId().equals(sensor.getId())) {
+            SensorMac previous = assignment.getSensorMac();
+            previous.setRespondentId(null);
+            sensorMacRepository.save(previous);
+        }
+        assignment.setRespondent(respondent);
+        assignment.setSensorType(requireType(sensor.getSensorTypeId()));
+        assignment.setSensorMac(sensor);
+        assignment.setEnabled(true);
+        assignment.setPriorityOrder(0);
+        assignmentRepository.save(assignment);
         sensor.setRespondentId(respondentId);
         return toDto(sensorMacRepository.save(sensor));
     }
@@ -167,13 +198,21 @@ public class SensorMacServiceImpl implements SensorMacService{
     @Override
     public Optional<SensorMacDtoOut> getAssignedToCurrentRespondent() {
         IdentityUser current = claimsPrincipalService.findIdentityUser();
-        return sensorMacRepository.findByRespondentId(current.getId()).map(this::toDto);
+        return assignmentRepository.findByRespondentIdAndEnabledTrueOrderByPriorityOrder(current.getId()).stream()
+                .map(RespondentSensorAssignment::getSensorMac)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .map(this::toDto);
     }
 
     @Override
     public List<SensorTypeDtoOut> getSensorTypes() {
         return sensorTypeRepository.findAllOrderByName().stream()
-                .map(type -> modelMapper.map(type, SensorTypeDtoOut.class))
+                .map(type -> {
+                    SensorTypeDtoOut dto = modelMapper.map(type, SensorTypeDtoOut.class);
+                    dto.setRequiredSecrets(List.copyOf(secretService.listRequiredSecrets(type.getId())));
+                    return dto;
+                })
                 .toList();
     }
 
@@ -185,6 +224,20 @@ public class SensorMacServiceImpl implements SensorMacService{
     private SensorType requireTypeByCode(String code) {
         return sensorTypeRepository.findByCode(code)
                 .orElseThrow(() -> new IllegalStateException("Sensor type '" + code + "' is not seeded."));
+    }
+
+    private void synchronizeAssignmentType(SensorMac sensor, SensorType type) {
+        assignmentRepository.findBySensorMacId(sensor.getId()).ifPresent(assignment -> {
+            UUID respondentId = assignment.getRespondent().getId();
+            assignmentRepository.findByRespondentIdAndSensorTypeId(respondentId, type.getId())
+                    .filter(existing -> !existing.getId().equals(assignment.getId()))
+                    .ifPresent(existing -> {
+                        throw new IllegalArgumentException(
+                                "Respondent already has an assignment for sensor type " + type.getCode() + ".");
+                    });
+            assignment.setSensorType(type);
+            assignmentRepository.save(assignment);
+        });
     }
 
     private List<SensorMacDtoOut> toDtos(List<SensorMac> entities) {
@@ -203,8 +256,18 @@ public class SensorMacServiceImpl implements SensorMacService{
         Map<UUID, SensorType> typesById = sensorTypeRepository.findAllById(typeIds).stream()
                 .collect(Collectors.toMap(SensorType::getId, Function.identity()));
 
+        Set<UUID> sensorIds = entities.stream()
+                .map(SensorMac::getId)
+                .collect(Collectors.toSet());
+
+        Map<UUID, List<String>> configuredSecretsBySensorId =
+                secretRepository.findBySensorMacIdIn(sensorIds).stream()
+                        .collect(Collectors.groupingBy(
+                                secret -> secret.getSensorMac().getId(),
+                                Collectors.mapping(SensorDeviceSecret::getSecretName, Collectors.toList())));
+
         return entities.stream()
-                .map(entity -> toDto(entity, respondentsById, typesById))
+                .map(entity -> toDto(entity, respondentsById, typesById, configuredSecretsBySensorId))
                 .toList();
     }
 
@@ -214,7 +277,8 @@ public class SensorMacServiceImpl implements SensorMacService{
 
     private SensorMacDtoOut toDto(SensorMac entity,
                                   Map<UUID, IdentityUser> respondentsById,
-                                  Map<UUID, SensorType> typesById) {
+                                  Map<UUID, SensorType> typesById,
+                                  Map<UUID, List<String>> configuredSecretsBySensorId) {
         SensorMacDtoOut dto = modelMapper.map(entity, SensorMacDtoOut.class);
         if (entity.getRespondentId() != null) {
             IdentityUser respondent = respondentsById.get(entity.getRespondentId());
@@ -227,6 +291,7 @@ public class SensorMacServiceImpl implements SensorMacService{
             dto.setSensorTypeCode(type.getCode());
             dto.setSensorTypeName(type.getName());
         }
+        dto.setConfiguredSecrets(configuredSecretsBySensorId.getOrDefault(entity.getId(), List.of()));
         return dto;
     }
 }

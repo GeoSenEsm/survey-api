@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
@@ -30,12 +31,17 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final CredentialsGenerator credentialsGenerator;
     private final PasswordValidationService passwordValidationService;
     private final ClaimsPrincipalService claimsPrincipalService;
+    private final RespondentTimeZoneService respondentTimeZoneService;
+    private final LocalParticipationRecalculationService localParticipationRecalculationService;
 
 
     @Autowired
     public AuthenticationServiceImpl(AuthenticationManager authenticationManager, TokenProvider tokenProvider,
                                      IdentityUserRepository identityUserRepository, PasswordEncoder passwordEncoder,
-                                     CredentialsGenerator credentialsGenerator, PasswordValidationService passwordValidationService, ClaimsPrincipalService claimsPrincipalService) {
+                                     CredentialsGenerator credentialsGenerator, PasswordValidationService passwordValidationService,
+                                     ClaimsPrincipalService claimsPrincipalService,
+                                     RespondentTimeZoneService respondentTimeZoneService,
+                                     LocalParticipationRecalculationService localParticipationRecalculationService) {
         this.authenticationManager = authenticationManager;
         this.tokenProvider = tokenProvider;
         this.identityUserRepository = identityUserRepository;
@@ -43,11 +49,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         this.credentialsGenerator = credentialsGenerator;
         this.passwordValidationService = passwordValidationService;
         this.claimsPrincipalService = claimsPrincipalService;
+        this.respondentTimeZoneService = respondentTimeZoneService;
+        this.localParticipationRecalculationService = localParticipationRecalculationService;
     }
 
     @Override
     public String getJwtTokenAsRespondent(LoginDto dto) {
-        return authenticateAndGenerateToken(dto, Role.RESPONDENT);
+        String token = authenticateAndGenerateToken(dto, Role.RESPONDENT);
+        applyRespondentTimeZoneAfterLogin(dto);
+        return token;
     }
 
     @Override
@@ -75,6 +85,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     respondentIdentityUser.setUsername(loginDto.getUsername());
                     String passwordHash = passwordEncoder.encode(loginDto.getPassword());
                     respondentIdentityUser.setPasswordHash(passwordHash);
+                    respondentIdentityUser.setTimeZone(RespondentTimeZoneService.DEFAULT_TIME_ZONE);
                     return respondentIdentityUser;
                 }).toList();
         identityUserRepository.saveAll(userList);
@@ -92,6 +103,30 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         IdentityUser identityUser = claimsPrincipalService.findIdentityUser();
         validateOldPassword(identityUser, changePasswordDto.getOldPassword());
         updatePassword(identityUser, changePasswordDto.getNewPassword());
+    }
+
+    private void applyRespondentTimeZoneAfterLogin(LoginDto dto) {
+        IdentityUser user = identityUserRepository.findByUsername(dto.getUsername())
+                .orElseThrow(() -> new BadCredentialsException("Bad credentials"));
+
+        String previous = user.getTimeZone() == null || user.getTimeZone().isBlank()
+                ? RespondentTimeZoneService.DEFAULT_TIME_ZONE
+                : user.getTimeZone();
+        String next;
+        try {
+            next = dto.getTimeZone() == null || dto.getTimeZone().isBlank()
+                    ? previous
+                    : respondentTimeZoneService.normalizeOrDefault(dto.getTimeZone());
+        } catch (IllegalArgumentException ex) {
+            next = previous;
+        }
+
+        if (Objects.equals(previous, next) && Objects.equals(user.getTimeZone(), next)) {
+            return;
+        }
+        user.setTimeZone(next);
+        identityUserRepository.save(user);
+        localParticipationRecalculationService.recalculateForRespondent(user.getId());
     }
 
     private String getUsernameFromNumber(int i) {

@@ -2,12 +2,15 @@ package com.survey.application.services;
 
 import com.survey.domain.models.SurveyParticipationTimeSlot;
 import com.survey.domain.models.SurveySendingPolicy;
+import com.survey.domain.models.IdentityUser;
+import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.SurveyParticipationRepository;
 import com.survey.domain.repository.SurveySendingPolicyRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 
@@ -15,6 +18,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -34,6 +38,12 @@ public class SurveyParticipationTimeValidationServiceTest {
     @Mock
     private SurveyParticipationRepository surveyParticipationRepository;
 
+    @Mock
+    private IdentityUserRepository identityUserRepository;
+
+    @Spy
+    private RespondentTimeZoneServiceImpl respondentTimeZoneService;
+
     private UUID surveyId;
     private UUID identityUserId;
     private OffsetDateTime nowUTC;
@@ -44,6 +54,11 @@ public class SurveyParticipationTimeValidationServiceTest {
         surveyId = UUID.randomUUID();
         identityUserId = UUID.randomUUID();
         nowUTC = OffsetDateTime.now(ZoneOffset.UTC);
+
+        IdentityUser respondent = new IdentityUser();
+        respondent.setId(identityUserId);
+        respondent.setTimeZone(RespondentTimeZoneService.DEFAULT_TIME_ZONE);
+        when(identityUserRepository.findById(identityUserId)).thenReturn(Optional.of(respondent));
     }
 
     @Test

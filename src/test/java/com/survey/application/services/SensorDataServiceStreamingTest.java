@@ -1,9 +1,9 @@
 package com.survey.application.services;
 
 import com.survey.application.dtos.ResponseSensorDataDto;
+import com.survey.application.dtos.SensorDataValueDto;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,19 +48,19 @@ class SensorDataServiceStreamingTest {
         // Sample data to document structure
         List<ResponseSensorDataDto> sampleData = createSensorDataBatch(3);
         assertThat(sampleData).hasSize(3);
-        assertThat(sampleData.get(0)).hasFieldOrProperty("temperature");
-        assertThat(sampleData.get(0)).hasFieldOrProperty("humidity");
+        assertThat(sampleData.get(0)).hasFieldOrProperty("source");
+        assertThat(sampleData.get(0)).hasFieldOrProperty("values");
     }
 
     @Test
     void streamSensorData_ShouldProduceValidJsonArray() {
         // This test verifies the expected JSON structure
-        String expectedFormat = "[{\"id\":\"...\",\"temperature\":22.5,\"humidity\":65.0},...]";
+        String expectedFormat = "[{\"id\":\"...\",\"source\":\"xiaomi\",\"values\":[{\"parameterCode\":\"temperature\",\"value\":\"22.5\"}]},...]";
 
         // Verify structure
         assertThat(expectedFormat).startsWith("[");
-        assertThat(expectedFormat).contains("temperature");
-        assertThat(expectedFormat).contains("humidity");
+        assertThat(expectedFormat).contains("parameterCode");
+        assertThat(expectedFormat).contains("value");
         assertThat(expectedFormat).endsWith("]");
     }
 
@@ -78,8 +78,10 @@ class SensorDataServiceStreamingTest {
         for (int i = 0; i < count; i++) {
             ResponseSensorDataDto dto = new ResponseSensorDataDto();
             dto.setId(UUID.randomUUID());
-            dto.setTemperature(new BigDecimal("22.5").add(new BigDecimal(i)));
-            dto.setHumidity(new BigDecimal("65.0").add(new BigDecimal(i)));
+            dto.setSource("xiaomi");
+            dto.setValues(List.of(
+                    new SensorDataValueDto("temperature", "22." + i),
+                    new SensorDataValueDto("humidity", "65." + i)));
             dto.setDateTime(OffsetDateTime.now().minusHours(i));
             dto.setRespondentId(UUID.randomUUID());
             batch.add(dto);

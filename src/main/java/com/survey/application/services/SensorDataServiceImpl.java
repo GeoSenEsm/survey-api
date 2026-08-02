@@ -4,14 +4,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.survey.application.dtos.LastSensorEntryDateDto;
 import com.survey.application.dtos.ResponseSensorDataDto;
 import com.survey.application.dtos.SensorDataDto;
+import com.survey.application.dtos.SensorDataValueDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.SensorData;
+import com.survey.domain.models.SensorDataParameterValue;
+import com.survey.domain.models.SensorParameterDefinition;
+import com.survey.domain.models.SensorType;
 import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.SensorDataRepository;
+import com.survey.domain.repository.SensorParameterDefinitionRepository;
+import com.survey.domain.repository.SensorTypeRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,41 +27,48 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
 public class SensorDataServiceImpl implements SensorDataService {
     private final ClaimsPrincipalService claimsPrincipalService;
-    private final ModelMapper modelMapper;
     private final ObjectMapper objectMapper;
     private final SensorDataRepository sensorDataRepository;
     private final IdentityUserRepository identityUserRepository;
+    private final SensorParameterDefinitionRepository sensorParameterDefinitionRepository;
+    private final SensorTypeRepository sensorTypeRepository;
     private final EntityManager entityManager;
 
     @Autowired
-    public SensorDataServiceImpl(ClaimsPrincipalService claimsPrincipalService, ModelMapper modelMapper, ObjectMapper objectMapper, SensorDataRepository sensorDataRepository, IdentityUserRepository identityUserRepository, EntityManager entityManager) {
+    public SensorDataServiceImpl(
+            ClaimsPrincipalService claimsPrincipalService,
+            ObjectMapper objectMapper,
+            SensorDataRepository sensorDataRepository,
+            IdentityUserRepository identityUserRepository,
+            SensorParameterDefinitionRepository sensorParameterDefinitionRepository,
+            SensorTypeRepository sensorTypeRepository,
+            EntityManager entityManager) {
         this.claimsPrincipalService = claimsPrincipalService;
-        this.modelMapper = modelMapper;
         this.objectMapper = objectMapper;
         this.sensorDataRepository = sensorDataRepository;
         this.identityUserRepository = identityUserRepository;
+        this.sensorParameterDefinitionRepository = sensorParameterDefinitionRepository;
+        this.sensorTypeRepository = sensorTypeRepository;
         this.entityManager = entityManager;
     }
 
     @Override
-    public List<ResponseSensorDataDto> saveSensorData(List<SensorDataDto> temperatureDataDtoList) {
-        if (temperatureDataDtoList == null || temperatureDataDtoList.isEmpty()){
-            throw new IllegalArgumentException("Temperature data list cannot be empty.");
+    public List<ResponseSensorDataDto> saveSensorData(List<SensorDataDto> sensorDataDtoList) {
+        if (sensorDataDtoList == null || sensorDataDtoList.isEmpty()){
+            throw new IllegalArgumentException("Sensor data list cannot be empty.");
         }
 
         IdentityUser identityUser = claimsPrincipalService.findIdentityUser();
 
-        List<SensorData> entityList = temperatureDataDtoList.stream()
-                        .map(dto -> {
-                            SensorData entity = modelMapper.map(dto, SensorData.class);
-                            entity.setRespondent(identityUser);
-                            return entity;
-                        })
+        List<SensorData> entityList = sensorDataDtoList.stream()
+                        .map(dto -> toEntity(dto, identityUser))
                         .toList();
         List<SensorData> dbEntityList = sensorDataRepository.saveAll(entityList);
 
@@ -106,6 +118,9 @@ public class SensorDataServiceImpl implements SensorDataService {
 
         // Add fetch join to eagerly load respondent and avoid N+1 queries
         root.fetch("respondent", JoinType.INNER);
+        root.fetch("sourceSensorType", JoinType.LEFT);
+        Fetch<SensorData, SensorDataParameterValue> valuesFetch = root.fetch("values", JoinType.LEFT);
+        valuesFetch.fetch("parameterDefinition", JoinType.INNER);
 
         List<Predicate> predicates = buildPredicates(cb, root, dateFrom, dateTo, identityUserId);
 
@@ -218,9 +233,46 @@ public class SensorDataServiceImpl implements SensorDataService {
     private List<ResponseSensorDataDto> mapToResponseDtoList (List<SensorData> entityList){
         return entityList.stream()
                 .map(entity -> {
-                    ResponseSensorDataDto responseDto = modelMapper.map(entity, ResponseSensorDataDto.class);
-                    responseDto.setRespondentId(entity.getRespondent().getId());
-                    return responseDto;
+                    return toResponseDto(entity);
                 }).toList();
+    }
+
+    public SensorData toEntity(SensorDataDto dto, IdentityUser identityUser) {
+        SensorType sourceSensorType = sensorTypeRepository.findByCode(dto.getSource())
+                .orElseThrow(() -> new IllegalArgumentException("Unknown sensor source: " + dto.getSource()));
+        Map<String, SensorParameterDefinition> parametersByCode = sensorParameterDefinitionRepository.findAll().stream()
+                .collect(Collectors.toMap(SensorParameterDefinition::getCode, parameter -> parameter));
+
+        SensorData entity = new SensorData();
+        entity.setDateTime(dto.getDateTime());
+        entity.setSource(dto.getSource());
+        entity.setSourceSensorType(sourceSensorType);
+        entity.setRespondent(identityUser);
+        dto.getValues().forEach(valueDto -> {
+            SensorParameterDefinition parameterDefinition = parametersByCode.get(valueDto.getParameterCode());
+            if (parameterDefinition == null || !parameterDefinition.isActive()) {
+                throw new IllegalArgumentException("Unknown or inactive sensor parameter: " + valueDto.getParameterCode());
+            }
+            SensorDataParameterValue value = new SensorDataParameterValue();
+            value.setSensorData(entity);
+            value.setParameterDefinition(parameterDefinition);
+            value.setValue(valueDto.getValue());
+            entity.getValues().add(value);
+        });
+        return entity;
+    }
+
+    public ResponseSensorDataDto toResponseDto(SensorData entity) {
+        ResponseSensorDataDto responseDto = new ResponseSensorDataDto();
+        responseDto.setId(entity.getId());
+        responseDto.setRespondentId(entity.getRespondent().getId());
+        responseDto.setDateTime(entity.getDateTime());
+        responseDto.setSource(entity.getSource());
+        responseDto.setValues(entity.getValues().stream()
+                .map(value -> new SensorDataValueDto(
+                        value.getParameterDefinition().getCode(),
+                        value.getValue()))
+                .toList());
+        return responseDto;
     }
 }

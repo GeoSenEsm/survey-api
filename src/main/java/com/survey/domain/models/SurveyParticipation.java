@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +25,14 @@ public class SurveyParticipation {
 
     @Column(name = "date")
     private OffsetDateTime date;
+
+    /** Wall-clock calendar day in the respondent's timezone. */
+    @Column(name = "local_date")
+    private LocalDate localDate;
+
+    /** Wall-clock time of day in the respondent's timezone (second precision). */
+    @Column(name = "local_time")
+    private LocalTime localTime;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "survey_id")

@@ -3,6 +3,7 @@ package com.survey.application.dtos.surveyDtos;
 import com.survey.api.validation.ValidSendSurveyResponse;
 import com.survey.application.dtos.SensorDataDto;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -25,13 +26,14 @@ public class SendOnlineSurveyResponseDto implements SendSurveyResponseDto {
     private UUID surveyId;
 
     @NotNull
-    @Schema(description = "UTC date and time when respondent started filling the survey.")
+    @Schema(description = "Date and time when respondent started filling the survey. May use the respondent's local offset; stored as UTC with denormalized local_date/local_time.")
     private OffsetDateTime startDate;
 
     @NotNull
-    @Schema(description = "UTC date and time when respondent finished filling the survey.")
+    @Schema(description = "Date and time when respondent finished filling the survey. May use the respondent's local offset; validated against study wall-clock slots in the respondent timezone.")
     private OffsetDateTime finishDate;
 
+    @Valid
     private SensorDataDto sensorData;
 
     @NotNull

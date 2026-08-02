@@ -48,6 +48,13 @@ Dependencies flow inward (`api` → `application` → `domain`). Controllers
 return DTOs only — never JPA entities. Mongo writes happen after the SQL
 transaction commits via `@TransactionalEventListener(AFTER_COMMIT)`.
 
+Sensor readings use a dynamic parameter/value model. Global configuration is
+served from `/api/surveysettings/sensordata`; mobile respondents read their
+filtered setup from `/api/surveysettings/sensordata/mobile`. Submitted sensor
+data is stored as one `sensor_data` reading plus `sensor_data_parameter_value`
+rows and is mirrored into response documents as `sensorData.source` and
+`sensorData.values`.
+
 ---
 
 
@@ -73,6 +80,7 @@ must be provided:
 | `JWT_KEY`                    | HMAC signing key for JWTs                                                                                     |
 | `JWT_EXPIRATION`             | Token lifetime in days                                                                                        |
 | `ALLOWED_ORIGINS`            | Comma-separated CORS origins (e.g. `https://*.example.com,http://localhost:*`). Defaults to `*`               |
+| `SENSOR_SECRET_ENCRYPTION_KEY` | Base64-encoded 32-byte AES key for BLE device secrets such as bind keys                                      |
 | `ENABLE_SWAGGER`             | Set `true` to enable `/swagger-ui.html` (disabled by default)                                                 |
 
 
@@ -127,7 +135,8 @@ docker run -p 27017:27017 --name geosenesm-mongo -d mongo:7.0
 | Store             | Role                                                                                                                                                                                                                   |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **MS SQL Server** | Source of truth for identities, surveys, questions, options, participations, answers, sensor/localization data, research area, phone numbers, per-survey phone notification rules (`survey_notification`), and study-wide `survey_settings`. Schema managed by Flyway under `src/main/resources/db/migration/`.       |
-| **MongoDB**       | Denormalized snapshot of each submitted survey response (`surveyResponseDocuments`). Written after SQL commit so a Mongo failure never rolls back the primary write. Consumed by the admin **Response Documents** tab. |
+| **MongoDB**       | Denormalized snapshot of each submitted survey response (`surveyResponseDocuments`). Written after SQL commit so a Mongo failure never rolls back the primary write. Consumed by the admin **Response Documents** tab. Includes `localDate`/`localTime` (respondent wall clock) alongside UTC `participationDate`. |
+| **Timezones**     | Each respondent has an IANA `time_zone` (default `UTC`). Mobile sends it on login; the API recalculates `survey_participation.local_date`/`local_time` and Mongo local fields. Study time slots are wall-clock schedules interpreted in that timezone. Result filters and daily completion use local columns. |
 
 
 ---

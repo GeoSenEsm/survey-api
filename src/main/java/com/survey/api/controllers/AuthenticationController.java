@@ -46,6 +46,8 @@ public class AuthenticationController {
             summary = "Login for respondents.",
             description = """
                     - Authenticate respondent and retrieve a JWT token.
+                    - Optional {@code timeZone} (IANA id) from the device is stored and
+                      used to recalculate participation local_date/local_time.
                     - **Access:**
                         - unrestricted
                     """

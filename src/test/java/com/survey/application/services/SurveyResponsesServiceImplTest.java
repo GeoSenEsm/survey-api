@@ -68,6 +68,12 @@ class SurveyResponsesServiceImplTest {
     private SensorDataRepository sensorDataRepository;
 
     @Mock
+    private SensorParameterDefinitionRepository sensorParameterDefinitionRepository;
+
+    @Mock
+    private SensorTypeRepository sensorTypeRepository;
+
+    @Mock
     private IdentityUserRepository identityUserRepository;
 
     @Mock
@@ -75,6 +81,9 @@ class SurveyResponsesServiceImplTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private RespondentTimeZoneService respondentTimeZoneService;
 
     private SurveyResponsesServiceImpl surveyResponsesService;
 
@@ -100,9 +109,12 @@ class SurveyResponsesServiceImplTest {
                 sendSurveyResponseDtoValidator,
                 surveyParticipationTimeValidationService,
                 sensorDataRepository,
+                sensorParameterDefinitionRepository,
+                sensorTypeRepository,
                 identityUserRepository,
                 localizationDataRepository,
-                eventPublisher
+                eventPublisher,
+                respondentTimeZoneService
         );
 
         survey = createSurvey();

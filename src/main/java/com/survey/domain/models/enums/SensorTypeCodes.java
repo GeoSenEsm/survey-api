@@ -6,7 +6,7 @@ package com.survey.domain.models.enums;
 public final class SensorTypeCodes {
     public static final String XIAOMI = "xiaomi";
     public static final String KESTREL = "kestrel";
-    /** Respondent enters temperature/humidity readings by hand (UI forthcoming). */
+    /** Respondent enters configured sensor parameter readings by hand. */
     public static final String MANUAL = "manual";
     /** No sensor device and no manual readings. */
     public static final String NONE = "none";

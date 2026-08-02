@@ -11,7 +11,8 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
-import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -49,6 +50,11 @@ public class SurveyResponseDocument {
 
     @Indexed
     private OffsetDateTime participationDate;
+    /** Wall-clock calendar day in the respondent's timezone. */
+    @Indexed
+    private LocalDate localDate;
+    /** Wall-clock time of day in the respondent's timezone. */
+    private LocalTime localTime;
     private OffsetDateTime surveyStartDate;
     private OffsetDateTime surveyFinishDate;
 
@@ -101,7 +107,17 @@ public class SurveyResponseDocument {
     @Builder
     public static class SensorReading {
         private OffsetDateTime dateTime;
-        private BigDecimal temperature;
-        private BigDecimal humidity;
+        private String source;
+        private List<SensorValue> values;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class SensorValue {
+        private String parameterCode;
+        private String value;
     }
 }

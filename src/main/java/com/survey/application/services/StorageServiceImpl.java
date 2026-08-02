@@ -33,7 +33,33 @@ public class StorageServiceImpl implements StorageService {
 
         file.transferTo(filePath.toFile());
 
-        return filePath.toString();
+        return toUrlPath(filePath);
+    }
+
+    @Override
+    public String storeSurveySettingsLogo(MultipartFile file) throws IOException {
+        fileValidationService.validateFileType(file.getOriginalFilename());
+
+        Path directoryPath = Paths.get(BASE_DIRECTORY, "survey_settings");
+
+        Files.createDirectories(directoryPath);
+
+        String fileName = "logo" + getFileExtension(file.getOriginalFilename());
+        Path filePath = directoryPath.resolve(fileName);
+
+        file.transferTo(filePath.toFile());
+
+        return toUrlPath(filePath);
+    }
+
+    @Override
+    public void deleteFile(String path) {
+        Path filePath = Paths.get(path);
+        try {
+            Files.deleteIfExists(filePath);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to delete file: " + filePath, e);
+        }
     }
 
     @Override
@@ -65,6 +91,10 @@ public class StorageServiceImpl implements StorageService {
     private String formatSurveyName(String name) {
         return Normalizer.normalize(name.trim(), Normalizer.Form.NFKC)
                 .replaceAll(" ", "_");
+    }
+
+    static String toUrlPath(Path path) {
+        return path.toString().replace('\\', '/');
     }
 
 }

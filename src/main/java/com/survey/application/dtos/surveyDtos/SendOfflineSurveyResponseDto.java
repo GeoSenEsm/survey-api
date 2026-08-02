@@ -27,11 +27,11 @@ public class SendOfflineSurveyResponseDto implements SendSurveyResponseDto {
     private UUID surveyId;
 
     @NotNull
-    @Schema(description = "UTC date and time when respondent started filling the survey.")
+    @Schema(description = "Date and time when respondent started filling the survey. May use the respondent's local offset; stored as UTC with denormalized local_date/local_time.")
     private OffsetDateTime startDate;
 
     @NotNull
-    @Schema(description = "UTC date and time when respondent finished filling the survey.")
+    @Schema(description = "Date and time when respondent finished filling the survey. May use the respondent's local offset; validated against study wall-clock slots in the respondent timezone.")
     private OffsetDateTime finishDate;
 
     private SensorDataDto sensorData;

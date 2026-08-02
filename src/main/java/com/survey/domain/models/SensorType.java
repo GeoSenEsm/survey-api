@@ -25,6 +25,12 @@ public class SensorType {
     @Column(name = "name", length = 64, nullable = false, unique = true)
     private String name;
 
+    @Column(name = "integration_mode", length = 32, nullable = false)
+    private String integrationMode;
+
+    @Column(name = "adapter_key", length = 64)
+    private String adapterKey;
+
     @Version
     @Column(name = "row_version", insertable = false, updatable = false)
     private byte[] rowVersion;
