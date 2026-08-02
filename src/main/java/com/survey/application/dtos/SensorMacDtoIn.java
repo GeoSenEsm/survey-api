@@ -31,9 +31,4 @@ public class SensorMacDtoIn {
     @Schema(description = "Sensor type id. When omitted, defaults to Xiaomi.",
             nullable = true)
     private UUID sensorTypeId;
-
-    public SensorMacDtoIn(String sensorId, String sensorMac) {
-        this.sensorId = sensorId;
-        this.sensorMac = sensorMac;
-    }
 }

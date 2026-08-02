@@ -64,19 +64,18 @@ public class SensorMacServiceImpl implements SensorMacService{
                             ? requireType(dto.getSensorTypeId()).getId()
                             : defaultType.getId();
 
-                    Optional<SensorMac> existingSensorMacOptional = sensorMacRepository.findBySensorId(dto.getSensorId());
-
-                    if (existingSensorMacOptional.isPresent()){
-                        SensorMac existingSensorMac = existingSensorMacOptional.get();
-                        existingSensorMac.setSensorMac(dto.getSensorMac().toUpperCase());
-                        existingSensorMac.setSensorTypeId(typeId);
-                        return existingSensorMac;
-                    } else {
-                        SensorMac newSensorMac = modelMapper.map(dto, SensorMac.class);
-                        newSensorMac.setSensorMac(newSensorMac.getSensorMac().toUpperCase());
-                        newSensorMac.setSensorTypeId(typeId);
-                        return newSensorMac;
-                    }
+                    return sensorMacRepository.findBySensorId(dto.getSensorId())
+                            .map(existing -> {
+                                existing.setSensorMac(dto.getSensorMac().toUpperCase());
+                                existing.setSensorTypeId(typeId);
+                                return existing;
+                            })
+                            .orElseGet(() -> {
+                                SensorMac created = modelMapper.map(dto, SensorMac.class);
+                                created.setSensorMac(created.getSensorMac().toUpperCase());
+                                created.setSensorTypeId(typeId);
+                                return created;
+                            });
                 })
                 .toList();
 
@@ -88,12 +87,9 @@ public class SensorMacServiceImpl implements SensorMacService{
 
     @Override
     public void deleteSensorMac(String sensorId) {
-        Optional<SensorMac> optionalSensorMac = sensorMacRepository.findBySensorId(sensorId);
-        if (optionalSensorMac.isPresent()){
-            sensorMacRepository.delete(optionalSensorMac.get());
-        } else {
-            throw new NoSuchElementException("Sensor with sensorId " + sensorId + " not found.");
-        }
+        SensorMac sensorMac = sensorMacRepository.findBySensorId(sensorId)
+                .orElseThrow(() -> new NoSuchElementException("Sensor with sensorId " + sensorId + " not found."));
+        sensorMacRepository.delete(sensorMac);
     }
 
     @Override
@@ -182,9 +178,6 @@ public class SensorMacServiceImpl implements SensorMacService{
     }
 
     private SensorType requireType(UUID sensorTypeId) {
-        if (sensorTypeId == null) {
-            throw new IllegalArgumentException("sensorTypeId is required.");
-        }
         return sensorTypeRepository.findById(sensorTypeId)
                 .orElseThrow(() -> new IllegalArgumentException("Sensor type " + sensorTypeId + " not found."));
     }
@@ -200,20 +193,15 @@ public class SensorMacServiceImpl implements SensorMacService{
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Map<UUID, IdentityUser> respondentsById = respondentIds.isEmpty()
-                ? Map.of()
-                : identityUserRepository.findAllById(respondentIds).stream()
-                    .collect(Collectors.toMap(IdentityUser::getId, Function.identity()));
+        Map<UUID, IdentityUser> respondentsById = identityUserRepository.findAllById(respondentIds).stream()
+                .collect(Collectors.toMap(IdentityUser::getId, Function.identity()));
 
         Set<UUID> typeIds = entities.stream()
                 .map(SensorMac::getSensorTypeId)
-                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Map<UUID, SensorType> typesById = typeIds.isEmpty()
-                ? Map.of()
-                : sensorTypeRepository.findAllById(typeIds).stream()
-                    .collect(Collectors.toMap(SensorType::getId, Function.identity()));
+        Map<UUID, SensorType> typesById = sensorTypeRepository.findAllById(typeIds).stream()
+                .collect(Collectors.toMap(SensorType::getId, Function.identity()));
 
         return entities.stream()
                 .map(entity -> toDto(entity, respondentsById, typesById))
@@ -221,19 +209,7 @@ public class SensorMacServiceImpl implements SensorMacService{
     }
 
     private SensorMacDtoOut toDto(SensorMac entity) {
-        Map<UUID, IdentityUser> respondentsById = Map.of();
-        if (entity.getRespondentId() != null) {
-            respondentsById = identityUserRepository.findById(entity.getRespondentId())
-                    .map(user -> Map.of(user.getId(), user))
-                    .orElse(Map.of());
-        }
-        Map<UUID, SensorType> typesById = Map.of();
-        if (entity.getSensorTypeId() != null) {
-            typesById = sensorTypeRepository.findById(entity.getSensorTypeId())
-                    .map(type -> Map.of(type.getId(), type))
-                    .orElse(Map.of());
-        }
-        return toDto(entity, respondentsById, typesById);
+        return toDtos(List.of(entity)).get(0);
     }
 
     private SensorMacDtoOut toDto(SensorMac entity,
@@ -246,12 +222,10 @@ public class SensorMacServiceImpl implements SensorMacService{
                 dto.setRespondentUsername(respondent.getUsername());
             }
         }
-        if (entity.getSensorTypeId() != null) {
-            SensorType type = typesById.get(entity.getSensorTypeId());
-            if (type != null) {
-                dto.setSensorTypeCode(type.getCode());
-                dto.setSensorTypeName(type.getName());
-            }
+        SensorType type = typesById.get(entity.getSensorTypeId());
+        if (type != null) {
+            dto.setSensorTypeCode(type.getCode());
+            dto.setSensorTypeName(type.getName());
         }
         return dto;
     }

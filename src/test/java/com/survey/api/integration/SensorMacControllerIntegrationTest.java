@@ -112,8 +112,8 @@ public class SensorMacControllerIntegrationTest {
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
         List<SensorMacDtoIn> duplicateSensorMacDtoList = List.of(
-                new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_1),
-                new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_2)
+                new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_1, null),
+                new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_2, null)
         );
 
         webTestClient.post()
@@ -130,8 +130,8 @@ public class SensorMacControllerIntegrationTest {
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
         List<SensorMacDtoIn> duplicateSensorMacDtoList = List.of(
-                new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_1),
-                new SensorMacDtoIn(VALID_SENSOR_ID_2, VALID_SENSOR_MAC_1)
+                new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_1, null),
+                new SensorMacDtoIn(VALID_SENSOR_ID_2, VALID_SENSOR_MAC_1, null)
         );
 
         webTestClient.post()
@@ -148,7 +148,7 @@ public class SensorMacControllerIntegrationTest {
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
         List<SensorMacDtoIn> invalidSensorMacDtoList = List.of(
-                new SensorMacDtoIn(VALID_SENSOR_ID_1, INVALID_MAC)
+                new SensorMacDtoIn(VALID_SENSOR_ID_1, INVALID_MAC, null)
         );
 
         webTestClient.post()
@@ -410,9 +410,9 @@ public class SensorMacControllerIntegrationTest {
 
 
     private List<SensorMacDtoIn> getValidSensorMacDtoList(){
-        SensorMacDtoIn dto1 = new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_1);
-        SensorMacDtoIn dto2 = new SensorMacDtoIn(VALID_SENSOR_ID_2, VALID_SENSOR_MAC_2);
-        SensorMacDtoIn dto3 = new SensorMacDtoIn(VALID_SENSOR_ID_3, VALID_SENSOR_MAC_3);
+        SensorMacDtoIn dto1 = new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_1, null);
+        SensorMacDtoIn dto2 = new SensorMacDtoIn(VALID_SENSOR_ID_2, VALID_SENSOR_MAC_2, null);
+        SensorMacDtoIn dto3 = new SensorMacDtoIn(VALID_SENSOR_ID_3, VALID_SENSOR_MAC_3, null);
         return List.of(dto1, dto2, dto3);
     }
 
