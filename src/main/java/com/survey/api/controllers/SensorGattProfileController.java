@@ -5,12 +5,14 @@ import com.survey.application.dtos.GattProfileValidationDto;
 import com.survey.application.dtos.SensorGattProfileDto;
 import com.survey.application.dtos.SensorGattProfileWriteDto;
 import com.survey.application.dtos.SensorProfileCapabilitiesDto;
+import com.survey.application.dtos.SensorProfileTemplateDto;
 import com.survey.application.dtos.SensorTypeCreateDto;
 import com.survey.application.dtos.SensorTypeDtoOut;
 import com.survey.application.dtos.SensorDeviceSecretWriteDto;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.SensorDeviceSecretService;
 import com.survey.application.services.SensorGattProfileService;
+import com.survey.application.services.SensorProfileTemplateService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import org.springframework.http.HttpStatus;
@@ -33,16 +35,31 @@ import java.util.UUID;
 @RequestMapping("/api/sensorprofiles")
 public class SensorGattProfileController {
     private final SensorGattProfileService service;
+    private final SensorProfileTemplateService templateService;
     private final ClaimsPrincipalService claimsPrincipalService;
     private final SensorDeviceSecretService deviceSecretService;
 
     public SensorGattProfileController(
             SensorGattProfileService service,
+            SensorProfileTemplateService templateService,
             ClaimsPrincipalService claimsPrincipalService,
             SensorDeviceSecretService deviceSecretService) {
         this.service = service;
+        this.templateService = templateService;
         this.claimsPrincipalService = claimsPrincipalService;
         this.deviceSecretService = deviceSecretService;
+    }
+
+    @GetMapping("/templates")
+    public ResponseEntity<List<SensorProfileTemplateDto>> listTemplates() {
+        ensureAdmin();
+        return ResponseEntity.ok(templateService.listTemplates());
+    }
+
+    @PostMapping("/templates/{templateCode}/install")
+    public ResponseEntity<SensorTypeDtoOut> installTemplate(@PathVariable String templateCode) {
+        ensureAdmin();
+        return ResponseEntity.status(HttpStatus.CREATED).body(templateService.install(templateCode));
     }
 
     @GetMapping("/capabilities")

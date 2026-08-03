@@ -27,7 +27,7 @@ import java.util.Objects;
 @RequestMapping("/uploads")
 @Tag(name = "Uploaded images", description = "Provides access to uploaded files.")
 public class UploadsController {
-    private final Path basePath = Paths.get("uploads");
+    private final Path basePath = Paths.get("/uploads").toAbsolutePath().normalize();
 
     @GetMapping("/**")
     @Operation(
@@ -54,9 +54,10 @@ public class UploadsController {
     })
     @CommonApiResponse400
     public ResponseEntity<Resource> getImage() throws MalformedURLException {
-        String pathFromRequest = extractPathFromRequest();
-
-        Path filePath = basePath.resolve(Paths.get(pathFromRequest)).normalize();
+        Path filePath = resolveUploadPath(extractPathFromRequest());
+        if (filePath == null) {
+            return ResponseEntity.notFound().build();
+        }
 
         Resource resource = new UrlResource(filePath.toUri());
 
@@ -70,10 +71,29 @@ public class UploadsController {
             return ResponseEntity.notFound().build();
         }
     }
+
     private String extractPathFromRequest() {
         HttpServletRequest request = ((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes())).getRequest();
         String requestURI = request.getRequestURI();
-        return java.net.URLDecoder.decode(requestURI, StandardCharsets.UTF_8);
+        String contextPath = request.getContextPath();
+        if (!contextPath.isBlank() && requestURI.startsWith(contextPath)) {
+            requestURI = requestURI.substring(contextPath.length());
+        }
+        String uploadPrefix = "/uploads/";
+        if (!requestURI.startsWith(uploadPrefix)) {
+            return "";
+        }
+        return java.net.URLDecoder.decode(requestURI.substring(uploadPrefix.length()), StandardCharsets.UTF_8);
+    }
+
+    private Path resolveUploadPath(String pathFromRequest) {
+        Path requestedPath = Paths.get(pathFromRequest);
+        if (requestedPath.isAbsolute() || pathFromRequest.contains("..")) {
+            return null;
+        }
+
+        Path filePath = basePath.resolve(requestedPath).normalize();
+        return filePath.startsWith(basePath) ? filePath : null;
     }
 
     private String getContentType(Path path) {

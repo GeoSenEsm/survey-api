@@ -11,4 +11,11 @@ public interface InitialSurveyService {
     List<InitialSurveyQuestionResponseDto> getInitialSurvey();
     InitialSurveyStateDto checkInitialSurveyState();
     void publishInitialSurveyAndCreateRespondentGroups();
+
+    /**
+     * Once the initial survey is published, respondent groups have already been created from it
+     * and the study is considered live. Other services use this as the signal to stop accepting
+     * changes that would otherwise apply retroactively to a running study (e.g. sensor data setup).
+     */
+    boolean isPublished();
 }

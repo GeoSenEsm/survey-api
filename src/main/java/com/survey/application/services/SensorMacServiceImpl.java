@@ -9,7 +9,6 @@ import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.SensorDeviceSecret;
 import com.survey.domain.models.SensorMac;
 import com.survey.domain.models.SensorType;
-import com.survey.domain.models.enums.SensorTypeCodes;
 import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.SensorDeviceSecretRepository;
 import com.survey.domain.repository.SensorMacRepository;
@@ -69,13 +68,9 @@ public class SensorMacServiceImpl implements SensorMacService{
     @Override
     @Transactional
     public List<SensorMacDtoOut> saveSensorMacList(List<SensorMacDtoIn> dtoList) {
-        SensorType defaultType = requireTypeByCode(SensorTypeCodes.XIAOMI);
-
         List<SensorMac> sensorMacEntityList = dtoList.stream()
                 .map(dto -> {
-                    SensorType type = dto.getSensorTypeId() != null
-                            ? requireType(dto.getSensorTypeId())
-                            : defaultType;
+                    SensorType type = requireType(dto.getSensorTypeId());
                     UUID typeId = type.getId();
 
                     return sensorMacRepository.findBySensorId(dto.getSensorId())
@@ -219,11 +214,6 @@ public class SensorMacServiceImpl implements SensorMacService{
     private SensorType requireType(UUID sensorTypeId) {
         return sensorTypeRepository.findById(sensorTypeId)
                 .orElseThrow(() -> new IllegalArgumentException("Sensor type " + sensorTypeId + " not found."));
-    }
-
-    private SensorType requireTypeByCode(String code) {
-        return sensorTypeRepository.findByCode(code)
-                .orElseThrow(() -> new IllegalStateException("Sensor type '" + code + "' is not seeded."));
     }
 
     private void synchronizeAssignmentType(SensorMac sensor, SensorType type) {

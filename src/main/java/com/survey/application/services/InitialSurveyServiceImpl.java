@@ -104,6 +104,11 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
         respondentGroupRepository.saveAll(respondentGroups);
     }
 
+    @Override
+    public boolean isPublished() {
+        return isInitialSurveyPublished();
+    }
+
     private boolean isInitialSurveyPublished(){
         Optional<InitialSurvey> optionalInitialSurvey = initialSurveyRepository.findTopByRowVersionDesc();
         return optionalInitialSurvey.filter(initialSurvey -> initialSurvey.getState() == SurveyState.published).isPresent();

@@ -12,6 +12,7 @@ import com.survey.application.dtos.SensorTypeDtoOut;
 import com.survey.application.dtos.AssignSensorRespondentDto;
 import com.survey.application.dtos.MobileSensorSetupDto;
 import com.survey.application.dtos.SensorDeviceSecretWriteDto;
+import com.survey.application.services.SensorProfileTemplateService;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.SensorMac;
 import com.survey.domain.repository.SensorDeviceSecretRepository;
@@ -43,6 +44,7 @@ class SensorGattProfileControllerIntegrationTest {
     private final SensorTypeRepository sensorTypeRepository;
     private final SensorMacRepository sensorMacRepository;
     private final SensorDeviceSecretRepository secretRepository;
+    private final SensorProfileTemplateService templateService;
 
     @Autowired
     public SensorGattProfileControllerIntegrationTest(
@@ -51,13 +53,15 @@ class SensorGattProfileControllerIntegrationTest {
             ObjectMapper objectMapper,
             SensorTypeRepository sensorTypeRepository,
             SensorMacRepository sensorMacRepository,
-            SensorDeviceSecretRepository secretRepository) {
+            SensorDeviceSecretRepository secretRepository,
+            SensorProfileTemplateService templateService) {
         this.webTestClient = webTestClient;
         this.testUtils = testUtils;
         this.objectMapper = objectMapper;
         this.sensorTypeRepository = sensorTypeRepository;
         this.sensorMacRepository = sensorMacRepository;
         this.secretRepository = secretRepository;
+        this.templateService = templateService;
     }
 
     @Test
@@ -68,13 +72,22 @@ class SensorGattProfileControllerIntegrationTest {
         String adminToken = testUtils.authenticateAndGenerateToken(admin, "testAdminPassword");
         String assignedToken = testUtils.authenticateAndGenerateToken(assigned, "assignedPassword");
         String otherToken = testUtils.authenticateAndGenerateToken(other, "otherPassword");
-        UUID typeId = sensorTypeRepository.findByCode("xiaomi_door_sensor_2").orElseThrow().getId();
+        UUID typeId = sensorTypeRepository.findByCode("xiaomi_door_sensor_2")
+                .orElseGet(() -> {
+                    templateService.install("xiaomi_door_sensor_2");
+                    return sensorTypeRepository.findByCode("xiaomi_door_sensor_2").orElseThrow();
+                })
+                .getId();
 
         SensorMac sensor = new SensorMac();
         sensor.setId(UUID.randomUUID());
         sensor.setSensorId("door-" + UUID.randomUUID().toString().substring(0, 6));
         sensor.setSensorMac("AA:BB:CC:DD:EE:" + String.format("%02X", Math.abs(sensor.hashCode()) % 255));
         sensor.setSensorTypeId(typeId);
+        // row_version is DB-generated and insertable=false; a manually-assigned id combined with a
+        // null version makes Hibernate treat this as a stale detached entity instead of a new one,
+        // so seed a placeholder (see SensorMacControllerIntegrationTest#saveSensorMacListDirectly).
+        sensor.setRowVersion(new byte[8]);
         sensor = sensorMacRepository.save(sensor);
 
         webTestClient.put()
@@ -94,7 +107,12 @@ class SensorGattProfileControllerIntegrationTest {
                 .expectBody().isEmpty();
 
         var stored = secretRepository.findBySensorMacIdAndSecretName(sensor.getId(), "bind_key").orElseThrow();
-        assertThat(stored.getCiphertext()).doesNotContain(bindKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        // AssertJ's byte[] "contains" checks element membership, not subsequence order, so it would
+        // spuriously fail whenever any single plaintext byte value happens to also occur among the
+        // random ciphertext bytes. Check for the plaintext appearing as a literal run of bytes instead.
+        assertThat(indexOfSubsequence(stored.getCiphertext(), bindKey.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                .as("ciphertext should not contain the plaintext bind key")
+                .isLessThan(0);
 
         MobileSensorSetupDto assignedSetup = webTestClient.get()
                 .uri("/api/surveysettings/sensordata/mobile")
@@ -234,5 +252,18 @@ class SensorGattProfileControllerIntegrationTest {
 
     private static String bearer(String token) {
         return "Bearer " + token;
+    }
+
+    private static int indexOfSubsequence(byte[] haystack, byte[] needle) {
+        outer:
+        for (int start = 0; start <= haystack.length - needle.length; start++) {
+            for (int offset = 0; offset < needle.length; offset++) {
+                if (haystack[start + offset] != needle[offset]) {
+                    continue outer;
+                }
+            }
+            return start;
+        }
+        return -1;
     }
 }

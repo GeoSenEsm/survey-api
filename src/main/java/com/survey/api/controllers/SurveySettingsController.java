@@ -5,7 +5,9 @@ import com.survey.api.configuration.CommonApiResponse401;
 import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.MobileSensorSetupDto;
+import com.survey.application.dtos.RespondentSensorAssignmentsUpdateDto;
 import com.survey.application.dtos.SurveySensorDataSettingsDto;
+import com.survey.application.dtos.SurveySensorDataSettingsWriteDto;
 import com.survey.application.dtos.SurveySettingsDto;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.SurveySettingsService;
@@ -93,7 +95,12 @@ public class SurveySettingsController {
             description = """
                     - Uploads (or replaces) the study-wide logo shown to
                       respondents in the mobile app.
-                    - Accepts `.jpg`, `.jpeg`, or `.png` files.
+                    - Accepts `.jpg`, `.jpeg`, or `.png` files up to 5 MB.
+                    - Rejects non-decodable image bytes and source rasters
+                      larger than 8192px on either side.
+                    - The image is downscaled server-side (longest side capped
+                      at 512px) so the mobile app never has to fetch or render
+                      a needlessly large file.
                     - **Access:**
                         - ADMIN
                     """
@@ -158,8 +165,14 @@ public class SurveySettingsController {
     @Operation(
             summary = "Update sensor data settings.",
             description = """
-                    - Updates global sensor data settings, parameter definitions,
-                      source priorities, timeouts, and respondent assignments.
+                    - Updates the sensor data mode, sensor type catalog, and
+                      parameter definitions.
+                    - Rejected with 400 once the initial survey has been
+                      published: at that point the study is live and the
+                      shape of sensor data can no longer change. Use
+                      `PUT /api/surveysettings/sensordata/assignments` to
+                      keep assigning physical sensors to respondents after
+                      that point.
                     - **Access:**
                         - ADMIN
                     """
@@ -173,9 +186,39 @@ public class SurveySettingsController {
     @CommonApiResponse401
     @CommonApiResponse403
     public ResponseEntity<SurveySensorDataSettingsDto> updateSensorDataSettings(
-            @Valid @RequestBody SurveySensorDataSettingsDto dto) {
+            @Valid @RequestBody SurveySensorDataSettingsWriteDto dto) {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         return ResponseEntity.ok(surveySettingsService.updateSensorDataSettings(dto));
+    }
+
+    @PutMapping("/sensordata/assignments")
+    @Operation(
+            summary = "Update respondent sensor assignments.",
+            description = """
+                    - Replaces which physical sensor (or sensor type, for
+                      profile-less integrations) each respondent has
+                      assigned, and their priority order.
+                    - Always available, even after the initial survey is
+                      published: unlike the mode, sensor type catalog, and
+                      parameter definitions, assignments are expected to
+                      keep changing throughout a live study as respondents
+                      join or devices get swapped.
+                    - **Access:**
+                        - ADMIN
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Assignments updated.",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = SurveySensorDataSettingsDto.class)))
+    })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<SurveySensorDataSettingsDto> updateAssignments(
+            @Valid @RequestBody RespondentSensorAssignmentsUpdateDto dto) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        return ResponseEntity.ok(surveySettingsService.updateAssignments(dto.assignments()));
     }
 
     @GetMapping("/sensordata/mobile")

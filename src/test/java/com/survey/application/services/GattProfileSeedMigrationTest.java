@@ -4,46 +4,42 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * The built-in BLE profiles used to be seeded directly by V31/V33; they now live as installable
+ * templates in {@link SensorProfileTemplateCatalog} (see {@code V35__purge_seeded_sensor_profile_templates.sql}).
+ * This validates that catalog against the same rules the admin-authored JSON profiles must satisfy.
+ */
 class GattProfileSeedMigrationTest {
-    private static final Pattern PROFILE_ROW =
-            Pattern.compile("\\(N'([^']+)', N'(\\{.*?\\})'\\)(?:,|;)", Pattern.DOTALL);
 
     @Test
-    void migrationSeedsValidateAndCoverAllBuiltInBleProfiles() throws IOException {
-        String migration;
-        try (var stream = getClass().getResourceAsStream(
-                "/db/migration/V31__create_gatt_profile_engine.sql")) {
-            assertThat(stream).isNotNull();
-            migration = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-        }
-
+    void catalogTemplatesValidateAndCoverAllBuiltInBleProfiles() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         GattProfileValidator validator = new GattProfileValidator(objectMapper);
-        Map<String, JsonNode> profiles = new HashMap<>();
-        Matcher matcher = PROFILE_ROW.matcher(migration);
-        while (matcher.find()) {
-            JsonNode profile = objectMapper.readTree(matcher.group(2));
+
+        Map<String, JsonNode> profiles = SensorProfileTemplateCatalog.all().stream()
+                .collect(Collectors.toMap(SensorProfileTemplate::code, template -> {
+                    try {
+                        return objectMapper.readTree(template.specJson());
+                    } catch (Exception exception) {
+                        throw new RuntimeException(exception);
+                    }
+                }));
+
+        for (SensorProfileTemplate template : SensorProfileTemplateCatalog.all()) {
+            JsonNode profile = profiles.get(template.code());
             assertThat(validator.validate(profile).errors())
-                    .as("seed profile %s", matcher.group(1))
+                    .as("template %s", template.code())
                     .isEmpty();
-            assertThat(validator.canonicalJson(profile))
-                    .as("canonical seed profile %s", matcher.group(1))
-                    .isEqualTo(matcher.group(2));
-            profiles.put(matcher.group(1), profile);
         }
 
         assertThat(profiles).containsOnlyKeys(
                 "xiaomi", "kestrel", "pc_60fw", "bluetooth_sig_plx",
-                "flower_care", "xiaomi_door_sensor_2");
+                "flower_care", "xiaomi_door_sensor_2", "inkbird_ibs_th1");
         assertThat(profiles.get("pc_60fw").at("/operations/0/acquisition/mode").asText())
                 .isEqualTo("notification");
         assertThat(profiles.get("bluetooth_sig_plx").at("/operations/0/decoders/1/type").asText())
@@ -56,5 +52,7 @@ class GattProfileSeedMigrationTest {
                 .isEqualTo("xiaomi_mibeacon_v4_v5");
         assertThat(profiles.get("xiaomi_door_sensor_2").at("/requiredSecrets/0").asText())
                 .isEqualTo("bind_key");
+        assertThat(profiles.get("inkbird_ibs_th1").at("/operations/0/decoders/0/type").asText())
+                .isEqualTo("int16");
     }
 }

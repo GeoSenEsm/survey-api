@@ -32,6 +32,7 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
     private final SensorGattProfileService sensorGattProfileService;
     private final SensorDeviceSecretService sensorDeviceSecretService;
     private final StorageService storageService;
+    private final InitialSurveyService initialSurveyService;
 
     public SurveySettingsServiceImpl(
             SurveySettingsRepository surveySettingsRepository,
@@ -45,7 +46,8 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
             ClaimsPrincipalService claimsPrincipalService,
             SensorGattProfileService sensorGattProfileService,
             SensorDeviceSecretService sensorDeviceSecretService,
-            StorageService storageService) {
+            StorageService storageService,
+            InitialSurveyService initialSurveyService) {
         this.surveySettingsRepository = surveySettingsRepository;
         this.surveySensorSettingsRepository = surveySensorSettingsRepository;
         this.sensorTypeSettingRepository = sensorTypeSettingRepository;
@@ -58,6 +60,7 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
         this.sensorGattProfileService = sensorGattProfileService;
         this.sensorDeviceSecretService = sensorDeviceSecretService;
         this.storageService = storageService;
+        this.initialSurveyService = initialSurveyService;
     }
 
     @Override
@@ -119,7 +122,13 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
     }
 
     @Override
-    public SurveySensorDataSettingsDto updateSensorDataSettings(SurveySensorDataSettingsDto dto) {
+    public SurveySensorDataSettingsDto updateSensorDataSettings(SurveySensorDataSettingsWriteDto dto) {
+        if (initialSurveyService.isPublished()) {
+            throw new IllegalStateException(
+                    "Sensor data setup is locked: the initial survey has already been published.");
+        }
+        rejectDestructiveEmptySensorSetup(dto);
+
         SurveySensorSettings settings = getOrCreateSensorSettings();
         settings.setMode(dto.mode());
         surveySensorSettingsRepository.save(settings);
@@ -129,8 +138,20 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
 
         replaceSensorTypeSettings(dto.sensorTypes(), sensorTypes);
         upsertParameterDefinitions(dto.parameters(), sensorTypes);
-        replaceAssignments(dto.assignments(), sensorTypes);
 
+        return getSensorDataSettings();
+    }
+
+    /**
+     * Deliberately not guarded by {@code requireSensorSetupUnlocked}: see
+     * {@link SurveySensorDataSettingsWriteDto}'s Javadoc for why respondent sensor assignments
+     * stay editable after the initial survey is published.
+     */
+    @Override
+    public SurveySensorDataSettingsDto updateAssignments(List<RespondentSensorAssignmentDto> assignments) {
+        Map<String, SensorType> sensorTypes = sensorTypeRepository.findAll().stream()
+                .collect(Collectors.toMap(SensorType::getCode, Function.identity()));
+        replaceAssignments(assignments, sensorTypes);
         return getSensorDataSettings();
     }
 
@@ -177,10 +198,13 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
     }
 
     private void replaceSensorTypeSettings(List<SensorTypeSettingDto> dtos, Map<String, SensorType> sensorTypes) {
-        if (dtos == null || dtos.isEmpty()) {
+        if (dtos == null) {
             return;
         }
         sensorTypeSettingRepository.deleteAll();
+        if (dtos.isEmpty()) {
+            return;
+        }
         List<SensorTypeSetting> settings = dtos.stream()
                 .map(dto -> {
                     SensorType sensorType = getSensorType(sensorTypes, dto.sensorTypeCode());
@@ -197,12 +221,13 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
 
     private void upsertParameterDefinitions(List<SensorParameterDefinitionDto> dtos, Map<String, SensorType> sensorTypes) {
         validateUniqueNameUnitPairs(dtos);
+        List<SensorParameterDefinition> existingDefinitions = sensorParameterDefinitionRepository.findAll();
 
         Set<String> activeCodes = dtos.stream()
                 .map(SensorParameterDefinitionDto::code)
                 .collect(Collectors.toSet());
 
-        for (SensorParameterDefinition existing : sensorParameterDefinitionRepository.findAll()) {
+        for (SensorParameterDefinition existing : existingDefinitions) {
             if (!activeCodes.contains(existing.getCode())) {
                 existing.setActive(false);
                 sensorParameterDefinitionRepository.save(existing);
@@ -228,6 +253,21 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
                 definition.getSources().add(source);
             });
             sensorParameterDefinitionRepository.save(definition);
+        }
+    }
+
+    private void rejectDestructiveEmptySensorSetup(SurveySensorDataSettingsWriteDto dto) {
+        if (dto.sensorTypes() != null
+                && dto.sensorTypes().isEmpty()
+                && !sensorTypeSettingRepository.findAll().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "sensorTypes must include the current setup; use individual enabled flags instead of an empty list.");
+        }
+        if (dto.parameters() != null
+                && dto.parameters().isEmpty()
+                && sensorParameterDefinitionRepository.findAll().stream().anyMatch(SensorParameterDefinition::isActive)) {
+            throw new IllegalArgumentException(
+                    "parameters must include the current setup; disable individual parameters instead of an empty list.");
         }
     }
 

@@ -15,7 +15,7 @@ public record SensorTypeCreateDto(
         String name,
 
         @NotBlank
-        @Pattern(regexp = "profile|native|manual|none")
+        @Pattern(regexp = "profile|native")
         String integrationMode,
 
         @Size(max = 64)

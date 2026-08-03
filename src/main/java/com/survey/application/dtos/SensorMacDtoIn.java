@@ -28,7 +28,7 @@ public class SensorMacDtoIn {
             example = "00:1A:2B:3C:4D:5E")
     private String sensorMac;
 
-    @Schema(description = "Sensor type id. When omitted, defaults to Xiaomi.",
-            nullable = true)
+    @NotNull
+    @Schema(description = "Sensor type id. Must reference an installed sensor type.")
     private UUID sensorTypeId;
 }

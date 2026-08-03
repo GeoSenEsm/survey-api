@@ -12,10 +12,12 @@ import com.survey.application.dtos.SensorTypeDtoOut;
 import com.survey.domain.models.SensorGattProfile;
 import com.survey.domain.models.SensorType;
 import com.survey.domain.models.SensorTypeSetting;
+import com.survey.domain.models.enums.SensorTypeCodes;
 import com.survey.domain.repository.SensorGattProfileRepository;
 import com.survey.domain.repository.SensorTypeRepository;
 import com.survey.domain.repository.SensorTypeSettingRepository;
 import com.survey.domain.repository.SensorParameterDefinitionRepository;
+import jakarta.persistence.EntityManager;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +44,8 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
     private final ModelMapper modelMapper;
     private final SensorParameterDefinitionRepository parameterDefinitionRepository;
     private final GattProfileMobileTranslator mobileTranslator;
+    private final EntityManager entityManager;
+    private final InitialSurveyService initialSurveyService;
 
     public SensorGattProfileServiceImpl(
             SensorGattProfileRepository profileRepository,
@@ -51,7 +55,9 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
             ObjectMapper objectMapper,
             ModelMapper modelMapper,
             SensorParameterDefinitionRepository parameterDefinitionRepository,
-            GattProfileMobileTranslator mobileTranslator) {
+            GattProfileMobileTranslator mobileTranslator,
+            EntityManager entityManager,
+            InitialSurveyService initialSurveyService) {
         this.profileRepository = profileRepository;
         this.sensorTypeRepository = sensorTypeRepository;
         this.sensorTypeSettingRepository = sensorTypeSettingRepository;
@@ -60,6 +66,8 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
         this.modelMapper = modelMapper;
         this.parameterDefinitionRepository = parameterDefinitionRepository;
         this.mobileTranslator = mobileTranslator;
+        this.entityManager = entityManager;
+        this.initialSurveyService = initialSurveyService;
     }
 
     @Override
@@ -91,6 +99,7 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
 
     @Override
     public SensorGattProfileDto createDraft(UUID sensorTypeId, SensorGattProfileWriteDto dto) {
+        requireSensorSetupUnlocked();
         SensorType sensorType = requireSensorType(sensorTypeId);
         if (!"profile".equals(sensorType.getIntegrationMode())) {
             throw new IllegalArgumentException("Only profile sensor types can have BLE profiles.");
@@ -104,14 +113,27 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
         profile.setStatus(DRAFT);
         profile.setReadOnly(false);
         applySpec(profile, dto);
-        return toDto(profileRepository.save(profile));
+        return toDto(saveAndRefreshVersion(profile));
+    }
+
+    /**
+     * Flushes the insert and re-reads the DB-generated {@code row_version} into the managed
+     * entity. Without this, a caller that publishes the same draft later in this same transaction
+     * (e.g. {@link SensorProfileTemplateServiceImpl#install}) would update against the version the
+     * entity had before the insert ran, which SQL Server always rejects as a stale write.
+     */
+    private SensorGattProfile saveAndRefreshVersion(SensorGattProfile profile) {
+        SensorGattProfile saved = profileRepository.saveAndFlush(profile);
+        entityManager.refresh(saved);
+        return saved;
     }
 
     @Override
     public SensorGattProfileDto updateDraft(UUID profileId, SensorGattProfileWriteDto dto) {
+        requireSensorSetupUnlocked();
         SensorGattProfile profile = requireMutableDraft(profileId);
         applySpec(profile, dto);
-        return toDto(profileRepository.save(profile));
+        return toDto(saveAndRefreshVersion(profile));
     }
 
     @Override
@@ -122,6 +144,7 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
 
     @Override
     public SensorGattProfileDto publish(UUID profileId) {
+        requireSensorSetupUnlocked();
         SensorGattProfile profile = requireMutableDraft(profileId);
         GattProfileValidationDto validation = validator.validate(parse(profile.getSpecJson()));
         requireValid(validation);
@@ -132,11 +155,12 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
         profile.setPublishedAt(now);
         profile.setUpdatedAt(now);
         profile.setSpecHash(validation.canonicalHash());
-        return toDto(profileRepository.save(profile));
+        return toDto(saveAndRefreshVersion(profile));
     }
 
     @Override
     public SensorGattProfileDto rollback(UUID sensorTypeId, int revision) {
+        requireSensorSetupUnlocked();
         SensorGattProfile source = profileRepository.findBySensorTypeIdAndRevision(sensorTypeId, revision)
                 .orElseThrow(() -> new NoSuchElementException("Profile revision " + revision + " was not found."));
         GattProfileValidationDto validation = validator.validate(parse(source.getSpecJson()));
@@ -159,11 +183,15 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
         rollback.setReadOnly(false);
         rollback.setUpdatedAt(now);
         rollback.setPublishedAt(now);
-        return toDto(profileRepository.save(rollback));
+        return toDto(saveAndRefreshVersion(rollback));
     }
 
     @Override
     public SensorTypeDtoOut createSensorType(SensorTypeCreateDto dto) {
+        requireSensorSetupUnlocked();
+        if (SensorTypeCodes.MANUAL.equals(dto.code()) || SensorTypeCodes.NONE.equals(dto.code())) {
+            throw new IllegalArgumentException("Sensor type code is reserved: " + dto.code());
+        }
         if (sensorTypeRepository.findByCode(dto.code()).isPresent()) {
             throw new IllegalArgumentException("Sensor type code already exists: " + dto.code());
         }
@@ -254,6 +282,20 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
             current.setUpdatedAt(now());
             profileRepository.saveAndFlush(current);
         });
+    }
+
+    /**
+     * Sensor data setup (types, GATT profiles, and by extension template installs, which are
+     * built out of these same methods) is frozen once the initial survey is published: at that
+     * point respondent groups already exist and the study is considered live, so retroactively
+     * reshaping what sensor data means would risk breaking in-flight BLE syncs or orphaning
+     * already-collected data.
+     */
+    private void requireSensorSetupUnlocked() {
+        if (initialSurveyService.isPublished()) {
+            throw new IllegalStateException(
+                    "Sensor data setup is locked: the initial survey has already been published.");
+        }
     }
 
     private SensorGattProfile requireMutableDraft(UUID id) {
