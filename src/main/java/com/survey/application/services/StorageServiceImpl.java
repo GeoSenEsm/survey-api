@@ -3,7 +3,10 @@ package com.survey.application.services;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.IIOException;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
@@ -14,6 +17,7 @@ import java.io.InputStream;
 import java.nio.file.*;
 import java.text.Normalizer;
 import java.util.Comparator;
+import java.util.Iterator;
 
 import static com.survey.application.services.FileValidationServiceImpl.getFileExtension;
 
@@ -25,7 +29,7 @@ public class StorageServiceImpl implements StorageService {
     /** Longest side after server-side downscale for the mobile header/splash. */
     private static final int MAX_LOGO_DIMENSION_PX = 512;
     /** Reject uploads larger than this before decoding (multipart default is 50MB). */
-    private static final long MAX_LOGO_UPLOAD_BYTES = 5L * 1024 * 1024;
+    private static final long MAX_LOGO_UPLOAD_BYTES = 1024 * 1024;
     /** Reject decoded rasters larger than this on either side (decompression-bomb guard). */
     private static final int MAX_LOGO_SOURCE_DIMENSION_PX = 8192;
 
@@ -70,19 +74,38 @@ public class StorageServiceImpl implements StorageService {
             throw new IllegalArgumentException(
                     "Logo file is too large (max " + (MAX_LOGO_UPLOAD_BYTES / (1024 * 1024)) + " MB).");
         }
-        BufferedImage original;
-        try (InputStream in = file.getInputStream()) {
-            original = ImageIO.read(in);
+        // Read the header-declared dimensions via ImageReader before decoding any pixel data:
+        // ImageIO.read() would allocate the full raster up front, so a small, highly-compressible
+        // file that merely declares huge dimensions could exhaust memory before this guard ran.
+        try (InputStream in = file.getInputStream();
+             ImageInputStream imageInputStream = ImageIO.createImageInputStream(in)) {
+            if (imageInputStream == null) {
+                throw new IllegalArgumentException("Logo file is not a readable PNG or JPEG image.");
+            }
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(imageInputStream);
+            if (!readers.hasNext()) {
+                throw new IllegalArgumentException("Logo file is not a readable PNG or JPEG image.");
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(imageInputStream);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                if (width > MAX_LOGO_SOURCE_DIMENSION_PX || height > MAX_LOGO_SOURCE_DIMENSION_PX) {
+                    throw new IllegalArgumentException(
+                            "Logo image dimensions must be at most " + MAX_LOGO_SOURCE_DIMENSION_PX + "px on each side.");
+                }
+                BufferedImage original = reader.read(0);
+                if (original == null) {
+                    throw new IllegalArgumentException("Logo file is not a readable PNG or JPEG image.");
+                }
+                return original;
+            } catch (IIOException e) {
+                throw new IllegalArgumentException("Logo file is not a readable PNG or JPEG image.");
+            } finally {
+                reader.dispose();
+            }
         }
-        if (original == null) {
-            throw new IllegalArgumentException("Logo file is not a readable PNG or JPEG image.");
-        }
-        if (original.getWidth() > MAX_LOGO_SOURCE_DIMENSION_PX
-                || original.getHeight() > MAX_LOGO_SOURCE_DIMENSION_PX) {
-            throw new IllegalArgumentException(
-                    "Logo image dimensions must be at most " + MAX_LOGO_SOURCE_DIMENSION_PX + "px on each side.");
-        }
-        return original;
     }
 
     private void writeResizedLogo(BufferedImage original, Path filePath) throws IOException {

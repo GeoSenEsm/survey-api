@@ -265,7 +265,8 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
         }
         if (dto.parameters() != null
                 && dto.parameters().isEmpty()
-                && sensorParameterDefinitionRepository.findAll().stream().anyMatch(SensorParameterDefinition::isActive)) {
+                && sensorParameterDefinitionRepository.findAllOrderedWithSources().stream()
+                        .anyMatch(definition -> definition.isActive() && !definition.getSources().isEmpty())) {
             throw new IllegalArgumentException(
                     "parameters must include the current setup; disable individual parameters instead of an empty list.");
         }

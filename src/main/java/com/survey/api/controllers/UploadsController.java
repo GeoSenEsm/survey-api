@@ -81,12 +81,15 @@ public class UploadsController {
         }
         String uploadPrefix = "/uploads/";
         if (!requestURI.startsWith(uploadPrefix)) {
-            return "";
+            return null;
         }
         return java.net.URLDecoder.decode(requestURI.substring(uploadPrefix.length()), StandardCharsets.UTF_8);
     }
 
     private Path resolveUploadPath(String pathFromRequest) {
+        if (pathFromRequest == null) {
+            return null;
+        }
         Path requestedPath = Paths.get(pathFromRequest);
         if (requestedPath.isAbsolute() || pathFromRequest.contains("..")) {
             return null;

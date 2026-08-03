@@ -7,11 +7,8 @@ import com.survey.application.dtos.ResponseSensorDataDto;
 import com.survey.application.dtos.SensorDataDto;
 import com.survey.application.dtos.SensorDataValueDto;
 import com.survey.domain.models.IdentityUser;
-import com.survey.domain.models.SensorType;
-import com.survey.domain.models.enums.SensorTypeCodes;
 import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.SensorDataRepository;
-import com.survey.domain.repository.SensorTypeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,19 +37,16 @@ public class SensorDataControllerIntegrationTest {
     private final WebTestClient webTestClient;
     private final IdentityUserRepository userRepository;
     private final SensorDataRepository sensorDataRepository;
-    private final SensorTypeRepository sensorTypeRepository;
     private final TestUtils testUtils;
 
     @Autowired
     public SensorDataControllerIntegrationTest(WebTestClient webTestClient,
                                                IdentityUserRepository userRepository,
                                                SensorDataRepository sensorDataRepository,
-                                               SensorTypeRepository sensorTypeRepository,
                                                TestUtils testUtils) {
         this.webTestClient = webTestClient;
         this.userRepository = userRepository;
         this.sensorDataRepository = sensorDataRepository;
-        this.sensorTypeRepository = sensorTypeRepository;
         this.testUtils = testUtils;
     }
 
@@ -60,14 +54,7 @@ public class SensorDataControllerIntegrationTest {
     void setUp(){
         sensorDataRepository.deleteAll();
         userRepository.deleteAll();
-        if (sensorTypeRepository.findByCode(SensorTypeCodes.XIAOMI).isEmpty()) {
-            SensorType xiaomi = new SensorType();
-            xiaomi.setId(UUID.randomUUID());
-            xiaomi.setCode(SensorTypeCodes.XIAOMI);
-            xiaomi.setName("Xiaomi");
-            xiaomi.setIntegrationMode("profile");
-            sensorTypeRepository.save(xiaomi);
-        }
+        testUtils.getOrCreateXiaomiSensorType();
     }
 
     @Test

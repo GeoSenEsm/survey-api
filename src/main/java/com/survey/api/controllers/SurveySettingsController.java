@@ -95,7 +95,7 @@ public class SurveySettingsController {
             description = """
                     - Uploads (or replaces) the study-wide logo shown to
                       respondents in the mobile app.
-                    - Accepts `.jpg`, `.jpeg`, or `.png` files up to 5 MB.
+                    - Accepts `.jpg`, `.jpeg`, or `.png` files up to 1 MB.
                     - Rejects non-decodable image bytes and source rasters
                       larger than 8192px on either side.
                     - The image is downscaled server-side (longest side capped

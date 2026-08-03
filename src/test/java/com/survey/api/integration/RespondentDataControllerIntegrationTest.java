@@ -9,10 +9,8 @@ import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.InitialSurveyOption;
 import com.survey.domain.models.InitialSurveyQuestion;
 import com.survey.domain.models.RespondentGroup;
-import com.survey.domain.models.SensorType;
 import com.survey.domain.models.enums.QuestionType;
 import com.survey.domain.models.enums.RespondentFilterOption;
-import com.survey.domain.models.enums.SensorTypeCodes;
 import com.survey.domain.models.enums.Visibility;
 import com.survey.domain.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,7 +51,6 @@ public class RespondentDataControllerIntegrationTest {
     private final RespondentDataRepository respondentDataRepository;
     private final OptionSelectionRepository optionSelectionRepository;
     private final QuestionAnswerRepository questionAnswerRepository;
-    private final SensorTypeRepository sensorTypeRepository;
     private final TestUtils testUtils;
 
     private static final String QUESTION_CONTENT = "What is your favorite color?";
@@ -74,7 +71,6 @@ public class RespondentDataControllerIntegrationTest {
                                                    SurveyRepository surveyRepository,
                                                    RespondentGroupRepository respondentGroupRepository,
                                                    RespondentDataRepository respondentDataRepository, OptionSelectionRepository optionSelectionRepository, QuestionAnswerRepository questionAnswerRepository,
-                                                   SensorTypeRepository sensorTypeRepository,
                                                    TestUtils testUtils) {
         this.webTestClient = webTestClient;
         this.userRepository = userRepository;
@@ -85,7 +81,6 @@ public class RespondentDataControllerIntegrationTest {
         this.respondentDataRepository = respondentDataRepository;
         this.optionSelectionRepository = optionSelectionRepository;
         this.questionAnswerRepository = questionAnswerRepository;
-        this.sensorTypeRepository = sensorTypeRepository;
         this.testUtils = testUtils;
     }
     @BeforeEach
@@ -101,14 +96,7 @@ public class RespondentDataControllerIntegrationTest {
                 .filter(group -> !group.getName().equals("All"))
                 .toList();
         respondentGroupRepository.deleteAll(groupsToDelete);
-        if (sensorTypeRepository.findByCode(SensorTypeCodes.XIAOMI).isEmpty()) {
-            SensorType xiaomi = new SensorType();
-            xiaomi.setId(UUID.randomUUID());
-            xiaomi.setCode(SensorTypeCodes.XIAOMI);
-            xiaomi.setName("Xiaomi");
-            xiaomi.setIntegrationMode("profile");
-            sensorTypeRepository.save(xiaomi);
-        }
+        testUtils.getOrCreateXiaomiSensorType();
     }
     @Test
     void createRespondent_ShouldReturnCreatedResponse() {

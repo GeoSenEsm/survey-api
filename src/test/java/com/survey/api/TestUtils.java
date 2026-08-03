@@ -2,7 +2,10 @@ package com.survey.api;
 
 import com.survey.api.security.TokenProvider;
 import com.survey.domain.models.IdentityUser;
+import com.survey.domain.models.SensorType;
+import com.survey.domain.models.enums.SensorTypeCodes;
 import com.survey.domain.repository.IdentityUserRepository;
+import com.survey.domain.repository.SensorTypeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -19,14 +22,17 @@ public class TestUtils {
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
     private final TokenProvider tokenProvider;
+    private final SensorTypeRepository sensorTypeRepository;
 
     @Autowired
     public TestUtils(IdentityUserRepository userRepository, AuthenticationManager authenticationManager,
-                     PasswordEncoder passwordEncoder, TokenProvider tokenProvider) {
+                     PasswordEncoder passwordEncoder, TokenProvider tokenProvider,
+                     SensorTypeRepository sensorTypeRepository) {
         this.userRepository = userRepository;
         this.authenticationManager = authenticationManager;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
+        this.sensorTypeRepository = sensorTypeRepository;
     }
 
     public IdentityUser createUserWithRole(String role, String password) {
@@ -43,5 +49,17 @@ public class TestUtils {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(user.getUsername(), password));
         return tokenProvider.generateToken(authentication);
+    }
+
+    public SensorType getOrCreateXiaomiSensorType() {
+        return sensorTypeRepository.findByCode(SensorTypeCodes.XIAOMI)
+                .orElseGet(() -> {
+                    SensorType xiaomi = new SensorType();
+                    xiaomi.setId(UUID.randomUUID());
+                    xiaomi.setCode(SensorTypeCodes.XIAOMI);
+                    xiaomi.setName("Xiaomi");
+                    xiaomi.setIntegrationMode("profile");
+                    return sensorTypeRepository.save(xiaomi);
+                });
     }
 }

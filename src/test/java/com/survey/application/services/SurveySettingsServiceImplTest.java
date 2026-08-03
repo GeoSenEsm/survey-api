@@ -6,6 +6,7 @@ import com.survey.application.dtos.SurveySensorDataSettingsWriteDto;
 import com.survey.application.dtos.SurveySettingsDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.SensorParameterDefinition;
+import com.survey.domain.models.SensorParameterSource;
 import com.survey.domain.models.SensorType;
 import com.survey.domain.models.SensorTypeSetting;
 import com.survey.domain.models.SurveySettings;
@@ -189,12 +190,18 @@ class SurveySettingsServiceImplTest {
 
     @Test
     void updateSensorDataSettings_rejectsEmptyParametersWhenActiveDefinitionsExist() {
+        SensorType sensorType = new SensorType(UUID.randomUUID(), "xiaomi", "Xiaomi", "profile", null, null);
         SensorParameterDefinition definition = new SensorParameterDefinition();
         definition.setCode("temperature");
         definition.setActive(true);
+        SensorParameterSource source = new SensorParameterSource();
+        source.setParameterDefinition(definition);
+        source.setSensorType(sensorType);
+        source.setPriorityOrder(0);
+        definition.getSources().add(source);
         when(initialSurveyService.isPublished()).thenReturn(false);
         when(sensorTypeSettingRepository.findAll()).thenReturn(List.of());
-        when(sensorParameterDefinitionRepository.findAll()).thenReturn(List.of(definition));
+        when(sensorParameterDefinitionRepository.findAllOrderedWithSources()).thenReturn(List.of(definition));
 
         assertThatThrownBy(() -> service.updateSensorDataSettings(
                 new SurveySensorDataSettingsWriteDto("no_sensor_data", List.of(), List.of())))
@@ -203,6 +210,30 @@ class SurveySettingsServiceImplTest {
 
         verify(surveySensorSettingsRepository, never()).save(any());
         verify(sensorParameterDefinitionRepository, never()).save(any());
+    }
+
+    @Test
+    void updateSensorDataSettings_allowsEmptyParametersWhenActiveDefinitionsHaveNoSources() {
+        // Reflects the state left by V35__purge_seeded_sensor_profile_templates.sql: parameter
+        // definitions for a purged built-in sensor type stay active (so a later re-install can
+        // reuse them) but their sources are gone along with the sensor type that fed them. An
+        // active-but-unwired definition must not block an otherwise-legitimate empty setup.
+        SensorParameterDefinition orphanedDefinition = new SensorParameterDefinition();
+        orphanedDefinition.setCode("temperature");
+        orphanedDefinition.setActive(true);
+        when(initialSurveyService.isPublished()).thenReturn(false);
+        when(surveySensorSettingsRepository.findById(1))
+                .thenReturn(Optional.of(new SurveySensorSettings(1, "no_sensor_data")));
+        when(surveySensorSettingsRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sensorTypeRepository.findAll()).thenReturn(List.of());
+        when(sensorTypeSettingRepository.findAll()).thenReturn(List.of());
+        when(sensorParameterDefinitionRepository.findAllOrderedWithSources()).thenReturn(List.of(orphanedDefinition));
+        when(respondentSensorAssignmentRepository.findAllOrdered()).thenReturn(List.of());
+
+        SurveySensorDataSettingsDto dto = service.updateSensorDataSettings(
+                new SurveySensorDataSettingsWriteDto("no_sensor_data", List.of(), List.of()));
+
+        assertThat(dto.mode()).isEqualTo("no_sensor_data");
     }
 
     @Test

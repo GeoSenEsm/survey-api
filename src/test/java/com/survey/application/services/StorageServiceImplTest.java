@@ -51,6 +51,22 @@ class StorageServiceImplTest {
     }
 
     @Test
+    void requireDecodableLogo_rejectsDimensionsOverTheLimitWithoutDecodingPixelData() throws Exception {
+        // Cheap to allocate (one side is 10px) but still exercises the header-only dimension
+        // check ahead of the pixel decode — a real oversized-both-sides raster would be
+        // gigabytes and isn't needed to prove the check runs before reader.read(0).
+        BufferedImage oversized = new BufferedImage(8300, 10, BufferedImage.TYPE_INT_RGB);
+        ByteArrayOutputStream pngBytes = new ByteArrayOutputStream();
+        ImageIO.write(oversized, "png", pngBytes);
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "logo.png", "image/png", pngBytes.toByteArray());
+
+        assertThatThrownBy(() -> StorageServiceImpl.requireDecodableLogo(file))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("dimensions must be at most");
+    }
+
+    @Test
     void requireDecodableLogo_acceptsAValidPng() throws Exception {
         BufferedImage source = new BufferedImage(64, 32, BufferedImage.TYPE_INT_ARGB);
         ByteArrayOutputStream pngBytes = new ByteArrayOutputStream();

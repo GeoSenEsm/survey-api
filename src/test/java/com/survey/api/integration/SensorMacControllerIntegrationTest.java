@@ -8,11 +8,8 @@ import com.survey.application.dtos.SensorMacDtoOut;
 import com.survey.application.dtos.UpdatedSensorMacDtoIn;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.SensorMac;
-import com.survey.domain.models.SensorType;
-import com.survey.domain.models.enums.SensorTypeCodes;
 import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.SensorMacRepository;
-import com.survey.domain.repository.SensorTypeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,38 +46,24 @@ public class SensorMacControllerIntegrationTest {
     private final IdentityUserRepository userRepository;
     private final TestUtils testUtils;
     private final SensorMacRepository sensorMacRepository;
-    private final SensorTypeRepository sensorTypeRepository;
     private UUID xiaomiTypeId;
 
     @Autowired
     public SensorMacControllerIntegrationTest(WebTestClient webTestClient,
                                               IdentityUserRepository userRepository,
                                               TestUtils testUtils,
-                                              SensorMacRepository sensorMacRepository,
-                                              SensorTypeRepository sensorTypeRepository) {
+                                              SensorMacRepository sensorMacRepository) {
         this.webTestClient = webTestClient;
         this.userRepository = userRepository;
         this.testUtils = testUtils;
         this.sensorMacRepository = sensorMacRepository;
-        this.sensorTypeRepository = sensorTypeRepository;
     }
 
     @BeforeEach
     void setUp(){
         userRepository.deleteAll();
         sensorMacRepository.deleteAll();
-        xiaomiTypeId = sensorTypeRepository.findByCode(SensorTypeCodes.XIAOMI)
-                .orElseGet(this::createXiaomiSensorType)
-                .getId();
-    }
-
-    private SensorType createXiaomiSensorType() {
-        SensorType type = new SensorType();
-        type.setId(UUID.randomUUID());
-        type.setCode(SensorTypeCodes.XIAOMI);
-        type.setName("Xiaomi");
-        type.setIntegrationMode("profile");
-        return sensorTypeRepository.save(type);
+        xiaomiTypeId = testUtils.getOrCreateXiaomiSensorType().getId();
     }
 
     @Test
