@@ -8,6 +8,7 @@ import com.survey.application.dtos.SensorMacDtoOut;
 import com.survey.application.dtos.UpdatedSensorMacDtoIn;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.SensorMac;
+import com.survey.domain.models.enums.SensorTypeCodes;
 import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.SensorMacRepository;
 import org.junit.jupiter.api.BeforeEach;
