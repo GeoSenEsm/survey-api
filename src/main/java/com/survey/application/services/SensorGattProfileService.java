@@ -22,6 +22,7 @@ public interface SensorGattProfileService {
     SensorGattProfileDto publish(UUID profileId);
     SensorGattProfileDto rollback(UUID sensorTypeId, int revision);
     SensorTypeDtoOut createSensorType(SensorTypeCreateDto dto);
+    void deleteSensorType(UUID sensorTypeId);
     List<SensorGattProfileDto> getPublishedProfiles(Set<UUID> sensorTypeIds);
     List<JsonNode> getPublishedProfilesForMobile(Set<UUID> sensorTypeIds);
     List<SensorTypeDtoOut> listProfileSensorTypes();

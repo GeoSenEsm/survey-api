@@ -1,6 +1,5 @@
 package com.survey.domain.models;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -49,6 +48,6 @@ public class SensorParameterDefinition {
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
-    @OneToMany(mappedBy = "parameterDefinition", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<SensorParameterSource> sources = new ArrayList<>();
+    @OneToMany(mappedBy = "usedParameter")
+    private List<SensorTypeParameter> rawParameters = new ArrayList<>();
 }

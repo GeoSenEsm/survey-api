@@ -12,7 +12,7 @@ import java.util.UUID;
 public interface SensorParameterDefinitionRepository extends JpaRepository<SensorParameterDefinition, UUID> {
     Optional<SensorParameterDefinition> findByCode(String code);
 
-    @EntityGraph(attributePaths = {"sources", "sources.sensorType"})
+    @EntityGraph(attributePaths = {"rawParameters", "rawParameters.sensorType"})
     @Query("SELECT spd FROM SensorParameterDefinition spd ORDER BY spd.displayOrder")
     List<SensorParameterDefinition> findAllOrderedWithSources();
 }

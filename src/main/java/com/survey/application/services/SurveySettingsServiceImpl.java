@@ -33,6 +33,7 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
     private final SensorDeviceSecretService sensorDeviceSecretService;
     private final StorageService storageService;
     private final InitialSurveyService initialSurveyService;
+    private final SensorParameterDefinitionValidator parameterDefinitionValidator;
 
     public SurveySettingsServiceImpl(
             SurveySettingsRepository surveySettingsRepository,
@@ -47,7 +48,8 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
             SensorGattProfileService sensorGattProfileService,
             SensorDeviceSecretService sensorDeviceSecretService,
             StorageService storageService,
-            InitialSurveyService initialSurveyService) {
+            InitialSurveyService initialSurveyService,
+            SensorParameterDefinitionValidator parameterDefinitionValidator) {
         this.surveySettingsRepository = surveySettingsRepository;
         this.surveySensorSettingsRepository = surveySensorSettingsRepository;
         this.sensorTypeSettingRepository = sensorTypeSettingRepository;
@@ -61,6 +63,7 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
         this.sensorDeviceSecretService = sensorDeviceSecretService;
         this.storageService = storageService;
         this.initialSurveyService = initialSurveyService;
+        this.parameterDefinitionValidator = parameterDefinitionValidator;
     }
 
     @Override
@@ -123,11 +126,8 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
 
     @Override
     public SurveySensorDataSettingsDto updateSensorDataSettings(SurveySensorDataSettingsWriteDto dto) {
-        if (initialSurveyService.isPublished()) {
-            throw new IllegalStateException(
-                    "Sensor data setup is locked: the initial survey has already been published.");
-        }
-        rejectDestructiveEmptySensorSetup(dto);
+        initialSurveyService.requireNotPublished();
+        rejectDestructiveEmptySensorTypesSetup(dto);
 
         SurveySensorSettings settings = getOrCreateSensorSettings();
         settings.setMode(dto.mode());
@@ -137,9 +137,43 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
                 .collect(Collectors.toMap(SensorType::getCode, Function.identity()));
 
         replaceSensorTypeSettings(dto.sensorTypes(), sensorTypes);
-        upsertParameterDefinitions(dto.parameters(), sensorTypes);
 
         return getSensorDataSettings();
+    }
+
+    @Override
+    public SensorParameterDefinitionDto createSensorParameterDefinition(SensorParameterDefinitionCreateDto dto) {
+        initialSurveyService.requireNotPublished();
+        if (sensorParameterDefinitionRepository.findByCode(dto.code()).isPresent()) {
+            throw new IllegalArgumentException("Sensor parameter code already exists: " + dto.code());
+        }
+        parameterDefinitionValidator.assertNameUnitAvailable(dto.name(), dto.unit(), null);
+
+        SensorParameterDefinition definition = new SensorParameterDefinition();
+        definition.setCode(dto.code());
+        definition.setName(dto.name());
+        definition.setDataType(dto.dataType());
+        definition.setUnit(dto.unit());
+        definition.setRequired(dto.required());
+        definition.setActive(true);
+        definition.setDisplayOrder((int) sensorParameterDefinitionRepository.count());
+        return toDto(sensorParameterDefinitionRepository.save(definition));
+    }
+
+    @Override
+    public SensorParameterDefinitionDto updateSensorParameterDefinition(UUID id, SensorParameterDefinitionEditDto dto) {
+        initialSurveyService.requireNotPublished();
+        SensorParameterDefinition definition = sensorParameterDefinitionRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Sensor parameter was not found: " + id));
+        parameterDefinitionValidator.assertNameUnitAvailable(dto.name(), dto.unit(), id);
+
+        definition.setName(dto.name());
+        definition.setDataType(dto.dataType());
+        definition.setUnit(dto.unit());
+        definition.setRequired(dto.required());
+        definition.setActive(dto.active());
+        definition.setDisplayOrder(dto.displayOrder());
+        return toDto(sensorParameterDefinitionRepository.save(definition));
     }
 
     /**
@@ -219,79 +253,13 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
         sensorTypeSettingRepository.saveAll(settings);
     }
 
-    private void upsertParameterDefinitions(List<SensorParameterDefinitionDto> dtos, Map<String, SensorType> sensorTypes) {
-        validateUniqueNameUnitPairs(dtos);
-        List<SensorParameterDefinition> existingDefinitions = sensorParameterDefinitionRepository.findAll();
-
-        Set<String> activeCodes = dtos.stream()
-                .map(SensorParameterDefinitionDto::code)
-                .collect(Collectors.toSet());
-
-        for (SensorParameterDefinition existing : existingDefinitions) {
-            if (!activeCodes.contains(existing.getCode())) {
-                existing.setActive(false);
-                sensorParameterDefinitionRepository.save(existing);
-            }
-        }
-
-        for (SensorParameterDefinitionDto dto : dtos) {
-            SensorParameterDefinition definition = sensorParameterDefinitionRepository.findByCode(dto.code())
-                    .orElseGet(SensorParameterDefinition::new);
-            definition.setCode(dto.code());
-            definition.setName(dto.name());
-            definition.setDataType(dto.dataType());
-            definition.setUnit(dto.unit());
-            definition.setRequired(dto.required());
-            definition.setActive(dto.active());
-            definition.setDisplayOrder(dto.displayOrder());
-            definition.getSources().clear();
-            dto.sources().forEach(sourceDto -> {
-                SensorParameterSource source = new SensorParameterSource();
-                source.setParameterDefinition(definition);
-                source.setSensorType(getSensorType(sensorTypes, sourceDto.sensorTypeCode()));
-                source.setPriorityOrder(sourceDto.priorityOrder());
-                definition.getSources().add(source);
-            });
-            sensorParameterDefinitionRepository.save(definition);
-        }
-    }
-
-    private void rejectDestructiveEmptySensorSetup(SurveySensorDataSettingsWriteDto dto) {
+    private void rejectDestructiveEmptySensorTypesSetup(SurveySensorDataSettingsWriteDto dto) {
         if (dto.sensorTypes() != null
                 && dto.sensorTypes().isEmpty()
                 && !sensorTypeSettingRepository.findAll().isEmpty()) {
             throw new IllegalArgumentException(
                     "sensorTypes must include the current setup; use individual enabled flags instead of an empty list.");
         }
-        if (dto.parameters() != null
-                && dto.parameters().isEmpty()
-                && sensorParameterDefinitionRepository.findAllOrderedWithSources().stream()
-                        .anyMatch(definition -> definition.isActive() && !definition.getSources().isEmpty())) {
-            throw new IllegalArgumentException(
-                    "parameters must include the current setup; disable individual parameters instead of an empty list.");
-        }
-    }
-
-    /**
-     * A parameter's identity is the (name, unit) pair, not the name alone: two parameters that
-     * measure different things in different units (e.g. Flower Care's lux "Light" vs. a plain
-     * on/off "Light" flag) must be distinct definitions, mirroring
-     * {@code UQ_sensor_parameter_definition_name_unit}.
-     */
-    private void validateUniqueNameUnitPairs(List<SensorParameterDefinitionDto> dtos) {
-        Set<String> seen = new HashSet<>();
-        for (SensorParameterDefinitionDto dto : dtos) {
-            String key = normalizeForUniqueness(dto.name()) + "\u0000" + normalizeForUniqueness(dto.unit());
-            if (!seen.add(key)) {
-                throw new IllegalArgumentException(
-                        "Parameter name and unit must be unique together: multiple parameters named '"
-                                + dto.name() + "' share unit '" + Objects.toString(dto.unit(), "") + "'.");
-            }
-        }
-    }
-
-    private String normalizeForUniqueness(String value) {
-        return value == null ? "" : value.trim().toLowerCase();
     }
 
     private void replaceAssignments(List<RespondentSensorAssignmentDto> dtos, Map<String, SensorType> sensorTypes) {
@@ -362,11 +330,12 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
                 definition.isRequired(),
                 definition.isActive(),
                 definition.getDisplayOrder(),
-                definition.getSources().stream()
-                        .sorted(Comparator.comparingInt(SensorParameterSource::getPriorityOrder))
+                definition.getRawParameters().stream()
+                        .sorted(Comparator.comparingInt(SensorTypeParameter::getPriorityOrder))
                         .map(source -> new SensorParameterSourceDto(
                                 source.getId(),
                                 source.getSensorType().getCode(),
+                                source.getCode(),
                                 source.getPriorityOrder()))
                         .toList());
     }

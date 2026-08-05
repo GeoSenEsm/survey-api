@@ -9,15 +9,21 @@ import com.survey.application.dtos.SensorProfileTemplateDto;
 import com.survey.application.dtos.SensorTypeCreateDto;
 import com.survey.application.dtos.SensorTypeDtoOut;
 import com.survey.application.dtos.SensorDeviceSecretWriteDto;
+import com.survey.application.dtos.SensorTypeParameterCreateDto;
+import com.survey.application.dtos.SensorTypeParameterDto;
+import com.survey.application.dtos.SensorTypeParameterEditDto;
+import com.survey.application.dtos.UseSensorTypeParameterDto;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.SensorDeviceSecretService;
 import com.survey.application.services.SensorGattProfileService;
 import com.survey.application.services.SensorProfileTemplateService;
+import com.survey.application.services.SensorTypeParameterService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,16 +44,19 @@ public class SensorGattProfileController {
     private final SensorProfileTemplateService templateService;
     private final ClaimsPrincipalService claimsPrincipalService;
     private final SensorDeviceSecretService deviceSecretService;
+    private final SensorTypeParameterService sensorTypeParameterService;
 
     public SensorGattProfileController(
             SensorGattProfileService service,
             SensorProfileTemplateService templateService,
             ClaimsPrincipalService claimsPrincipalService,
-            SensorDeviceSecretService deviceSecretService) {
+            SensorDeviceSecretService deviceSecretService,
+            SensorTypeParameterService sensorTypeParameterService) {
         this.service = service;
         this.templateService = templateService;
         this.claimsPrincipalService = claimsPrincipalService;
         this.deviceSecretService = deviceSecretService;
+        this.sensorTypeParameterService = sensorTypeParameterService;
     }
 
     @GetMapping("/templates")
@@ -126,6 +135,62 @@ public class SensorGattProfileController {
     public ResponseEntity<SensorTypeDtoOut> createSensorType(@Valid @RequestBody SensorTypeCreateDto dto) {
         ensureAdmin();
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createSensorType(dto));
+    }
+
+    @DeleteMapping("/types/{sensorTypeId}")
+    public ResponseEntity<Void> deleteSensorType(@PathVariable UUID sensorTypeId) {
+        ensureAdmin();
+        service.deleteSensorType(sensorTypeId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/types/{sensorTypeId}/parameters")
+    public ResponseEntity<List<SensorTypeParameterDto>> listSensorTypeParameters(@PathVariable UUID sensorTypeId) {
+        ensureAdmin();
+        return ResponseEntity.ok(sensorTypeParameterService.list(sensorTypeId));
+    }
+
+    @PostMapping("/types/{sensorTypeId}/parameters")
+    public ResponseEntity<SensorTypeParameterDto> createSensorTypeParameter(
+            @PathVariable UUID sensorTypeId,
+            @Valid @RequestBody SensorTypeParameterCreateDto dto) {
+        ensureAdmin();
+        return ResponseEntity.status(HttpStatus.CREATED).body(sensorTypeParameterService.create(sensorTypeId, dto));
+    }
+
+    @PutMapping("/types/{sensorTypeId}/parameters/{id}")
+    public ResponseEntity<SensorTypeParameterDto> updateSensorTypeParameter(
+            @PathVariable UUID sensorTypeId,
+            @PathVariable UUID id,
+            @Valid @RequestBody SensorTypeParameterEditDto dto) {
+        ensureAdmin();
+        return ResponseEntity.ok(sensorTypeParameterService.update(sensorTypeId, id, dto));
+    }
+
+    @DeleteMapping("/types/{sensorTypeId}/parameters/{id}")
+    public ResponseEntity<Void> deleteSensorTypeParameter(
+            @PathVariable UUID sensorTypeId,
+            @PathVariable UUID id) {
+        ensureAdmin();
+        sensorTypeParameterService.delete(sensorTypeId, id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/types/{sensorTypeId}/parameters/{id}/use")
+    public ResponseEntity<SensorTypeParameterDto> useSensorTypeParameter(
+            @PathVariable UUID sensorTypeId,
+            @PathVariable UUID id,
+            @Valid @RequestBody UseSensorTypeParameterDto dto) {
+        ensureAdmin();
+        return ResponseEntity.ok(sensorTypeParameterService.use(sensorTypeId, id, dto));
+    }
+
+    @PostMapping("/types/{sensorTypeId}/parameters/{id}/unuse")
+    public ResponseEntity<SensorTypeParameterDto> unuseSensorTypeParameter(
+            @PathVariable UUID sensorTypeId,
+            @PathVariable UUID id) {
+        ensureAdmin();
+        return ResponseEntity.ok(sensorTypeParameterService.unuse(sensorTypeId, id));
     }
 
     @PutMapping("/devices/{sensorMacId}/secrets/{secretName}")

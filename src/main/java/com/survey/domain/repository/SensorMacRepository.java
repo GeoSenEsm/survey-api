@@ -21,5 +21,7 @@ public interface SensorMacRepository extends JpaRepository<SensorMac, UUID> {
     @Modifying
     @Query("UPDATE SensorMac sm SET sm.respondentId = NULL")
     void clearRespondentAssignments();
+
+    void deleteBySensorTypeId(UUID sensorTypeId);
 }
 

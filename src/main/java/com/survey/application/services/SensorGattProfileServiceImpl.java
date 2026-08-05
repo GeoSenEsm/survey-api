@@ -13,10 +13,14 @@ import com.survey.domain.models.SensorGattProfile;
 import com.survey.domain.models.SensorType;
 import com.survey.domain.models.SensorTypeSetting;
 import com.survey.domain.models.enums.SensorTypeCodes;
+import com.survey.domain.models.SensorTypeParameter;
+import com.survey.domain.repository.RespondentSensorAssignmentRepository;
+import com.survey.domain.repository.SensorDataRepository;
 import com.survey.domain.repository.SensorGattProfileRepository;
+import com.survey.domain.repository.SensorMacRepository;
 import com.survey.domain.repository.SensorTypeRepository;
 import com.survey.domain.repository.SensorTypeSettingRepository;
-import com.survey.domain.repository.SensorParameterDefinitionRepository;
+import com.survey.domain.repository.SensorTypeParameterRepository;
 import jakarta.persistence.EntityManager;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
@@ -42,10 +46,13 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
     private final GattProfileValidator validator;
     private final ObjectMapper objectMapper;
     private final ModelMapper modelMapper;
-    private final SensorParameterDefinitionRepository parameterDefinitionRepository;
+    private final SensorTypeParameterRepository sensorTypeParameterRepository;
     private final GattProfileMobileTranslator mobileTranslator;
     private final EntityManager entityManager;
     private final InitialSurveyService initialSurveyService;
+    private final SensorMacRepository sensorMacRepository;
+    private final RespondentSensorAssignmentRepository respondentSensorAssignmentRepository;
+    private final SensorDataRepository sensorDataRepository;
 
     public SensorGattProfileServiceImpl(
             SensorGattProfileRepository profileRepository,
@@ -54,20 +61,26 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
             GattProfileValidator validator,
             ObjectMapper objectMapper,
             ModelMapper modelMapper,
-            SensorParameterDefinitionRepository parameterDefinitionRepository,
+            SensorTypeParameterRepository sensorTypeParameterRepository,
             GattProfileMobileTranslator mobileTranslator,
             EntityManager entityManager,
-            InitialSurveyService initialSurveyService) {
+            InitialSurveyService initialSurveyService,
+            SensorMacRepository sensorMacRepository,
+            RespondentSensorAssignmentRepository respondentSensorAssignmentRepository,
+            SensorDataRepository sensorDataRepository) {
         this.profileRepository = profileRepository;
         this.sensorTypeRepository = sensorTypeRepository;
         this.sensorTypeSettingRepository = sensorTypeSettingRepository;
         this.validator = validator;
         this.objectMapper = objectMapper;
         this.modelMapper = modelMapper;
-        this.parameterDefinitionRepository = parameterDefinitionRepository;
+        this.sensorTypeParameterRepository = sensorTypeParameterRepository;
         this.mobileTranslator = mobileTranslator;
         this.entityManager = entityManager;
         this.initialSurveyService = initialSurveyService;
+        this.sensorMacRepository = sensorMacRepository;
+        this.respondentSensorAssignmentRepository = respondentSensorAssignmentRepository;
+        this.sensorDataRepository = sensorDataRepository;
     }
 
     @Override
@@ -99,7 +112,7 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
 
     @Override
     public SensorGattProfileDto createDraft(UUID sensorTypeId, SensorGattProfileWriteDto dto) {
-        requireSensorSetupUnlocked();
+        initialSurveyService.requireNotPublished();
         SensorType sensorType = requireSensorType(sensorTypeId);
         if (!"profile".equals(sensorType.getIntegrationMode())) {
             throw new IllegalArgumentException("Only profile sensor types can have BLE profiles.");
@@ -130,7 +143,7 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
 
     @Override
     public SensorGattProfileDto updateDraft(UUID profileId, SensorGattProfileWriteDto dto) {
-        requireSensorSetupUnlocked();
+        initialSurveyService.requireNotPublished();
         SensorGattProfile profile = requireMutableDraft(profileId);
         applySpec(profile, dto);
         return toDto(saveAndRefreshVersion(profile));
@@ -144,11 +157,11 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
 
     @Override
     public SensorGattProfileDto publish(UUID profileId) {
-        requireSensorSetupUnlocked();
+        initialSurveyService.requireNotPublished();
         SensorGattProfile profile = requireMutableDraft(profileId);
         GattProfileValidationDto validation = validator.validate(parse(profile.getSpecJson()));
         requireValid(validation);
-        requireMappedParameters(parse(profile.getSpecJson()));
+        requireMappedParameters(profile.getSensorType().getId(), parse(profile.getSpecJson()));
         archivePublished(profile.getSensorType().getId());
         OffsetDateTime now = now();
         profile.setStatus(PUBLISHED);
@@ -160,12 +173,12 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
 
     @Override
     public SensorGattProfileDto rollback(UUID sensorTypeId, int revision) {
-        requireSensorSetupUnlocked();
+        initialSurveyService.requireNotPublished();
         SensorGattProfile source = profileRepository.findBySensorTypeIdAndRevision(sensorTypeId, revision)
                 .orElseThrow(() -> new NoSuchElementException("Profile revision " + revision + " was not found."));
         GattProfileValidationDto validation = validator.validate(parse(source.getSpecJson()));
         requireValid(validation);
-        requireMappedParameters(parse(source.getSpecJson()));
+        requireMappedParameters(sensorTypeId, parse(source.getSpecJson()));
 
         List<SensorGattProfile> revisions = profileRepository.findBySensorTypeIdOrderByRevisionDesc(sensorTypeId);
         int nextRevision = revisions.get(0).getRevision() + 1;
@@ -188,7 +201,7 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
 
     @Override
     public SensorTypeDtoOut createSensorType(SensorTypeCreateDto dto) {
-        requireSensorSetupUnlocked();
+        initialSurveyService.requireNotPublished();
         if (SensorTypeCodes.MANUAL.equals(dto.code()) || SensorTypeCodes.NONE.equals(dto.code())) {
             throw new IllegalArgumentException("Sensor type code is reserved: " + dto.code());
         }
@@ -220,6 +233,28 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
         setting.setDisplayOrder(99);
         sensorTypeSettingRepository.save(setting);
         return modelMapper.map(saved, SensorTypeDtoOut.class);
+    }
+
+    /**
+     * Cleans up every row that would otherwise block the FK-constrained delete below (sensor_mac,
+     * sensor_type_setting, respondent_sensor_assignment, and sensor_data's source reference are all
+     * ON DELETE RESTRICT, not CASCADE) before removing the sensor type itself. Historical
+     * sensor_gatt_profile and sensor_type_parameter rows cascade automatically. Mirrors the manual
+     * cleanup order used by the V35 migration when it purged the seeded sensor type catalog.
+     */
+    @Override
+    public void deleteSensorType(UUID sensorTypeId) {
+        initialSurveyService.requireNotPublished();
+        SensorType sensorType = requireSensorType(sensorTypeId);
+        if (SensorTypeCodes.MANUAL.equals(sensorType.getCode()) || SensorTypeCodes.NONE.equals(sensorType.getCode())) {
+            throw new IllegalArgumentException("Sensor type code is reserved: " + sensorType.getCode());
+        }
+
+        sensorDataRepository.clearSourceSensorType(sensorTypeId);
+        respondentSensorAssignmentRepository.deleteBySensorTypeId(sensorTypeId);
+        sensorMacRepository.deleteBySensorTypeId(sensorTypeId);
+        sensorTypeSettingRepository.deleteAllBySensorTypeIdIn(List.of(sensorTypeId));
+        sensorTypeRepository.delete(sensorType);
     }
 
     @Override
@@ -262,17 +297,24 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
         profile.setUpdatedAt(now());
     }
 
-    private void requireMappedParameters(JsonNode spec) {
+    /**
+     * Validates against the sensor type's own raw parameter catalog ({@link SensorTypeParameter}),
+     * not the global "used sensor data" list: a spec may reference a raw parameter that hasn't
+     * been promoted ("used") yet, since promotion is a separate, later admin action.
+     */
+    private void requireMappedParameters(UUID sensorTypeId, JsonNode spec) {
         Set<String> parameters = new java.util.HashSet<>();
         spec.path("operations").forEach(operation ->
                 operation.path("decoders").forEach(decoder ->
                         parameters.add(decoder.path("parameter").asText())));
         spec.path("advertisement").path("objects").forEach(object ->
                 parameters.add(object.path("parameter").asText()));
-        parameters.forEach(parameter -> parameterDefinitionRepository.findByCode(parameter)
-                .filter(definition -> definition.isActive())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Profile parameter is not an active sensor parameter: " + parameter)));
+        parameters.forEach(parameter -> {
+            if (!sensorTypeParameterRepository.existsBySensorTypeIdAndCode(sensorTypeId, parameter)) {
+                throw new IllegalArgumentException(
+                        "Profile parameter is not declared in this sensor type's parameter catalog: " + parameter);
+            }
+        });
     }
 
     private void archivePublished(UUID sensorTypeId) {
@@ -282,20 +324,6 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
             current.setUpdatedAt(now());
             profileRepository.saveAndFlush(current);
         });
-    }
-
-    /**
-     * Sensor data setup (types, GATT profiles, and by extension template installs, which are
-     * built out of these same methods) is frozen once the initial survey is published: at that
-     * point respondent groups already exist and the study is considered live, so retroactively
-     * reshaping what sensor data means would risk breaking in-flight BLE syncs or orphaning
-     * already-collected data.
-     */
-    private void requireSensorSetupUnlocked() {
-        if (initialSurveyService.isPublished()) {
-            throw new IllegalStateException(
-                    "Sensor data setup is locked: the initial survey has already been published.");
-        }
     }
 
     private SensorGattProfile requireMutableDraft(UUID id) {

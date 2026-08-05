@@ -6,10 +6,16 @@ import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.MobileSensorSetupDto;
 import com.survey.application.dtos.RespondentSensorAssignmentsUpdateDto;
+import com.survey.application.dtos.ReorderSensorParameterSourcesDto;
+import com.survey.application.dtos.SensorParameterDefinitionCreateDto;
+import com.survey.application.dtos.SensorParameterDefinitionDto;
+import com.survey.application.dtos.SensorParameterDefinitionEditDto;
+import com.survey.application.dtos.SensorTypeParameterDto;
 import com.survey.application.dtos.SurveySensorDataSettingsDto;
 import com.survey.application.dtos.SurveySensorDataSettingsWriteDto;
 import com.survey.application.dtos.SurveySettingsDto;
 import com.survey.application.services.ClaimsPrincipalService;
+import com.survey.application.services.SensorTypeParameterService;
 import com.survey.application.services.SurveySettingsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -18,6 +24,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -25,6 +32,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
 
 @Validated
 @RestController
@@ -33,12 +42,15 @@ import java.io.IOException;
 public class SurveySettingsController {
     private final SurveySettingsService surveySettingsService;
     private final ClaimsPrincipalService claimsPrincipalService;
+    private final SensorTypeParameterService sensorTypeParameterService;
 
     public SurveySettingsController(
             SurveySettingsService surveySettingsService,
-            ClaimsPrincipalService claimsPrincipalService) {
+            ClaimsPrincipalService claimsPrincipalService,
+            SensorTypeParameterService sensorTypeParameterService) {
         this.surveySettingsService = surveySettingsService;
         this.claimsPrincipalService = claimsPrincipalService;
+        this.sensorTypeParameterService = sensorTypeParameterService;
     }
 
     @GetMapping
@@ -165,8 +177,10 @@ public class SurveySettingsController {
     @Operation(
             summary = "Update sensor data settings.",
             description = """
-                    - Updates the sensor data mode, sensor type catalog, and
-                      parameter definitions.
+                    - Updates the sensor data mode and sensor type catalog.
+                    - Parameter definitions ("used sensor data") are managed
+                      one at a time via `POST`/`PUT /api/surveysettings/sensordata/parameters[/{id}]`,
+                      not as part of this bulk replace.
                     - Rejected with 400 once the initial survey has been
                       published: at that point the study is live and the
                       shape of sensor data can no longer change. Use
@@ -189,6 +203,97 @@ public class SurveySettingsController {
             @Valid @RequestBody SurveySensorDataSettingsWriteDto dto) {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         return ResponseEntity.ok(surveySettingsService.updateSensorDataSettings(dto));
+    }
+
+    @PostMapping("/sensordata/parameters")
+    @Operation(
+            summary = "Create a used sensor data parameter directly.",
+            description = """
+                    - Creates a "used sensor data" parameter without going
+                      through a sensor type's raw parameter catalog. This is
+                      how manual-only parameters (no physical sensor behind
+                      them) get created.
+                    - To wire a parameter to a physical sensor type instead,
+                      declare it in that sensor type's raw catalog
+                      (`POST /api/sensorprofiles/types/{sensorTypeId}/parameters`)
+                      and promote it
+                      (`POST /api/sensorprofiles/types/{sensorTypeId}/parameters/{id}/use`).
+                    - Rejected with 400 if the code already exists, or if the
+                      (name, unit) pair is already used by another parameter.
+                    - **Access:**
+                        - ADMIN
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Parameter created.",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = SensorParameterDefinitionDto.class)))
+    })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<SensorParameterDefinitionDto> createSensorParameterDefinition(
+            @Valid @RequestBody SensorParameterDefinitionCreateDto dto) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(surveySettingsService.createSensorParameterDefinition(dto));
+    }
+
+    @PutMapping("/sensordata/parameters/{id}")
+    @Operation(
+            summary = "Edit a used sensor data parameter.",
+            description = """
+                    - Edits one "used sensor data" parameter's name, unit,
+                      data type, required/active flags, and display order.
+                    - `code` cannot be changed here: it is the wire-format
+                      identity referenced by stored sensor readings, GATT
+                      profile specs, and the mobile app.
+                    - Rejected with 400 if the (name, unit) pair is already
+                      used by another parameter.
+                    - **Access:**
+                        - ADMIN
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Parameter updated.",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = SensorParameterDefinitionDto.class)))
+    })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<SensorParameterDefinitionDto> updateSensorParameterDefinition(
+            @PathVariable UUID id,
+            @Valid @RequestBody SensorParameterDefinitionEditDto dto) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        return ResponseEntity.ok(surveySettingsService.updateSensorParameterDefinition(id, dto));
+    }
+
+    @PutMapping("/sensordata/parameters/{id}/sources")
+    @Operation(
+            summary = "Reorder a used sensor data parameter's raw sources.",
+            description = """
+                    - Sets the fallback priority order of every raw source
+                      wired to this used parameter, in one call.
+                    - `sourceIds` must contain exactly the source ids
+                      currently wired to this parameter (from
+                      `GET /api/surveysettings/sensordata`'s
+                      `parameters[].sources[].id`), reordered as desired.
+                    - **Access:**
+                        - ADMIN
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Sources reordered.")
+    })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<List<SensorTypeParameterDto>> reorderParameterSources(
+            @PathVariable UUID id,
+            @Valid @RequestBody ReorderSensorParameterSourcesDto dto) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        return ResponseEntity.ok(sensorTypeParameterService.reorderSources(id, dto.sourceIds()));
     }
 
     @PutMapping("/sensordata/assignments")

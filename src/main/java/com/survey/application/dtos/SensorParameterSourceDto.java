@@ -13,6 +13,10 @@ public record SensorParameterSourceDto(
         @Size(max = 32)
         String sensorTypeCode,
 
+        @NotBlank
+        @Size(max = 64)
+        String rawParameterCode,
+
         @Min(0)
         int priorityOrder
 ) {}

@@ -3,6 +3,7 @@ package com.survey.domain.repository;
 import com.survey.domain.models.SensorData;
 import com.survey.domain.models.IdentityUser;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.OffsetDateTime;
@@ -11,6 +12,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface SensorDataRepository extends JpaRepository<SensorData, UUID> {
+    @Modifying
+    @Query("UPDATE SensorData sd SET sd.sourceSensorType = NULL WHERE sd.sourceSensorType.id = :sensorTypeId")
+    void clearSourceSensorType(UUID sensorTypeId);
+
     @Query("SELECT sd " +
             "FROM SensorData sd " +
             "WHERE sd.dateTime BETWEEN :fromDate AND :toDate " +

@@ -1,12 +1,14 @@
 package com.survey.application.services;
 
 import com.survey.application.dtos.RespondentSensorAssignmentDto;
+import com.survey.application.dtos.SensorParameterDefinitionCreateDto;
+import com.survey.application.dtos.SensorParameterDefinitionDto;
+import com.survey.application.dtos.SensorParameterDefinitionEditDto;
 import com.survey.application.dtos.SurveySensorDataSettingsDto;
 import com.survey.application.dtos.SurveySensorDataSettingsWriteDto;
 import com.survey.application.dtos.SurveySettingsDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.SensorParameterDefinition;
-import com.survey.domain.models.SensorParameterSource;
 import com.survey.domain.models.SensorType;
 import com.survey.domain.models.SensorTypeSetting;
 import com.survey.domain.models.SurveySettings;
@@ -15,6 +17,7 @@ import com.survey.domain.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -60,7 +63,7 @@ class SurveySettingsServiceImplTest {
     private SensorDeviceSecretService sensorDeviceSecretService;
     @Mock
     private StorageService storageService;
-    @Mock
+    @Mock(answer = Answers.CALLS_REAL_METHODS)
     private InitialSurveyService initialSurveyService;
 
     private SurveySettingsServiceImpl service;
@@ -80,7 +83,8 @@ class SurveySettingsServiceImplTest {
                 sensorGattProfileService,
                 sensorDeviceSecretService,
                 storageService,
-                initialSurveyService);
+                initialSurveyService,
+                new SensorParameterDefinitionValidator(sensorParameterDefinitionRepository));
     }
 
     @Test
@@ -147,7 +151,7 @@ class SurveySettingsServiceImplTest {
         when(initialSurveyService.isPublished()).thenReturn(true);
 
         assertThatThrownBy(() -> service.updateSensorDataSettings(
-                new SurveySensorDataSettingsWriteDto("no_sensor_data", List.of(), List.of())))
+                new SurveySensorDataSettingsWriteDto("no_sensor_data", List.of())))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already been published");
 
@@ -162,12 +166,11 @@ class SurveySettingsServiceImplTest {
         when(surveySensorSettingsRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(sensorTypeRepository.findAll()).thenReturn(List.of());
         when(sensorTypeSettingRepository.findAll()).thenReturn(List.of());
-        when(sensorParameterDefinitionRepository.findAll()).thenReturn(List.of());
         when(sensorParameterDefinitionRepository.findAllOrderedWithSources()).thenReturn(List.of());
         when(respondentSensorAssignmentRepository.findAllOrdered()).thenReturn(List.of());
 
         SurveySensorDataSettingsDto dto = service.updateSensorDataSettings(
-                new SurveySensorDataSettingsWriteDto("no_sensor_data", List.of(), List.of()));
+                new SurveySensorDataSettingsWriteDto("no_sensor_data", List.of()));
 
         assertThat(dto.mode()).isEqualTo("no_sensor_data");
     }
@@ -180,7 +183,7 @@ class SurveySettingsServiceImplTest {
         when(sensorTypeSettingRepository.findAll()).thenReturn(List.of(setting));
 
         assertThatThrownBy(() -> service.updateSensorDataSettings(
-                new SurveySensorDataSettingsWriteDto("no_sensor_data", List.of(), List.of())))
+                new SurveySensorDataSettingsWriteDto("no_sensor_data", List.of())))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("sensorTypes must include");
 
@@ -189,51 +192,101 @@ class SurveySettingsServiceImplTest {
     }
 
     @Test
-    void updateSensorDataSettings_rejectsEmptyParametersWhenActiveDefinitionsExist() {
-        SensorType sensorType = new SensorType(UUID.randomUUID(), "xiaomi", "Xiaomi", "profile", null, null);
-        SensorParameterDefinition definition = new SensorParameterDefinition();
-        definition.setCode("temperature");
-        definition.setActive(true);
-        SensorParameterSource source = new SensorParameterSource();
-        source.setParameterDefinition(definition);
-        source.setSensorType(sensorType);
-        source.setPriorityOrder(0);
-        definition.getSources().add(source);
+    void createSensorParameterDefinition_savesNewActiveParameter() {
         when(initialSurveyService.isPublished()).thenReturn(false);
-        when(sensorTypeSettingRepository.findAll()).thenReturn(List.of());
-        when(sensorParameterDefinitionRepository.findAllOrderedWithSources()).thenReturn(List.of(definition));
+        when(sensorParameterDefinitionRepository.findByCode("temperature")).thenReturn(Optional.empty());
+        when(sensorParameterDefinitionRepository.findAll()).thenReturn(List.of());
+        when(sensorParameterDefinitionRepository.count()).thenReturn(0L);
+        when(sensorParameterDefinitionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThatThrownBy(() -> service.updateSensorDataSettings(
-                new SurveySensorDataSettingsWriteDto("no_sensor_data", List.of(), List.of())))
+        SensorParameterDefinitionDto dto = service.createSensorParameterDefinition(
+                new SensorParameterDefinitionCreateDto("temperature", "Temperature", "decimal", "C", true));
+
+        assertThat(dto.code()).isEqualTo("temperature");
+        assertThat(dto.name()).isEqualTo("Temperature");
+        assertThat(dto.active()).isTrue();
+    }
+
+    @Test
+    void createSensorParameterDefinition_rejectsDuplicateCode() {
+        when(initialSurveyService.isPublished()).thenReturn(false);
+        when(sensorParameterDefinitionRepository.findByCode("temperature"))
+                .thenReturn(Optional.of(new SensorParameterDefinition()));
+
+        assertThatThrownBy(() -> service.createSensorParameterDefinition(
+                new SensorParameterDefinitionCreateDto("temperature", "Temperature", "decimal", "C", true)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("parameters must include");
+                .hasMessageContaining("already exists");
 
-        verify(surveySensorSettingsRepository, never()).save(any());
         verify(sensorParameterDefinitionRepository, never()).save(any());
     }
 
     @Test
-    void updateSensorDataSettings_allowsEmptyParametersWhenActiveDefinitionsHaveNoSources() {
-        // Reflects the state left by V35__purge_seeded_sensor_profile_templates.sql: parameter
-        // definitions for a purged built-in sensor type stay active (so a later re-install can
-        // reuse them) but their sources are gone along with the sensor type that fed them. An
-        // active-but-unwired definition must not block an otherwise-legitimate empty setup.
-        SensorParameterDefinition orphanedDefinition = new SensorParameterDefinition();
-        orphanedDefinition.setCode("temperature");
-        orphanedDefinition.setActive(true);
+    void createSensorParameterDefinition_rejectsConflictingNameUnitPair() {
+        SensorParameterDefinition existing = new SensorParameterDefinition();
+        existing.setId(UUID.randomUUID());
+        existing.setCode("humidity");
+        existing.setName("Temperature");
+        existing.setUnit("C");
         when(initialSurveyService.isPublished()).thenReturn(false);
-        when(surveySensorSettingsRepository.findById(1))
-                .thenReturn(Optional.of(new SurveySensorSettings(1, "no_sensor_data")));
-        when(surveySensorSettingsRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(sensorTypeRepository.findAll()).thenReturn(List.of());
-        when(sensorTypeSettingRepository.findAll()).thenReturn(List.of());
-        when(sensorParameterDefinitionRepository.findAllOrderedWithSources()).thenReturn(List.of(orphanedDefinition));
-        when(respondentSensorAssignmentRepository.findAllOrdered()).thenReturn(List.of());
+        when(sensorParameterDefinitionRepository.findByCode("temperature")).thenReturn(Optional.empty());
+        when(sensorParameterDefinitionRepository.findAll()).thenReturn(List.of(existing));
 
-        SurveySensorDataSettingsDto dto = service.updateSensorDataSettings(
-                new SurveySensorDataSettingsWriteDto("no_sensor_data", List.of(), List.of()));
+        assertThatThrownBy(() -> service.createSensorParameterDefinition(
+                new SensorParameterDefinitionCreateDto("temperature", "Temperature", "decimal", "C", true)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("already used");
 
-        assertThat(dto.mode()).isEqualTo("no_sensor_data");
+        verify(sensorParameterDefinitionRepository, never()).save(any());
+    }
+
+    @Test
+    void updateSensorParameterDefinition_updatesEditableFields() {
+        UUID id = UUID.randomUUID();
+        SensorParameterDefinition existing = new SensorParameterDefinition();
+        existing.setId(id);
+        existing.setCode("temperature");
+        existing.setName("Temperature");
+        existing.setUnit("C");
+        existing.setActive(true);
+        when(initialSurveyService.isPublished()).thenReturn(false);
+        when(sensorParameterDefinitionRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(sensorParameterDefinitionRepository.findAll()).thenReturn(List.of(existing));
+        when(sensorParameterDefinitionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SensorParameterDefinitionDto dto = service.updateSensorParameterDefinition(id,
+                new SensorParameterDefinitionEditDto("Ambient Temperature", "decimal", "C", true, false, 3));
+
+        assertThat(dto.name()).isEqualTo("Ambient Temperature");
+        assertThat(dto.active()).isFalse();
+        assertThat(dto.displayOrder()).isEqualTo(3);
+    }
+
+    @Test
+    void updateSensorParameterDefinition_rejectsConflictingNameUnitPairWithAnotherRow() {
+        UUID id = UUID.randomUUID();
+        SensorParameterDefinition toUpdate = new SensorParameterDefinition();
+        toUpdate.setId(id);
+        toUpdate.setCode("temperature");
+        toUpdate.setName("Temperature");
+        toUpdate.setUnit("C");
+
+        SensorParameterDefinition other = new SensorParameterDefinition();
+        other.setId(UUID.randomUUID());
+        other.setCode("humidity");
+        other.setName("Humidity");
+        other.setUnit("%");
+
+        when(initialSurveyService.isPublished()).thenReturn(false);
+        when(sensorParameterDefinitionRepository.findById(id)).thenReturn(Optional.of(toUpdate));
+        when(sensorParameterDefinitionRepository.findAll()).thenReturn(List.of(toUpdate, other));
+
+        assertThatThrownBy(() -> service.updateSensorParameterDefinition(id,
+                new SensorParameterDefinitionEditDto("Humidity", "decimal", "%", true, true, 0)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("already used");
+
+        verify(sensorParameterDefinitionRepository, never()).save(any());
     }
 
     @Test

@@ -9,10 +9,10 @@ import com.survey.application.dtos.SensorProfileTemplateDto;
 import com.survey.application.dtos.SensorTypeCreateDto;
 import com.survey.application.dtos.SensorTypeDtoOut;
 import com.survey.domain.models.SensorParameterDefinition;
-import com.survey.domain.models.SensorParameterSource;
 import com.survey.domain.models.SensorType;
+import com.survey.domain.models.SensorTypeParameter;
 import com.survey.domain.repository.SensorParameterDefinitionRepository;
-import com.survey.domain.repository.SensorParameterSourceRepository;
+import com.survey.domain.repository.SensorTypeParameterRepository;
 import com.survey.domain.repository.SensorTypeRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +25,7 @@ import java.util.UUID;
 public class SensorProfileTemplateServiceImpl implements SensorProfileTemplateService {
     private final SensorTypeRepository sensorTypeRepository;
     private final SensorParameterDefinitionRepository parameterDefinitionRepository;
-    private final SensorParameterSourceRepository parameterSourceRepository;
+    private final SensorTypeParameterRepository sensorTypeParameterRepository;
     private final SensorGattProfileService gattProfileService;
     private final InitialSurveyService initialSurveyService;
     private final ObjectMapper objectMapper;
@@ -33,13 +33,13 @@ public class SensorProfileTemplateServiceImpl implements SensorProfileTemplateSe
     public SensorProfileTemplateServiceImpl(
             SensorTypeRepository sensorTypeRepository,
             SensorParameterDefinitionRepository parameterDefinitionRepository,
-            SensorParameterSourceRepository parameterSourceRepository,
+            SensorTypeParameterRepository sensorTypeParameterRepository,
             SensorGattProfileService gattProfileService,
             InitialSurveyService initialSurveyService,
             ObjectMapper objectMapper) {
         this.sensorTypeRepository = sensorTypeRepository;
         this.parameterDefinitionRepository = parameterDefinitionRepository;
-        this.parameterSourceRepository = parameterSourceRepository;
+        this.sensorTypeParameterRepository = sensorTypeParameterRepository;
         this.gattProfileService = gattProfileService;
         this.initialSurveyService = initialSurveyService;
         this.objectMapper = objectMapper;
@@ -59,10 +59,7 @@ public class SensorProfileTemplateServiceImpl implements SensorProfileTemplateSe
 
     @Override
     public SensorTypeDtoOut install(String templateCode) {
-        if (initialSurveyService.isPublished()) {
-            throw new IllegalStateException(
-                    "Sensor data setup is locked: the initial survey has already been published.");
-        }
+        initialSurveyService.requireNotPublished();
         SensorProfileTemplate template = SensorProfileTemplateCatalog.findByCode(templateCode)
                 .orElseThrow(() -> new NoSuchElementException("Unknown sensor profile template: " + templateCode));
         if (sensorTypeRepository.findByCode(template.code()).isPresent()) {
@@ -76,6 +73,12 @@ public class SensorProfileTemplateServiceImpl implements SensorProfileTemplateSe
         return sensorType;
     }
 
+    /**
+     * Built-in templates reuse a small set of permanently-seeded parameter codes by convention
+     * (see V30/V31/V34/V35 migrations), so installing one auto-populates and immediately promotes
+     * ("uses") the new sensor type's raw catalog row for each mapped code — no manual admin
+     * promotion step, unlike a custom sensor type's own raw parameters.
+     */
     private void wireParameterSources(UUID sensorTypeId, SensorProfileTemplate template) {
         SensorType sensorType = sensorTypeRepository.findById(sensorTypeId)
                 .orElseThrow(() -> new NoSuchElementException("Sensor type was not found: " + sensorTypeId));
@@ -86,11 +89,16 @@ public class SensorProfileTemplateServiceImpl implements SensorProfileTemplateSe
                                     + "' required by template '" + template.code() + "' is missing."));
             definition.setActive(true);
             parameterDefinitionRepository.save(definition);
-            SensorParameterSource source = new SensorParameterSource();
-            source.setParameterDefinition(definition);
-            source.setSensorType(sensorType);
-            source.setPriorityOrder(mapping.priorityOrder());
-            parameterSourceRepository.save(source);
+
+            SensorTypeParameter rawParameter = new SensorTypeParameter();
+            rawParameter.setSensorType(sensorType);
+            rawParameter.setCode(definition.getCode());
+            rawParameter.setName(definition.getName());
+            rawParameter.setDataType(definition.getDataType());
+            rawParameter.setUnit(definition.getUnit());
+            rawParameter.setUsedParameter(definition);
+            rawParameter.setPriorityOrder(mapping.priorityOrder());
+            sensorTypeParameterRepository.save(rawParameter);
         }
     }
 

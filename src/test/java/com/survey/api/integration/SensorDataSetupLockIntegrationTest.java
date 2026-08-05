@@ -4,10 +4,14 @@ import com.survey.api.TestUtils;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.RespondentSensorAssignmentDto;
 import com.survey.application.dtos.RespondentSensorAssignmentsUpdateDto;
+import com.survey.application.dtos.SensorParameterDefinitionCreateDto;
 import com.survey.application.dtos.SensorTypeCreateDto;
 import com.survey.application.dtos.SensorTypeDtoOut;
+import com.survey.application.dtos.SensorTypeParameterCreateDto;
+import com.survey.application.dtos.SensorTypeParameterDto;
 import com.survey.application.dtos.SurveySensorDataSettingsDto;
 import com.survey.application.dtos.SurveySensorDataSettingsWriteDto;
+import com.survey.application.dtos.UseSensorTypeParameterDto;
 import com.survey.application.dtos.initialSurvey.CreateInitialSurveyOptionDto;
 import com.survey.application.dtos.initialSurvey.CreateInitialSurveyQuestionDto;
 import com.survey.domain.models.IdentityUser;
@@ -96,7 +100,92 @@ class SensorDataSetupLockIntegrationTest {
         webTestClient.put()
                 .uri("/api/surveysettings/sensordata")
                 .header("Authorization", bearer(adminToken))
-                .bodyValue(new SurveySensorDataSettingsWriteDto("no_sensor_data", List.of(), List.of()))
+                .bodyValue(new SurveySensorDataSettingsWriteDto("no_sensor_data", List.of()))
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody(String.class)
+                .value(body -> org.assertj.core.api.Assertions.assertThat(body).contains("already been published"));
+    }
+
+    @Test
+    void sensorTypeParameterCatalog_isRejectedOnceTheInitialSurveyIsPublished() {
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+
+        SensorTypeDtoOut sensorType = webTestClient.post()
+                .uri("/api/sensorprofiles/types")
+                .header("Authorization", bearer(adminToken))
+                .bodyValue(new SensorTypeCreateDto("locktest_" + suffix, "Lock test " + suffix, "profile", null))
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody(SensorTypeDtoOut.class)
+                .returnResult()
+                .getResponseBody();
+
+        publishInitialSurvey(adminToken);
+
+        webTestClient.post()
+                .uri("/api/sensorprofiles/types/" + sensorType.getId() + "/parameters")
+                .header("Authorization", bearer(adminToken))
+                .bodyValue(new SensorTypeParameterCreateDto("raw_temp", "Raw Temp", "decimal", "C"))
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody(String.class)
+                .value(body -> org.assertj.core.api.Assertions.assertThat(body).contains("already been published"));
+    }
+
+    @Test
+    void useSensorTypeParameter_isRejectedOnceTheInitialSurveyIsPublished() {
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+
+        SensorTypeDtoOut sensorType = webTestClient.post()
+                .uri("/api/sensorprofiles/types")
+                .header("Authorization", bearer(adminToken))
+                .bodyValue(new SensorTypeCreateDto("uselock_" + suffix, "Use lock " + suffix, "profile", null))
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody(SensorTypeDtoOut.class)
+                .returnResult()
+                .getResponseBody();
+
+        SensorTypeParameterDto rawParameter = webTestClient.post()
+                .uri("/api/sensorprofiles/types/" + sensorType.getId() + "/parameters")
+                .header("Authorization", bearer(adminToken))
+                .bodyValue(new SensorTypeParameterCreateDto("raw_temp_" + suffix, "Raw Temp", "decimal", "C"))
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody(SensorTypeParameterDto.class)
+                .returnResult()
+                .getResponseBody();
+
+        publishInitialSurvey(adminToken);
+
+        webTestClient.post()
+                .uri("/api/sensorprofiles/types/" + sensorType.getId() + "/parameters/" + rawParameter.id() + "/use")
+                .header("Authorization", bearer(adminToken))
+                .bodyValue(new UseSensorTypeParameterDto(null, "Temperature " + suffix, "decimal", "C", false))
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody(String.class)
+                .value(body -> org.assertj.core.api.Assertions.assertThat(body).contains("already been published"));
+    }
+
+    @Test
+    void createSensorParameterDefinition_isRejectedOnceTheInitialSurveyIsPublished() {
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+
+        publishInitialSurvey(adminToken);
+
+        webTestClient.post()
+                .uri("/api/surveysettings/sensordata/parameters")
+                .header("Authorization", bearer(adminToken))
+                .bodyValue(new SensorParameterDefinitionCreateDto(
+                        "locktest_" + suffix, "Lock test " + suffix, "decimal", null, false))
                 .exchange()
                 .expectStatus().isBadRequest()
                 .expectBody(String.class)

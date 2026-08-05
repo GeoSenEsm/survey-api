@@ -24,6 +24,8 @@ public interface RespondentSensorAssignmentRepository extends JpaRepository<Resp
 
     void deleteBySensorMacId(UUID sensorMacId);
 
+    void deleteBySensorTypeId(UUID sensorTypeId);
+
     @Modifying
     @Query("DELETE FROM RespondentSensorAssignment rsa WHERE rsa.sensorMac IS NOT NULL")
     void deleteAllDeviceAssignments();
