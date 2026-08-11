@@ -227,7 +227,6 @@ public class SurveyParticipationRepositoryCustomImpl implements SurveyParticipat
 
         // Eager fetch related entities
         sp.fetch("localizationData", JoinType.LEFT);
-        sp.fetch("sensorData", JoinType.LEFT);
         sp.fetch("survey", JoinType.LEFT);
         sp.fetch("identityUser", JoinType.LEFT);
 

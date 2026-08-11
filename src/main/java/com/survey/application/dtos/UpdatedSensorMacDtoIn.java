@@ -16,9 +16,8 @@ import java.util.UUID;
 @NoArgsConstructor
 public class UpdatedSensorMacDtoIn {
 
-    @NotNull
     @Pattern(regexp = "^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$")
-    @Schema(description = "Updated MAC address of the sensor, formatted as six pairs of hexadecimal characters separated by colons. Letters can be either uppercase or lowercase. They will be converted to uppercase for database storage.",
+    @Schema(description = "Updated MAC address of the sensor, formatted as six pairs of hexadecimal characters separated by colons. Letters can be either uppercase or lowercase. They will be converted to uppercase for database storage. Optional - omit to match this sensor type by discovery instead of a pre-registered device.",
             example = "00:1A:2B:3C:4D:5E")
     private String sensorMac;
 

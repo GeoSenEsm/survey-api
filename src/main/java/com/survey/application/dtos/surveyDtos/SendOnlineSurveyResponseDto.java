@@ -34,7 +34,7 @@ public class SendOnlineSurveyResponseDto implements SendSurveyResponseDto {
     private OffsetDateTime finishDate;
 
     @Valid
-    private SensorDataDto sensorData;
+    private List<SensorDataDto> sensorData;
 
     @NotNull
     private List<AnswerDto> answers;

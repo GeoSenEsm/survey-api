@@ -28,8 +28,16 @@ public class SensorSecretCrypto {
     public EncryptedSecret encrypt(UUID sensorMacId, String name, String hexadecimalValue) {
         byte[] nonce = new byte[NONCE_BYTES];
         secureRandom.nextBytes(nonce);
-        byte[] plaintext = HexFormat.of().parseHex(hexadecimalValue);
+        byte[] plaintext = parseHex(hexadecimalValue);
         return new EncryptedSecret(nonce, crypt(Cipher.ENCRYPT_MODE, sensorMacId, name, nonce, plaintext));
+    }
+
+    private byte[] parseHex(String hexadecimalValue) {
+        try {
+            return HexFormat.of().parseHex(hexadecimalValue);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Secret value must be a valid hexadecimal string.", exception);
+        }
     }
 
     public String decrypt(UUID sensorMacId, String name, byte[] nonce, byte[] ciphertext) {

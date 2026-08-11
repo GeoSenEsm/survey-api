@@ -48,7 +48,4 @@ public class SurveyParticipation {
     @OneToOne(mappedBy = "surveyParticipation", cascade = CascadeType.ALL)
     private LocalizationData localizationData;
 
-    @OneToOne(mappedBy = "surveyParticipation", cascade = CascadeType.ALL)
-    private SensorData sensorData;
-
 }

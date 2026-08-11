@@ -31,6 +31,16 @@ class SensorSecretCryptoTest {
     }
 
     @Test
+    void encrypt_rejectsNonHexadecimalValueAsBadRequest() {
+        SensorSecretCrypto crypto = new SensorSecretCrypto(KEY);
+        UUID sensorId = UUID.randomUUID();
+
+        assertThatThrownBy(() -> crypto.encrypt(sensorId, "bind_key", "not-hexadecimal"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("hexadecimal");
+    }
+
+    @Test
     void operations_failClosedWhenEnvironmentKeyIsMissingOrInvalid() {
         UUID sensorId = UUID.randomUUID();
 

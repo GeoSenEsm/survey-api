@@ -244,7 +244,7 @@ public class SurveySettingsController {
             summary = "Edit a used sensor data parameter.",
             description = """
                     - Edits one "used sensor data" parameter's name, unit,
-                      data type, required/active flags, and display order.
+                      data type, required flag, and display order.
                     - `code` cannot be changed here: it is the wire-format
                       identity referenced by stored sensor readings, GATT
                       profile specs, and the mobile app.
@@ -267,6 +267,34 @@ public class SurveySettingsController {
             @Valid @RequestBody SensorParameterDefinitionEditDto dto) {
         claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
         return ResponseEntity.ok(surveySettingsService.updateSensorParameterDefinition(id, dto));
+    }
+
+    @DeleteMapping("/sensordata/parameters/{id}")
+    @Operation(
+            summary = "Remove a used sensor data parameter.",
+            description = """
+                    - Hard-deletes one "used sensor data" parameter. There is
+                      no soft-hide flag: a parameter is either on the list or
+                      removed.
+                    - Any raw sensor-type parameters wired to it are
+                      automatically unwired (not deleted).
+                    - Rejected with 409 if sensor readings have already been
+                      collected for this parameter, so historical data is
+                      never silently destroyed.
+                    - **Access:**
+                        - ADMIN
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Parameter removed.")
+    })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<Void> deleteSensorParameterDefinition(@PathVariable UUID id) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        surveySettingsService.deleteSensorParameterDefinition(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/sensordata/parameters/{id}/sources")

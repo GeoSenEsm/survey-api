@@ -38,7 +38,10 @@ public class SensorData {
     @OneToMany(mappedBy = "sensorData", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SensorDataParameterValue> values = new ArrayList<>();
 
-    @OneToOne
+    // Many-to-one, not one-to-one: a single survey submission can carry a reading from each of
+    // several connected sensor types, so more than one SensorData row can point at the same
+    // participation (the FK column has never had a uniqueness constraint enforcing otherwise).
+    @ManyToOne
     @JoinColumn(name = "survey_participation_id")
     private SurveyParticipation surveyParticipation;
 }

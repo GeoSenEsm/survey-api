@@ -25,9 +25,11 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
     private final SensorTypeSettingRepository sensorTypeSettingRepository;
     private final SensorParameterDefinitionRepository sensorParameterDefinitionRepository;
     private final SensorTypeRepository sensorTypeRepository;
+    private final SensorTypeParameterService sensorTypeParameterService;
     private final RespondentSensorAssignmentRepository respondentSensorAssignmentRepository;
     private final IdentityUserRepository identityUserRepository;
     private final SensorMacRepository sensorMacRepository;
+    private final SensorDataRepository sensorDataRepository;
     private final ClaimsPrincipalService claimsPrincipalService;
     private final SensorGattProfileService sensorGattProfileService;
     private final SensorDeviceSecretService sensorDeviceSecretService;
@@ -41,9 +43,11 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
             SensorTypeSettingRepository sensorTypeSettingRepository,
             SensorParameterDefinitionRepository sensorParameterDefinitionRepository,
             SensorTypeRepository sensorTypeRepository,
+            SensorTypeParameterService sensorTypeParameterService,
             RespondentSensorAssignmentRepository respondentSensorAssignmentRepository,
             IdentityUserRepository identityUserRepository,
             SensorMacRepository sensorMacRepository,
+            SensorDataRepository sensorDataRepository,
             ClaimsPrincipalService claimsPrincipalService,
             SensorGattProfileService sensorGattProfileService,
             SensorDeviceSecretService sensorDeviceSecretService,
@@ -55,9 +59,11 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
         this.sensorTypeSettingRepository = sensorTypeSettingRepository;
         this.sensorParameterDefinitionRepository = sensorParameterDefinitionRepository;
         this.sensorTypeRepository = sensorTypeRepository;
+        this.sensorTypeParameterService = sensorTypeParameterService;
         this.respondentSensorAssignmentRepository = respondentSensorAssignmentRepository;
         this.identityUserRepository = identityUserRepository;
         this.sensorMacRepository = sensorMacRepository;
+        this.sensorDataRepository = sensorDataRepository;
         this.claimsPrincipalService = claimsPrincipalService;
         this.sensorGattProfileService = sensorGattProfileService;
         this.sensorDeviceSecretService = sensorDeviceSecretService;
@@ -127,6 +133,7 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
     @Override
     public SurveySensorDataSettingsDto updateSensorDataSettings(SurveySensorDataSettingsWriteDto dto) {
         initialSurveyService.requireNotPublished();
+        requireNoCollectedSensorData();
         rejectDestructiveEmptySensorTypesSetup(dto);
 
         SurveySensorSettings settings = getOrCreateSensorSettings();
@@ -135,8 +142,12 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
 
         Map<String, SensorType> sensorTypes = sensorTypeRepository.findAll().stream()
                 .collect(Collectors.toMap(SensorType::getCode, Function.identity()));
+        List<String> previousSensorTypeCodes = sensorTypeSettingRepository.findAll().stream()
+                .map(setting -> setting.getSensorType().getCode())
+                .toList();
 
         replaceSensorTypeSettings(dto.sensorTypes(), sensorTypes);
+        detachDisabledSensorTypeSources(dto.sensorTypes(), previousSensorTypeCodes, sensorTypes);
 
         return getSensorDataSettings();
     }
@@ -155,7 +166,6 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
         definition.setDataType(dto.dataType());
         definition.setUnit(dto.unit());
         definition.setRequired(dto.required());
-        definition.setActive(true);
         definition.setDisplayOrder((int) sensorParameterDefinitionRepository.count());
         return toDto(sensorParameterDefinitionRepository.save(definition));
     }
@@ -171,9 +181,25 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
         definition.setDataType(dto.dataType());
         definition.setUnit(dto.unit());
         definition.setRequired(dto.required());
-        definition.setActive(dto.active());
         definition.setDisplayOrder(dto.displayOrder());
         return toDto(sensorParameterDefinitionRepository.save(definition));
+    }
+
+    /**
+     * Hard-deletes a used parameter — there is no soft-hide flag, a parameter is either on the
+     * list or gone. Wired raw sources are automatically unwired by
+     * {@code sensor_type_parameter.used_parameter_id}'s {@code ON DELETE SET NULL}. Deliberately
+     * does not pre-check for existing {@code sensor_data_parameter_value} rows: that FK has no
+     * cascade, so the delete fails fast with a {@link org.springframework.dao.DataIntegrityViolationException}
+     * (already mapped to 409 by {@code GlobalExceptionHandler}) rather than silently destroying
+     * collected sensor readings.
+     */
+    @Override
+    public void deleteSensorParameterDefinition(UUID id) {
+        initialSurveyService.requireNotPublished();
+        SensorParameterDefinition definition = sensorParameterDefinitionRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Sensor parameter was not found: " + id));
+        sensorParameterDefinitionRepository.delete(definition);
     }
 
     /**
@@ -236,6 +262,7 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
             return;
         }
         sensorTypeSettingRepository.deleteAll();
+        sensorTypeSettingRepository.flush();
         if (dtos.isEmpty()) {
             return;
         }
@@ -251,6 +278,57 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
                 })
                 .toList();
         sensorTypeSettingRepository.saveAll(settings);
+    }
+
+    /**
+     * On top of {@link InitialSurveyService#requireNotPublished()}: disabling a sensor type here
+     * also detaches (and can delete) its parameter links, so once any sensor reading has actually
+     * been collected this whole endpoint locks rather than risk orphaning or destroying that data.
+     */
+    private void requireNoCollectedSensorData() {
+        if (sensorDataRepository.count() > 0) {
+            throw new IllegalStateException(
+                    "Sensor data settings cannot be changed: sensor data has already been collected.");
+        }
+    }
+
+    /**
+     * A sensor type that isn't left enabled can no longer feed any parameter, so every raw source
+     * it has wired is unlinked exactly like the manual "unuse" action
+     * ({@link SensorTypeParameterService#unuse}) — the raw catalog row itself is left alone,
+     * re-enabling the integration requires re-wiring it by hand. This covers both a type
+     * explicitly sent with {@code enabled=false} and a type simply omitted from {@code dtos}:
+     * {@link #replaceSensorTypeSettings} deletes every existing {@code sensor_type_setting} row
+     * and only recreates the ones present in {@code dtos}, so a previously configured type that's
+     * omitted ends up just as unconfigured as an explicitly disabled one and must be detached the
+     * same way — hence {@code previousSensorTypeCodes}, captured before that delete. Deliberately
+     * scoped to previously-configured-or-submitted codes only (not every {@code SensorType} row),
+     * since {@code manual}/{@code none} never get a {@code sensor_type_setting} row or appear in
+     * {@code dtos} — iterating all sensor types would treat them as "disabled" on every save and
+     * strip every manual fallback source. Reusing {@code unuse} (rather than unlinking directly
+     * here) is what makes a used parameter left with zero remaining sources get deleted: that
+     * cleanup lives in one place so it fires no matter which path removed the last source.
+     */
+    private void detachDisabledSensorTypeSources(
+            List<SensorTypeSettingDto> dtos, List<String> previousSensorTypeCodes, Map<String, SensorType> sensorTypes) {
+        if (dtos == null) {
+            return;
+        }
+        Set<String> stillEnabledCodes = dtos.stream()
+                .filter(SensorTypeSettingDto::enabled)
+                .map(SensorTypeSettingDto::sensorTypeCode)
+                .collect(Collectors.toSet());
+        Set<String> candidateCodes = new HashSet<>(previousSensorTypeCodes);
+        dtos.forEach(dto -> candidateCodes.add(dto.sensorTypeCode()));
+        for (String code : candidateCodes) {
+            if (stillEnabledCodes.contains(code)) {
+                continue;
+            }
+            SensorType sensorType = getSensorType(sensorTypes, code);
+            sensorTypeParameterService.list(sensorType.getId()).stream()
+                    .filter(raw -> raw.usedParameterId() != null)
+                    .forEach(raw -> sensorTypeParameterService.unuse(sensorType.getId(), raw.id()));
+        }
     }
 
     private void rejectDestructiveEmptySensorTypesSetup(SurveySensorDataSettingsWriteDto dto) {
@@ -328,7 +406,6 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
                 definition.getDataType(),
                 definition.getUnit(),
                 definition.isRequired(),
-                definition.isActive(),
                 definition.getDisplayOrder(),
                 definition.getRawParameters().stream()
                         .sorted(Comparator.comparingInt(SensorTypeParameter::getPriorityOrder))

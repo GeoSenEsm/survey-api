@@ -87,8 +87,6 @@ public class SensorProfileTemplateServiceImpl implements SensorProfileTemplateSe
                     .orElseThrow(() -> new IllegalStateException(
                             "Parameter definition '" + mapping.parameterCode()
                                     + "' required by template '" + template.code() + "' is missing."));
-            definition.setActive(true);
-            parameterDefinitionRepository.save(definition);
 
             SensorTypeParameter rawParameter = new SensorTypeParameter();
             rawParameter.setSensorType(sensorType);

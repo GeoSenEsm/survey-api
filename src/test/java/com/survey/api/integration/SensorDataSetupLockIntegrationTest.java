@@ -4,6 +4,8 @@ import com.survey.api.TestUtils;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.RespondentSensorAssignmentDto;
 import com.survey.application.dtos.RespondentSensorAssignmentsUpdateDto;
+import com.survey.application.dtos.SensorDataDto;
+import com.survey.application.dtos.SensorDataValueDto;
 import com.survey.application.dtos.SensorParameterDefinitionCreateDto;
 import com.survey.application.dtos.SensorTypeCreateDto;
 import com.survey.application.dtos.SensorTypeDtoOut;
@@ -16,6 +18,7 @@ import com.survey.application.dtos.initialSurvey.CreateInitialSurveyOptionDto;
 import com.survey.application.dtos.initialSurvey.CreateInitialSurveyQuestionDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.repository.InitialSurveyRepository;
+import com.survey.domain.repository.SensorDataRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +30,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -47,21 +52,25 @@ class SensorDataSetupLockIntegrationTest {
     private final WebTestClient webTestClient;
     private final TestUtils testUtils;
     private final InitialSurveyRepository initialSurveyRepository;
+    private final SensorDataRepository sensorDataRepository;
 
     @Autowired
     SensorDataSetupLockIntegrationTest(
             WebTestClient webTestClient,
             TestUtils testUtils,
-            InitialSurveyRepository initialSurveyRepository) {
+            InitialSurveyRepository initialSurveyRepository,
+            SensorDataRepository sensorDataRepository) {
         this.webTestClient = webTestClient;
         this.testUtils = testUtils;
         this.initialSurveyRepository = initialSurveyRepository;
+        this.sensorDataRepository = sensorDataRepository;
     }
 
     @BeforeEach
     @AfterEach
     void resetInitialSurvey() {
         initialSurveyRepository.deleteAll();
+        sensorDataRepository.deleteAll();
     }
 
     @Test
@@ -105,6 +114,43 @@ class SensorDataSetupLockIntegrationTest {
                 .expectStatus().isBadRequest()
                 .expectBody(String.class)
                 .value(body -> org.assertj.core.api.Assertions.assertThat(body).contains("already been published"));
+    }
+
+    @Test
+    void updateSensorDataSettings_isRejectedOnceSensorDataHasBeenCollected() {
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), "irrelevant");
+        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, "irrelevant");
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String parameterCode = "locktemp_" + suffix;
+
+        webTestClient.post()
+                .uri("/api/surveysettings/sensordata/parameters")
+                .header("Authorization", bearer(adminToken))
+                .bodyValue(new SensorParameterDefinitionCreateDto(
+                        parameterCode, "Lock Temp " + suffix, "decimal", "C", false))
+                .exchange()
+                .expectStatus().isCreated();
+
+        webTestClient.post()
+                .uri("/api/sensordata")
+                .header("Authorization", bearer(respondentToken))
+                .bodyValue(List.of(new SensorDataDto(
+                        OffsetDateTime.now(ZoneOffset.UTC),
+                        "manual",
+                        List.of(new SensorDataValueDto(parameterCode, "21.0")))))
+                .exchange()
+                .expectStatus().isCreated();
+
+        webTestClient.put()
+                .uri("/api/surveysettings/sensordata")
+                .header("Authorization", bearer(adminToken))
+                .bodyValue(new SurveySensorDataSettingsWriteDto("no_sensor_data", List.of()))
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody(String.class)
+                .value(body -> org.assertj.core.api.Assertions.assertThat(body).contains("already been collected"));
     }
 
     @Test

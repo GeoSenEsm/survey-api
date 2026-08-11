@@ -61,7 +61,7 @@ public class SurveyResponseDocument {
     private List<Answer> answers;
 
     @Field(write = Field.Write.NON_NULL)
-    private SensorReading sensorData;
+    private List<SensorReading> sensorData;
 
     private OffsetDateTime persistedAt;
 

@@ -29,7 +29,6 @@ public record SensorParameterDefinitionDto(
         String unit,
 
         boolean required,
-        boolean active,
 
         @Min(0)
         int displayOrder,

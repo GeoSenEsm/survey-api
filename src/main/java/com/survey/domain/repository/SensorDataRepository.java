@@ -35,6 +35,16 @@ public interface SensorDataRepository extends JpaRepository<SensorData, UUID> {
             "WHERE sd.respondent.id IN :respondentIds")
     List<SensorData> findAllByRespondentIdsWithFetch(List<UUID> respondentIds);
 
+    @Query("SELECT DISTINCT sd FROM SensorData sd " +
+            "JOIN FETCH sd.respondent " +
+            "LEFT JOIN FETCH sd.sourceSensorType " +
+            "LEFT JOIN FETCH sd.surveyParticipation sp " +
+            "LEFT JOIN FETCH sp.survey " +
+            "LEFT JOIN FETCH sd.values sensorValues " +
+            "LEFT JOIN FETCH sensorValues.parameterDefinition " +
+            "WHERE sd.id IN :ids")
+    List<SensorData> findByIdInWithFetch(List<UUID> ids);
+
     long countByRespondentId(UUID respondentId);
 
     @Query("SELECT sd.dateTime FROM SensorData sd " +

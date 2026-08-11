@@ -25,4 +25,5 @@ public interface SurveySettingsService {
     MobileSensorSetupDto getMobileSensorSetup();
     SensorParameterDefinitionDto createSensorParameterDefinition(SensorParameterDefinitionCreateDto dto);
     SensorParameterDefinitionDto updateSensorParameterDefinition(UUID id, SensorParameterDefinitionEditDto dto);
+    void deleteSensorParameterDefinition(UUID id);
 }

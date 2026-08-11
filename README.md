@@ -50,10 +50,11 @@ transaction commits via `@TransactionalEventListener(AFTER_COMMIT)`.
 
 Sensor readings use a dynamic parameter/value model. Global configuration is
 served from `/api/surveysettings/sensordata`; mobile respondents read their
-filtered setup from `/api/surveysettings/sensordata/mobile`. Submitted sensor
-data is stored as one `sensor_data` reading plus `sensor_data_parameter_value`
-rows and is mirrored into response documents as `sensorData.source` and
-`sensorData.values`.
+filtered setup from `/api/surveysettings/sensordata/mobile`. A survey
+submission carries a list of sensor readings — one `sensor_data` row plus its
+`sensor_data_parameter_value` rows per connected sensor type, since a
+respondent can have more than one sensor assigned at once — mirrored into
+response documents as a `sensorData` array of `{source, values}` entries.
 
 ---
 
@@ -169,7 +170,16 @@ Document shape (null / empty answer fields are omitted):
       "numericAnswer": 3
     }
   ],
-  "sensorData": { "dateTime": "…", "temperature": 21.5, "humidity": 45.0 },
+  "sensorData": [
+    {
+      "dateTime": "2026-07-12T17:27:00Z",
+      "source": "xiaomi",
+      "values": [
+        { "parameterCode": "temperature", "value": "21.5" },
+        { "parameterCode": "humidity", "value": "45.0" }
+      ]
+    }
+  ],
   "persistedAt": "2026-07-12T17:27:55Z"
 }
 ```

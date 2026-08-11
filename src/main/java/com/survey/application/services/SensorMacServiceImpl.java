@@ -76,13 +76,13 @@ public class SensorMacServiceImpl implements SensorMacService{
                     return sensorMacRepository.findBySensorId(dto.getSensorId())
                             .map(existing -> {
                                 synchronizeAssignmentType(existing, type);
-                                existing.setSensorMac(dto.getSensorMac().toUpperCase());
+                                existing.setSensorMac(normalizeMac(dto.getSensorMac()));
                                 existing.setSensorTypeId(typeId);
                                 return existing;
                             })
                             .orElseGet(() -> {
                                 SensorMac created = modelMapper.map(dto, SensorMac.class);
-                                created.setSensorMac(created.getSensorMac().toUpperCase());
+                                created.setSensorMac(normalizeMac(created.getSensorMac()));
                                 created.setSensorTypeId(typeId);
                                 return created;
                             });
@@ -119,7 +119,7 @@ public class SensorMacServiceImpl implements SensorMacService{
 
         SensorType type = requireType(updatedSensorMacDtoIn.getSensorTypeId());
         synchronizeAssignmentType(existingSensorMac, type);
-        existingSensorMac.setSensorMac(updatedSensorMacDtoIn.getSensorMac().toUpperCase());
+        existingSensorMac.setSensorMac(normalizeMac(updatedSensorMacDtoIn.getSensorMac()));
         existingSensorMac.setSensorTypeId(type.getId());
 
         SensorMac updatedEntity = sensorMacRepository.save(existingSensorMac);
@@ -209,6 +209,10 @@ public class SensorMacServiceImpl implements SensorMacService{
                     return dto;
                 })
                 .toList();
+    }
+
+    private static String normalizeMac(String sensorMac) {
+        return sensorMac == null ? null : sensorMac.toUpperCase();
     }
 
     private SensorType requireType(UUID sensorTypeId) {

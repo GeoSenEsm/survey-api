@@ -173,17 +173,39 @@ class SensorTypeParameterServiceImplTest {
     void unuse_clearsLinkAndPriority() {
         UUID rawId = UUID.randomUUID();
         SensorTypeParameter raw = rawParameter(rawId, "temperature");
+        UUID usedId = UUID.randomUUID();
         SensorParameterDefinition used = new SensorParameterDefinition();
-        used.setId(UUID.randomUUID());
+        used.setId(usedId);
         raw.setUsedParameter(used);
         raw.setPriorityOrder(2);
         when(sensorTypeParameterRepository.findById(rawId)).thenReturn(Optional.of(raw));
         when(sensorTypeParameterRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        // Another source still feeds the same used parameter, so it must survive.
+        when(sensorTypeParameterRepository.countByUsedParameterId(usedId)).thenReturn(1L);
 
         SensorTypeParameterDto dto = service.unuse(sensorType.getId(), rawId);
 
         assertThat(dto.usedParameterId()).isNull();
         assertThat(dto.priorityOrder()).isZero();
+        verify(sensorParameterDefinitionRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void unuse_deletesUsedParameterLeftWithNoRemainingSources() {
+        UUID rawId = UUID.randomUUID();
+        SensorTypeParameter raw = rawParameter(rawId, "temperature");
+        UUID usedId = UUID.randomUUID();
+        SensorParameterDefinition used = new SensorParameterDefinition();
+        used.setId(usedId);
+        raw.setUsedParameter(used);
+        raw.setPriorityOrder(0);
+        when(sensorTypeParameterRepository.findById(rawId)).thenReturn(Optional.of(raw));
+        when(sensorTypeParameterRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sensorTypeParameterRepository.countByUsedParameterId(usedId)).thenReturn(0L);
+
+        service.unuse(sensorType.getId(), rawId);
+
+        verify(sensorParameterDefinitionRepository).deleteById(usedId);
     }
 
     @Test

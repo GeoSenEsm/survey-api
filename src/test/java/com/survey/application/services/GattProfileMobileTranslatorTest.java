@@ -71,6 +71,33 @@ class GattProfileMobileTranslatorTest {
         }
     }
 
+    @Test
+    void translatedAdvertisementObjectsCarryTheirScaleFactor() throws IOException {
+        // Uses a synthetic spec rather than a catalog template: this test's only concern is
+        // whether the translator propagates `scale`, independent of which sensor type happens to
+        // use ble_advertisement (the xiaomi template moved to gatt_sequence after discovering real
+        // LYWSD03MMC units broadcast encrypted, undecodable MiBeacon frames).
+        JsonNode spec = objectMapper.readTree(
+                "{\"schemaVersion\":1,\"transport\":\"ble_advertisement\",\"requiredSecrets\":[],"
+                        + "\"advertisement\":{\"decoderId\":\"xiaomi_mibeacon_v4_v5\",\"matcher\":{\"productId\":1},"
+                        + "\"objects\":[{\"objectId\":\"0x1004\",\"parameter\":\"temperature\",\"type\":\"int16\",\"scale\":0.1},"
+                        + "{\"objectId\":\"0x1006\",\"parameter\":\"humidity\",\"type\":\"uint16\",\"scale\":0.1}]},"
+                        + "\"goldenPackets\":[{\"advertisementHex\":\"0050010001000000000000041002D700061002C201\","
+                        + "\"expected\":{\"humidity\":45.0,\"temperature\":21.5}}]}");
+        JsonNode mobile = translator.translate(toEntity("synthetic_advertisement", spec)).spec();
+
+        JsonNode objects = mobile.path("advertisement").path("objects");
+        assertThat(objects).isNotEmpty();
+        for (JsonNode object : objects) {
+            if ("temperature".equals(object.path("parameterCode").asText())
+                    || "humidity".equals(object.path("parameterCode").asText())) {
+                assertThat(object.path("scale").asDouble())
+                        .as("scale must survive translation for %s", object.path("parameterCode").asText())
+                        .isEqualTo(0.1);
+            }
+        }
+    }
+
     private Map<String, JsonNode> loadSeedProfiles() throws IOException {
         String migration;
         try (var stream = getClass().getResourceAsStream(

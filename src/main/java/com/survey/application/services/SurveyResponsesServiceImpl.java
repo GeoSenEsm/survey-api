@@ -16,7 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.annotation.RequestScope;
 
 import java.io.OutputStream;
 import java.time.OffsetDateTime;
@@ -26,7 +25,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
-@RequestScope
 public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final SurveyParticipationRepository surveyParticipationRepository;
     private final SurveyRepository surveyRepository;
@@ -259,20 +257,20 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                         .map(this::toDocumentAnswer)
                         .toList();
 
-        SurveyResponseDocument.SensorReading sensorReading = null;
-        if (submittedDto.getSensorData() != null) {
-            SensorDataDto sensor = submittedDto.getSensorData();
-            sensorReading = SurveyResponseDocument.SensorReading.builder()
-                    .dateTime(sensor.getDateTime())
-                    .source(sensor.getSource())
-                    .values(sensor.getValues().stream()
-                            .map(value -> SurveyResponseDocument.SensorValue.builder()
-                                    .parameterCode(value.getParameterCode())
-                                    .value(value.getValue())
-                                    .build())
-                            .toList())
-                    .build();
-        }
+        List<SurveyResponseDocument.SensorReading> sensorReadings = submittedDto.getSensorData() == null
+                ? null
+                : submittedDto.getSensorData().stream()
+                        .map(sensor -> SurveyResponseDocument.SensorReading.builder()
+                                .dateTime(sensor.getDateTime())
+                                .source(sensor.getSource())
+                                .values(sensor.getValues().stream()
+                                        .map(value -> SurveyResponseDocument.SensorValue.builder()
+                                                .parameterCode(value.getParameterCode())
+                                                .value(value.getValue())
+                                                .build())
+                                        .toList())
+                                .build())
+                        .toList();
 
         return SurveyResponseDocument.builder()
                 .participationId(participation.getId())
@@ -286,7 +284,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                 .surveyStartDate(submittedDto.getStartDate())
                 .surveyFinishDate(submittedDto.getFinishDate())
                 .answers(answers)
-                .sensorData(sensorReading)
+                .sensorData(sensorReadings)
                 .persistedAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
@@ -518,8 +516,14 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                 .collect(Collectors.toList());
     }
     private void saveSensorData(SendSurveyResponseDto sendSurveyResponseDto, SurveyParticipation surveyParticipation, IdentityUser identityUser) {
-        if (sendSurveyResponseDto.getSensorData() != null) {
-            SensorData sensorData = toSensorDataEntity(sendSurveyResponseDto.getSensorData(), identityUser);
+        List<SensorDataDto> sensorDataDtoList = sendSurveyResponseDto.getSensorData();
+        if (sensorDataDtoList == null) {
+            return;
+        }
+        // One SensorData row per connected sensor type in this submission — see the comment on
+        // SensorData.surveyParticipation for why this is many-to-one, not one-to-one.
+        for (SensorDataDto sensorDataDto : sensorDataDtoList) {
+            SensorData sensorData = toSensorDataEntity(sensorDataDto, identityUser);
             sensorData.setSurveyParticipation(surveyParticipation);
             sensorDataRepository.save(sensorData);
         }
@@ -538,7 +542,6 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         dto.setRespondentId(surveyParticipation.getIdentityUser().getId());
         dto.setAnswers(extractAnswers(questionAnswer));
         dto.setLocalizationData(extractLocalizationData(surveyParticipation));
-        dto.setSensorData(extractSensorData(surveyParticipation));
         return dto;
     }
 
@@ -563,21 +566,6 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
 
         return answers;
     }
-    private SensorDataDto extractSensorData(SurveyParticipation sp) {
-        if(sp.getSensorData() != null){
-            SensorData sensorData = sp.getSensorData();
-            return new SensorDataDto(
-                    sensorData.getDateTime(),
-                    sensorData.getSource(),
-                    sensorData.getValues().stream()
-                            .map(value -> new SensorDataValueDto(
-                                    value.getParameterDefinition().getCode(),
-                                    value.getValue()))
-                            .toList());
-        }
-        return null;
-    }
-
     private SensorData toSensorDataEntity(SensorDataDto dto, IdentityUser identityUser) {
         SensorType sourceSensorType = sensorTypeRepository.findByCode(dto.getSource())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown sensor source: " + dto.getSource()));
@@ -591,8 +579,8 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         sensorData.setSourceSensorType(sourceSensorType);
         dto.getValues().forEach(valueDto -> {
             SensorParameterDefinition parameterDefinition = parametersByCode.get(valueDto.getParameterCode());
-            if (parameterDefinition == null || !parameterDefinition.isActive()) {
-                throw new IllegalArgumentException("Unknown or inactive sensor parameter: " + valueDto.getParameterCode());
+            if (parameterDefinition == null) {
+                throw new IllegalArgumentException("Unknown sensor parameter: " + valueDto.getParameterCode());
             }
             SensorDataParameterValue value = new SensorDataParameterValue();
             value.setSensorData(sensorData);

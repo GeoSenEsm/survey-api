@@ -97,6 +97,9 @@ public class GattProfileMobileTranslator {
             mobileObject.put("objectId", object.path("objectId").asText());
             mobileObject.put("parameterCode", object.path("parameter").asText());
             mobileObject.put("type", object.path("type").asText());
+            if (object.has("scale")) {
+                mobileObject.put("scale", object.path("scale").asDouble());
+            }
             objects.add(mobileObject);
         });
         out.set("objects", objects);

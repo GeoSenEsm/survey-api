@@ -15,4 +15,6 @@ public interface SensorTypeParameterRepository extends JpaRepository<SensorTypeP
     boolean existsBySensorTypeIdAndCode(UUID sensorTypeId, String code);
 
     List<SensorTypeParameter> findByUsedParameterIdOrderByPriorityOrder(UUID usedParameterId);
+
+    long countByUsedParameterId(UUID usedParameterId);
 }

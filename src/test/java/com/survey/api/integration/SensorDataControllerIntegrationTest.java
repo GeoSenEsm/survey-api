@@ -7,8 +7,14 @@ import com.survey.application.dtos.ResponseSensorDataDto;
 import com.survey.application.dtos.SensorDataDto;
 import com.survey.application.dtos.SensorDataValueDto;
 import com.survey.domain.models.IdentityUser;
+import com.survey.domain.models.SensorData;
+import com.survey.domain.models.Survey;
+import com.survey.domain.models.SurveyParticipation;
+import com.survey.domain.models.enums.SurveyState;
 import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.SensorDataRepository;
+import com.survey.domain.repository.SurveyParticipationRepository;
+import com.survey.domain.repository.SurveyRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,22 +43,30 @@ public class SensorDataControllerIntegrationTest {
     private final WebTestClient webTestClient;
     private final IdentityUserRepository userRepository;
     private final SensorDataRepository sensorDataRepository;
+    private final SurveyRepository surveyRepository;
+    private final SurveyParticipationRepository surveyParticipationRepository;
     private final TestUtils testUtils;
 
     @Autowired
     public SensorDataControllerIntegrationTest(WebTestClient webTestClient,
                                                IdentityUserRepository userRepository,
                                                SensorDataRepository sensorDataRepository,
+                                               SurveyRepository surveyRepository,
+                                               SurveyParticipationRepository surveyParticipationRepository,
                                                TestUtils testUtils) {
         this.webTestClient = webTestClient;
         this.userRepository = userRepository;
         this.sensorDataRepository = sensorDataRepository;
+        this.surveyRepository = surveyRepository;
+        this.surveyParticipationRepository = surveyParticipationRepository;
         this.testUtils = testUtils;
     }
 
     @BeforeEach
     void setUp(){
         sensorDataRepository.deleteAll();
+        surveyParticipationRepository.deleteAll();
+        surveyRepository.deleteAll();
         userRepository.deleteAll();
         testUtils.getOrCreateXiaomiSensorType();
     }
@@ -186,6 +200,37 @@ public class SensorDataControllerIntegrationTest {
         assertThat(response).isNotEmpty();
         assertThat(response.get(0).getValues()).hasSize(2);
         assertThat(response.get(0).getRespondentId()).isEqualTo(respondent.getId());
+        assertThat(response.get(0).getSurveyId()).isNull();
+    }
+
+    @Test
+    void getSensorData_ReadingLinkedToSurveyParticipation_ShouldIncludeSurveyId() {
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
+
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+
+        Survey survey = createSurvey();
+        SurveyParticipation participation = createSurveyParticipation(survey, respondent);
+        createLinkedSensorData(respondent, participation);
+
+        OffsetDateTime from = OffsetDateTime.now(UTC).minusDays(1);
+        OffsetDateTime to = OffsetDateTime.now(UTC).plusDays(1);
+
+        var response = webTestClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/api/sensordata")
+                        .queryParam("from", from.toString())
+                        .queryParam("to", to.toString())
+                        .build())
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(ResponseSensorDataDto.class)
+                .returnResult().getResponseBody();
+
+        assertThat(response).isNotNull();
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).getSurveyId()).isEqualTo(survey.getId());
     }
 
     @Test
@@ -265,6 +310,31 @@ public class SensorDataControllerIntegrationTest {
                 new SensorDataValueDto("temperature", temperature),
                 new SensorDataValueDto("humidity", humidity)));
         return dto;
+    }
+
+    private Survey createSurvey() {
+        Survey survey = new Survey();
+        survey.setName("Sensor data survey " + UUID.randomUUID());
+        survey.setState(SurveyState.created);
+        survey.setCreationDate(OffsetDateTime.now(UTC));
+        return surveyRepository.save(survey);
+    }
+
+    private SurveyParticipation createSurveyParticipation(Survey survey, IdentityUser respondent) {
+        SurveyParticipation participation = new SurveyParticipation();
+        participation.setSurvey(survey);
+        participation.setIdentityUser(respondent);
+        participation.setDate(OffsetDateTime.now(UTC));
+        return surveyParticipationRepository.save(participation);
+    }
+
+    private void createLinkedSensorData(IdentityUser respondent, SurveyParticipation participation) {
+        SensorData sensorData = new SensorData();
+        sensorData.setRespondent(respondent);
+        sensorData.setDateTime(OffsetDateTime.now(UTC));
+        sensorData.setSource("xiaomi");
+        sensorData.setSurveyParticipation(participation);
+        sensorDataRepository.save(sensorData);
     }
 
 }

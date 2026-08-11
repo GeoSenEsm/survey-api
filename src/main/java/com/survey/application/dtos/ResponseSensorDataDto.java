@@ -26,4 +26,7 @@ public class ResponseSensorDataDto {
 
     @Schema(description = "Captured values keyed by admin-defined parameter code.")
     private List<SensorDataValueDto> values;
+
+    @Schema(description = "UUID of the survey this reading was submitted with, or null if it isn't linked to a survey participation.")
+    private UUID surveyId;
 }

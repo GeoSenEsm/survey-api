@@ -112,9 +112,25 @@ public class SensorTypeParameterServiceImpl implements SensorTypeParameterServic
     public SensorTypeParameterDto unuse(UUID sensorTypeId, UUID id) {
         initialSurveyService.requireNotPublished();
         SensorTypeParameter parameter = requireOwnedParameter(sensorTypeId, id);
+        SensorParameterDefinition previouslyUsed = parameter.getUsedParameter();
         parameter.setUsedParameter(null);
         parameter.setPriorityOrder(0);
-        return toDto(sensorTypeParameterRepository.save(parameter));
+        SensorTypeParameterDto dto = toDto(sensorTypeParameterRepository.save(parameter));
+        deleteIfNowSourceless(previouslyUsed);
+        return dto;
+    }
+
+    /**
+     * The "used sensor data" list has no soft-hide flag: a used parameter that loses its last
+     * source (whichever path removed it — a single manual unuse, or every source of a disabled
+     * sensor type going at once) is deleted outright rather than left dangling with nothing left
+     * to collect it.
+     */
+    private void deleteIfNowSourceless(SensorParameterDefinition usedParameter) {
+        if (usedParameter != null
+                && sensorTypeParameterRepository.countByUsedParameterId(usedParameter.getId()) == 0) {
+            sensorParameterDefinitionRepository.deleteById(usedParameter.getId());
+        }
     }
 
     private SensorParameterDefinition createUsedParameterFrom(SensorTypeParameter raw, UseSensorTypeParameterDto dto) {
@@ -129,7 +145,6 @@ public class SensorTypeParameterServiceImpl implements SensorTypeParameterServic
         definition.setDataType(dto.dataType());
         definition.setUnit(dto.unit());
         definition.setRequired(dto.required());
-        definition.setActive(true);
         definition.setDisplayOrder((int) sensorParameterDefinitionRepository.count());
         return sensorParameterDefinitionRepository.save(definition);
     }

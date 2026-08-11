@@ -34,7 +34,7 @@ public class SendOfflineSurveyResponseDto implements SendSurveyResponseDto {
     @Schema(description = "Date and time when respondent finished filling the survey. May use the respondent's local offset; validated against study wall-clock slots in the respondent timezone.")
     private OffsetDateTime finishDate;
 
-    private SensorDataDto sensorData;
+    private List<SensorDataDto> sensorData;
 
     @NotNull
     private List<AnswerDto> answers;

@@ -53,7 +53,7 @@ public class GattProfileValidator {
     private static final Set<String> ADVERTISEMENT_FIELDS = Set.of("matcher", "decoderId", "objects");
     private static final Set<String> MATCHER_FIELDS =
             Set.of("nameExact", "namePrefix", "serviceUuid", "manufacturerId", "productId");
-    private static final Set<String> OBJECT_FIELDS = Set.of("objectId", "parameter", "type", "values");
+    private static final Set<String> OBJECT_FIELDS = Set.of("objectId", "parameter", "type", "values", "scale");
     private static final Set<String> GATT_GOLDEN_FIELDS = Set.of("characteristicUuid", "packetHex", "expected");
     private static final Set<String> AD_GOLDEN_FIELDS = Set.of("advertisementHex", "expected");
     private static final Set<String> TYPES =
@@ -204,8 +204,11 @@ public class GattProfileValidator {
                 if (!validParameter(parameter) || !parameters.add(parameter)) {
                     errors.add(path + ".parameter must be a unique lower-case code");
                 }
-                if (!Set.of("uint8", "bool").contains(object.path("type").asText())) {
-                    errors.add(path + ".type must equal uint8 or bool");
+                if (!Set.of("uint8", "int8", "uint16", "int16", "bool").contains(object.path("type").asText())) {
+                    errors.add(path + ".type must equal uint8, int8, uint16, int16, or bool");
+                }
+                if (object.has("scale")) {
+                    requireFiniteNumber(object.path("scale"), path + ".scale", errors);
                 }
                 validateValues(object.path("values"), path, errors);
             }
@@ -219,7 +222,11 @@ public class GattProfileValidator {
             return;
         }
         rejectUnknown(discovery, DISCOVERY_FIELDS, "$.discovery", errors);
-        validateUuid(discovery.path("serviceUuid"), "$.discovery.serviceUuid", errors);
+        // Optional — some devices (e.g. Xiaomi's LYWSD03MMC custom-firmware GATT service) are
+        // matched purely by advertised name, with no advertised service UUID to require at all.
+        if (discovery.has("serviceUuid")) {
+            validateUuid(discovery.path("serviceUuid"), "$.discovery.serviceUuid", errors);
+        }
         for (String field : List.of("nameExact", "namePrefix")) {
             if (discovery.has(field) && (!discovery.path(field).isTextual() || discovery.path(field).asText().isBlank()
                     || discovery.path(field).asText().length() > 64)) {

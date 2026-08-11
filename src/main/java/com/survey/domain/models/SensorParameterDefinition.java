@@ -42,9 +42,6 @@ public class SensorParameterDefinition {
     @Column(name = "required", nullable = false)
     private boolean required;
 
-    @Column(name = "active", nullable = false)
-    private boolean active;
-
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 

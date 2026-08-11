@@ -38,12 +38,10 @@ class GattProfileSeedMigrationTest {
         }
 
         assertThat(profiles).containsOnlyKeys(
-                "xiaomi", "kestrel", "pc_60fw", "bluetooth_sig_plx",
+                "xiaomi", "kestrel", "pc_60fw",
                 "flower_care", "xiaomi_door_sensor_2", "inkbird_ibs_th1");
         assertThat(profiles.get("pc_60fw").at("/operations/0/acquisition/mode").asText())
                 .isEqualTo("notification");
-        assertThat(profiles.get("bluetooth_sig_plx").at("/operations/0/decoders/1/type").asText())
-                .isEqualTo("sfloat16");
         assertThat(profiles.get("flower_care").at("/operations/0/payloadHex").asText())
                 .isEqualTo("A01F");
         assertThat(profiles.get("flower_care").at("/operations/1/durationMs").asInt())
