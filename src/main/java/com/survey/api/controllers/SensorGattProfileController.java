@@ -8,13 +8,11 @@ import com.survey.application.dtos.SensorProfileCapabilitiesDto;
 import com.survey.application.dtos.SensorProfileTemplateDto;
 import com.survey.application.dtos.SensorTypeCreateDto;
 import com.survey.application.dtos.SensorTypeDtoOut;
-import com.survey.application.dtos.SensorDeviceSecretWriteDto;
 import com.survey.application.dtos.SensorTypeParameterCreateDto;
 import com.survey.application.dtos.SensorTypeParameterDto;
 import com.survey.application.dtos.SensorTypeParameterEditDto;
 import com.survey.application.dtos.UseSensorTypeParameterDto;
 import com.survey.application.services.ClaimsPrincipalService;
-import com.survey.application.services.SensorDeviceSecretService;
 import com.survey.application.services.SensorGattProfileService;
 import com.survey.application.services.SensorProfileTemplateService;
 import com.survey.application.services.SensorTypeParameterService;
@@ -43,19 +41,16 @@ public class SensorGattProfileController {
     private final SensorGattProfileService service;
     private final SensorProfileTemplateService templateService;
     private final ClaimsPrincipalService claimsPrincipalService;
-    private final SensorDeviceSecretService deviceSecretService;
     private final SensorTypeParameterService sensorTypeParameterService;
 
     public SensorGattProfileController(
             SensorGattProfileService service,
             SensorProfileTemplateService templateService,
             ClaimsPrincipalService claimsPrincipalService,
-            SensorDeviceSecretService deviceSecretService,
             SensorTypeParameterService sensorTypeParameterService) {
         this.service = service;
         this.templateService = templateService;
         this.claimsPrincipalService = claimsPrincipalService;
-        this.deviceSecretService = deviceSecretService;
         this.sensorTypeParameterService = sensorTypeParameterService;
     }
 
@@ -191,16 +186,6 @@ public class SensorGattProfileController {
             @PathVariable UUID id) {
         ensureAdmin();
         return ResponseEntity.ok(sensorTypeParameterService.unuse(sensorTypeId, id));
-    }
-
-    @PutMapping("/devices/{sensorMacId}/secrets/{secretName}")
-    public ResponseEntity<Void> putDeviceSecret(
-            @PathVariable UUID sensorMacId,
-            @PathVariable String secretName,
-            @Valid @RequestBody SensorDeviceSecretWriteDto dto) {
-        ensureAdmin();
-        deviceSecretService.put(sensorMacId, secretName, dto.value());
-        return ResponseEntity.noContent().build();
     }
 
     private void ensureAdmin() {

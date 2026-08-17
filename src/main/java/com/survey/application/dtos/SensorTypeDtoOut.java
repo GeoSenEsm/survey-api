@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -25,7 +24,4 @@ public class SensorTypeDtoOut {
 
     @Schema(description = "Optional native adapter identifier.")
     private String adapterKey;
-
-    @Schema(description = "Secret names (e.g. bind_key) the type's published profile requires.")
-    private List<String> requiredSecrets = List.of();
 }

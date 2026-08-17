@@ -520,10 +520,18 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         if (sensorDataDtoList == null) {
             return;
         }
+        Set<String> sourceCodes = sensorDataDtoList.stream()
+                .map(SensorDataDto::getSource)
+                .collect(Collectors.toSet());
+        Map<String, SensorType> sensorTypesByCode = sensorTypeRepository.findAllByCodeIn(sourceCodes).stream()
+                .collect(Collectors.toMap(SensorType::getCode, sensorType -> sensorType));
+        Map<String, SensorParameterDefinition> parametersByCode = sensorParameterDefinitionRepository.findAll().stream()
+                .collect(Collectors.toMap(SensorParameterDefinition::getCode, parameter -> parameter));
+
         // One SensorData row per connected sensor type in this submission — see the comment on
         // SensorData.surveyParticipation for why this is many-to-one, not one-to-one.
         for (SensorDataDto sensorDataDto : sensorDataDtoList) {
-            SensorData sensorData = toSensorDataEntity(sensorDataDto, identityUser);
+            SensorData sensorData = toSensorDataEntity(sensorDataDto, identityUser, sensorTypesByCode, parametersByCode);
             sensorData.setSurveyParticipation(surveyParticipation);
             sensorDataRepository.save(sensorData);
         }
@@ -566,11 +574,13 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
 
         return answers;
     }
-    private SensorData toSensorDataEntity(SensorDataDto dto, IdentityUser identityUser) {
-        SensorType sourceSensorType = sensorTypeRepository.findByCode(dto.getSource())
-                .orElseThrow(() -> new IllegalArgumentException("Unknown sensor source: " + dto.getSource()));
-        Map<String, SensorParameterDefinition> parametersByCode = sensorParameterDefinitionRepository.findAll().stream()
-                .collect(Collectors.toMap(SensorParameterDefinition::getCode, parameter -> parameter));
+    private SensorData toSensorDataEntity(SensorDataDto dto, IdentityUser identityUser,
+                                           Map<String, SensorType> sensorTypesByCode,
+                                           Map<String, SensorParameterDefinition> parametersByCode) {
+        SensorType sourceSensorType = sensorTypesByCode.get(dto.getSource());
+        if (sourceSensorType == null) {
+            throw new IllegalArgumentException("Unknown sensor source: " + dto.getSource());
+        }
 
         SensorData sensorData = new SensorData();
         sensorData.setRespondent(identityUser);

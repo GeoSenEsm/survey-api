@@ -1,6 +1,5 @@
 package com.survey.application.dtos;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -15,8 +14,5 @@ public record SensorParameterSourceDto(
 
         @NotBlank
         @Size(max = 64)
-        String rawParameterCode,
-
-        @Min(0)
-        int priorityOrder
+        String rawParameterCode
 ) {}

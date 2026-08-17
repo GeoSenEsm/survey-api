@@ -10,6 +10,7 @@ import com.survey.application.dtos.SensorProfileCapabilitiesDto;
 import com.survey.application.dtos.SensorTypeCreateDto;
 import com.survey.application.dtos.SensorTypeDtoOut;
 import com.survey.domain.models.SensorGattProfile;
+import com.survey.domain.models.SensorParameterDefinition;
 import com.survey.domain.models.SensorType;
 import com.survey.domain.models.SensorTypeSetting;
 import com.survey.domain.models.enums.SensorTypeCodes;
@@ -18,6 +19,7 @@ import com.survey.domain.repository.RespondentSensorAssignmentRepository;
 import com.survey.domain.repository.SensorDataRepository;
 import com.survey.domain.repository.SensorGattProfileRepository;
 import com.survey.domain.repository.SensorMacRepository;
+import com.survey.domain.repository.SensorParameterDefinitionRepository;
 import com.survey.domain.repository.SensorTypeRepository;
 import com.survey.domain.repository.SensorTypeSettingRepository;
 import com.survey.domain.repository.SensorTypeParameterRepository;
@@ -29,6 +31,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -53,6 +56,7 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
     private final SensorMacRepository sensorMacRepository;
     private final RespondentSensorAssignmentRepository respondentSensorAssignmentRepository;
     private final SensorDataRepository sensorDataRepository;
+    private final SensorParameterDefinitionRepository sensorParameterDefinitionRepository;
 
     public SensorGattProfileServiceImpl(
             SensorGattProfileRepository profileRepository,
@@ -67,7 +71,8 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
             InitialSurveyService initialSurveyService,
             SensorMacRepository sensorMacRepository,
             RespondentSensorAssignmentRepository respondentSensorAssignmentRepository,
-            SensorDataRepository sensorDataRepository) {
+            SensorDataRepository sensorDataRepository,
+            SensorParameterDefinitionRepository sensorParameterDefinitionRepository) {
         this.profileRepository = profileRepository;
         this.sensorTypeRepository = sensorTypeRepository;
         this.sensorTypeSettingRepository = sensorTypeSettingRepository;
@@ -81,6 +86,7 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
         this.sensorMacRepository = sensorMacRepository;
         this.respondentSensorAssignmentRepository = respondentSensorAssignmentRepository;
         this.sensorDataRepository = sensorDataRepository;
+        this.sensorParameterDefinitionRepository = sensorParameterDefinitionRepository;
     }
 
     @Override
@@ -92,7 +98,7 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
                 SUPPORTED_ADAPTER_KEYS,
                 List.of("gatt_sequence", "ble_advertisement"),
                 List.of("write", "delay", "acquire"),
-                List.of("xiaomi_mibeacon_v4_v5"));
+                List.of("xiaomi_mibeacon_v4_v5", "ruuvi_data_format_5"));
     }
 
     @Override
@@ -241,6 +247,13 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
      * ON DELETE RESTRICT, not CASCADE) before removing the sensor type itself. Historical
      * sensor_gatt_profile and sensor_type_parameter rows cascade automatically. Mirrors the manual
      * cleanup order used by the V35 migration when it purged the seeded sensor type catalog.
+     * <p>
+     * Guarded by {@link #requireNoCollectedSensorData()}, same as
+     * {@link SurveySettingsServiceImpl#updateSensorDataSettings}: this type's raw parameters are
+     * about to cascade away, which could otherwise leave a used parameter's collected readings
+     * pointing at a source that no longer exists to explain them. Any used parameter left with no
+     * remaining source once this type's raw catalog is gone is deleted the same way
+     * {@link SensorTypeParameterServiceImpl#unuse} does for a single manual unwiring.
      */
     @Override
     public void deleteSensorType(UUID sensorTypeId) {
@@ -249,12 +262,35 @@ public class SensorGattProfileServiceImpl implements SensorGattProfileService {
         if (SensorTypeCodes.MANUAL.equals(sensorType.getCode()) || SensorTypeCodes.NONE.equals(sensorType.getCode())) {
             throw new IllegalArgumentException("Sensor type code is reserved: " + sensorType.getCode());
         }
+        requireNoCollectedSensorData();
+
+        List<UUID> usedParameterIds = sensorTypeParameterRepository.findBySensorTypeIdOrderByCode(sensorTypeId).stream()
+                .map(SensorTypeParameter::getUsedParameter)
+                .filter(Objects::nonNull)
+                .map(SensorParameterDefinition::getId)
+                .distinct()
+                .toList();
 
         sensorDataRepository.clearSourceSensorType(sensorTypeId);
         respondentSensorAssignmentRepository.deleteBySensorTypeId(sensorTypeId);
         sensorMacRepository.deleteBySensorTypeId(sensorTypeId);
         sensorTypeSettingRepository.deleteAllBySensorTypeIdIn(List.of(sensorTypeId));
         sensorTypeRepository.delete(sensorType);
+
+        usedParameterIds.forEach(this::deleteUsedParameterIfNowSourceless);
+    }
+
+    private void requireNoCollectedSensorData() {
+        if (sensorDataRepository.count() > 0) {
+            throw new IllegalStateException(
+                    "Sensor type cannot be deleted: sensor data has already been collected.");
+        }
+    }
+
+    private void deleteUsedParameterIfNowSourceless(UUID usedParameterId) {
+        if (sensorTypeParameterRepository.countByUsedParameterId(usedParameterId) == 0) {
+            sensorParameterDefinitionRepository.deleteById(usedParameterId);
+        }
     }
 
     @Override

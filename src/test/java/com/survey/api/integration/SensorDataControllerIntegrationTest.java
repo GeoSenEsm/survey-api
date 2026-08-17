@@ -6,6 +6,7 @@ import com.survey.application.dtos.LastSensorEntryDateDto;
 import com.survey.application.dtos.ResponseSensorDataDto;
 import com.survey.application.dtos.SensorDataDto;
 import com.survey.application.dtos.SensorDataValueDto;
+import com.survey.application.services.RespondentTimeZoneService;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.SensorData;
 import com.survey.domain.models.Survey;
@@ -46,6 +47,7 @@ public class SensorDataControllerIntegrationTest {
     private final SurveyRepository surveyRepository;
     private final SurveyParticipationRepository surveyParticipationRepository;
     private final TestUtils testUtils;
+    private final RespondentTimeZoneService respondentTimeZoneService;
 
     @Autowired
     public SensorDataControllerIntegrationTest(WebTestClient webTestClient,
@@ -53,13 +55,15 @@ public class SensorDataControllerIntegrationTest {
                                                SensorDataRepository sensorDataRepository,
                                                SurveyRepository surveyRepository,
                                                SurveyParticipationRepository surveyParticipationRepository,
-                                               TestUtils testUtils) {
+                                               TestUtils testUtils,
+                                               RespondentTimeZoneService respondentTimeZoneService) {
         this.webTestClient = webTestClient;
         this.userRepository = userRepository;
         this.sensorDataRepository = sensorDataRepository;
         this.surveyRepository = surveyRepository;
         this.surveyParticipationRepository = surveyParticipationRepository;
         this.testUtils = testUtils;
+        this.respondentTimeZoneService = respondentTimeZoneService;
     }
 
     @BeforeEach
@@ -321,11 +325,27 @@ public class SensorDataControllerIntegrationTest {
     }
 
     private SurveyParticipation createSurveyParticipation(Survey survey, IdentityUser respondent) {
+        OffsetDateTime date = respondentTimeZoneService.toUtc(OffsetDateTime.now(UTC));
+        var localParts = respondentTimeZoneService.toLocalParts(
+                date, respondentTimeZoneService.resolveZoneId(respondent));
+
         SurveyParticipation participation = new SurveyParticipation();
         participation.setSurvey(survey);
         participation.setIdentityUser(respondent);
-        participation.setDate(OffsetDateTime.now(UTC));
-        return surveyParticipationRepository.save(participation);
+        participation.setDate(date);
+        participation.setLocalDate(localParts.date());
+        participation.setLocalTime(localParts.time());
+        // row_version is a DB-generated rowversion column (insertable = false, no @Generated
+        // annotation), so neither save() nor saveAndFlush() populates the entity's @Version field
+        // afterward — only a fresh read pulls the DB-assigned value back. Without it, using this
+        // entity for another entity's association in the same persistence context
+        // (createLinkedSensorData below) fails with "detached entity ... has an uninitialized
+        // version value": Hibernate can't tell a genuinely-new entity apart from a saved-but-
+        // version-less one once it already has a generated id. (entityManager.refresh() would do
+        // the same, but needs an active transaction, which this non-@Transactional HTTP
+        // integration test doesn't have.)
+        SurveyParticipation saved = surveyParticipationRepository.saveAndFlush(participation);
+        return surveyParticipationRepository.findById(saved.getId()).orElseThrow();
     }
 
     private void createLinkedSensorData(IdentityUser respondent, SurveyParticipation participation) {

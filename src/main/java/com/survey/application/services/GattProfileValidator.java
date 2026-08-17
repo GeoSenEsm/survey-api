@@ -38,7 +38,7 @@ public class GattProfileValidator {
     private static final int MAX_ASSERTIONS = 16;
     private static final Set<String> ROOT_FIELDS = Set.of(
             "schemaVersion", "transport", "discovery", "operations", "advertisement",
-            "goldenPackets", "requiredSecrets");
+            "goldenPackets");
     private static final Set<String> DISCOVERY_FIELDS = Set.of("nameExact", "namePrefix", "serviceUuid");
     private static final Set<String> ACQUIRE_FIELDS = Set.of(
             "kind", "serviceUuid", "characteristicUuid", "acquisition", "frame", "assertions", "decoders");
@@ -50,9 +50,15 @@ public class GattProfileValidator {
     private static final Set<String> ASSERTION_FIELDS = Set.of("offset", "equals");
     private static final Set<String> DECODER_FIELDS =
             Set.of("parameter", "type", "offset", "endian", "scale", "add", "min", "max");
-    private static final Set<String> ADVERTISEMENT_FIELDS = Set.of("matcher", "decoderId", "objects");
+    private static final Set<String> ADVERTISEMENT_FIELDS = Set.of("matcher", "decoderId", "objects", "decoders");
     private static final Set<String> MATCHER_FIELDS =
             Set.of("nameExact", "namePrefix", "serviceUuid", "manufacturerId", "productId");
+    // xiaomi_mibeacon_v4_v5 is a TLV-framed MiBeacon decoder identified by matcher.productId and
+    // described via advertisement.objects; ruuvi_data_format_5 is a fixed-offset struct (no TLV
+    // framing at all) identified by matcher.manufacturerId and described via advertisement.decoders
+    // — the same shape gatt_sequence reads use, since both are just "primitive at a byte offset".
+    private static final Set<String> TLV_ADVERTISEMENT_DECODERS = Set.of("xiaomi_mibeacon_v4_v5");
+    private static final Set<String> FIXED_OFFSET_ADVERTISEMENT_DECODERS = Set.of("ruuvi_data_format_5");
     private static final Set<String> OBJECT_FIELDS = Set.of("objectId", "parameter", "type", "values", "scale");
     private static final Set<String> GATT_GOLDEN_FIELDS = Set.of("characteristicUuid", "packetHex", "expected");
     private static final Set<String> AD_GOLDEN_FIELDS = Set.of("advertisementHex", "expected");
@@ -75,7 +81,6 @@ public class GattProfileValidator {
         if (!spec.path("schemaVersion").canConvertToInt() || spec.path("schemaVersion").intValue() != 1) {
             errors.add("$.schemaVersion must equal 1");
         }
-        validateRequiredSecrets(spec.path("requiredSecrets"), errors);
         String transport = spec.path("transport").asText();
         if ("gatt_sequence".equals(transport)) {
             validateGatt(spec, errors, goldenVectors);
@@ -178,42 +183,58 @@ public class GattProfileValidator {
             return;
         }
         rejectUnknown(advertisement, ADVERTISEMENT_FIELDS, "$.advertisement", errors);
-        if (!"xiaomi_mibeacon_v4_v5".equals(advertisement.path("decoderId").asText())) {
+        String decoderId = advertisement.path("decoderId").asText();
+        boolean isTlv = TLV_ADVERTISEMENT_DECODERS.contains(decoderId);
+        boolean isFixedOffset = FIXED_OFFSET_ADVERTISEMENT_DECODERS.contains(decoderId);
+        if (!isTlv && !isFixedOffset) {
             errors.add("$.advertisement.decoderId is not whitelisted");
         }
-        validateMatcher(advertisement.path("matcher"), errors);
-        JsonNode objects = advertisement.path("objects");
+        validateMatcher(advertisement.path("matcher"), decoderId, errors);
+        if (isFixedOffset) {
+            if (advertisement.has("objects")) {
+                errors.add("$.advertisement.objects is only valid for a TLV decoder");
+            }
+            validateDecoders(advertisement.path("decoders"), "$.advertisement", errors);
+        } else {
+            if (advertisement.has("decoders")) {
+                errors.add("$.advertisement.decoders is only valid for a fixed-offset decoder");
+            }
+            validateTlvObjects(advertisement.path("objects"), errors);
+        }
+        validateAdvertisementGoldens(spec.path("goldenPackets"), advertisement, isFixedOffset, errors, goldenVectors);
+    }
+
+    private void validateTlvObjects(JsonNode objects, List<String> errors) {
         if (!objects.isArray() || objects.isEmpty() || objects.size() > 32) {
             errors.add("$.advertisement.objects must contain 1 to 32 mappings");
-        } else {
-            Set<String> objectIds = new HashSet<>();
-            Set<String> parameters = new HashSet<>();
-            for (int index = 0; index < objects.size(); index++) {
-                JsonNode object = objects.get(index);
-                String path = "$.advertisement.objects[" + index + "]";
-                if (!object.isObject()) {
-                    errors.add(path + " must be an object");
-                    continue;
-                }
-                rejectUnknown(object, OBJECT_FIELDS, path, errors);
-                String objectId = object.path("objectId").asText();
-                if (!objectId.matches("0x[0-9A-Fa-f]{4}") || !objectIds.add(objectId.toLowerCase())) {
-                    errors.add(path + ".objectId must be a unique 16-bit hexadecimal id");
-                }
-                String parameter = object.path("parameter").asText();
-                if (!validParameter(parameter) || !parameters.add(parameter)) {
-                    errors.add(path + ".parameter must be a unique lower-case code");
-                }
-                if (!Set.of("uint8", "int8", "uint16", "int16", "bool").contains(object.path("type").asText())) {
-                    errors.add(path + ".type must equal uint8, int8, uint16, int16, or bool");
-                }
-                if (object.has("scale")) {
-                    requireFiniteNumber(object.path("scale"), path + ".scale", errors);
-                }
-                validateValues(object.path("values"), path, errors);
-            }
+            return;
         }
-        validateAdvertisementGoldens(spec.path("goldenPackets"), errors, goldenVectors);
+        Set<String> objectIds = new HashSet<>();
+        Set<String> parameters = new HashSet<>();
+        for (int index = 0; index < objects.size(); index++) {
+            JsonNode object = objects.get(index);
+            String path = "$.advertisement.objects[" + index + "]";
+            if (!object.isObject()) {
+                errors.add(path + " must be an object");
+                continue;
+            }
+            rejectUnknown(object, OBJECT_FIELDS, path, errors);
+            String objectId = object.path("objectId").asText();
+            if (!objectId.matches("0x[0-9A-Fa-f]{4}") || !objectIds.add(objectId.toLowerCase())) {
+                errors.add(path + ".objectId must be a unique 16-bit hexadecimal id");
+            }
+            String parameter = object.path("parameter").asText();
+            if (!validParameter(parameter) || !parameters.add(parameter)) {
+                errors.add(path + ".parameter must be a unique lower-case code");
+            }
+            if (!Set.of("uint8", "int8", "uint16", "int16", "bool").contains(object.path("type").asText())) {
+                errors.add(path + ".type must equal uint8, int8, uint16, int16, or bool");
+            }
+            if (object.has("scale")) {
+                requireFiniteNumber(object.path("scale"), path + ".scale", errors);
+            }
+            validateValues(object.path("values"), path, errors);
+        }
     }
 
     private void validateDiscovery(JsonNode discovery, List<String> errors) {
@@ -235,7 +256,7 @@ public class GattProfileValidator {
         }
     }
 
-    private void validateMatcher(JsonNode matcher, List<String> errors) {
+    private void validateMatcher(JsonNode matcher, String decoderId, List<String> errors) {
         if (!matcher.isObject()) {
             errors.add("$.advertisement.matcher must be an object");
             return;
@@ -244,8 +265,20 @@ public class GattProfileValidator {
         if (matcher.isEmpty()) {
             errors.add("$.advertisement.matcher must not be empty");
         }
-        if (!matcher.has("productId")) {
-            errors.add("$.advertisement.matcher.productId is required for xiaomi_mibeacon_v4_v5");
+        if (TLV_ADVERTISEMENT_DECODERS.contains(decoderId)) {
+            if (!matcher.has("productId")) {
+                errors.add("$.advertisement.matcher.productId is required for " + decoderId);
+            }
+            if (matcher.has("manufacturerId")) {
+                errors.add("$.advertisement.matcher.manufacturerId is not used by " + decoderId);
+            }
+        } else if (FIXED_OFFSET_ADVERTISEMENT_DECODERS.contains(decoderId)) {
+            if (!matcher.has("manufacturerId")) {
+                errors.add("$.advertisement.matcher.manufacturerId is required for " + decoderId);
+            }
+            if (matcher.has("productId")) {
+                errors.add("$.advertisement.matcher.productId is not used by " + decoderId);
+            }
         }
         if (matcher.has("serviceUuid")) {
             validateUuid(matcher.path("serviceUuid"), "$.advertisement.matcher.serviceUuid", errors);
@@ -388,6 +421,8 @@ public class GattProfileValidator {
 
     private void validateAdvertisementGoldens(
             JsonNode packets,
+            JsonNode advertisement,
+            boolean isFixedOffset,
             List<String> errors,
             List<GattProfileValidationDto.GoldenVectorResultDto> goldenVectors) {
         if (!validGoldenArray(packets, errors)) {
@@ -411,6 +446,28 @@ public class GattProfileValidator {
             }
             if (!golden.path("expected").isObject() || golden.path("expected").isEmpty()) {
                 packetErrors.add(path + ".expected must be a non-empty object");
+            } else if (bytes != null && isFixedOffset) {
+                // Unlike xiaomi_mibeacon_v4_v5 (which can be AES-encrypted and is intentionally not
+                // re-implemented server-side), a fixed-offset decoder's bytes are plain arithmetic —
+                // the same `decode()` used for gatt_sequence reads — so it's actually decoded and
+                // cross-checked here instead of just trusting the authored "expected" values.
+                for (JsonNode decoder : advertisement.path("decoders")) {
+                    String parameter = decoder.path("parameter").asText();
+                    if (!golden.path("expected").path(parameter).isNumber()) {
+                        packetErrors.add(path + ".expected requires numeric " + parameter);
+                        continue;
+                    }
+                    Double actual = decode(bytes, decoder, path, packetErrors);
+                    if (actual != null) {
+                        decodedValues.put(parameter, actual);
+                        if (Math.abs(actual - golden.path("expected").path(parameter).doubleValue()) > 0.00001d) {
+                            packetErrors.add(path + ".expected." + parameter + " does not match decoded value");
+                        }
+                        if (actual < decoder.path("min").doubleValue() || actual > decoder.path("max").doubleValue()) {
+                            packetErrors.add(path + " decodes " + parameter + " outside its range");
+                        }
+                    }
+                }
             } else if (bytes != null) {
                 golden.path("expected").fields().forEachRemaining(entry -> {
                     if (entry.getValue().isNumber()) {
@@ -521,23 +578,6 @@ public class GattProfileValidator {
             return null;
         }
         return value;
-    }
-
-    private void validateRequiredSecrets(JsonNode node, List<String> errors) {
-        if (node.isMissingNode()) {
-            return;
-        }
-        if (!node.isArray() || node.size() > 8) {
-            errors.add("$.requiredSecrets must be an array of at most 8 names");
-            return;
-        }
-        Set<String> names = new HashSet<>();
-        for (JsonNode value : node) {
-            String name = value.asText();
-            if (!value.isTextual() || !name.matches("[a-z][a-z0-9_]{0,31}") || !names.add(name)) {
-                errors.add("$.requiredSecrets contains an invalid or duplicate name");
-            }
-        }
     }
 
     private void validateValues(JsonNode values, String parent, List<String> errors) {

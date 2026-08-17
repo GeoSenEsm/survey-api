@@ -7,6 +7,7 @@ import com.survey.application.dtos.LoginDto;
 import com.survey.application.dtos.ChangePasswordDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.repository.IdentityUserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -21,6 +22,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
+@Slf4j
 @Service
 public class AuthenticationServiceImpl implements AuthenticationService {
 
@@ -53,10 +55,20 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         this.localParticipationRecalculationService = localParticipationRecalculationService;
     }
 
+    /**
+     * The timezone update and its participation recalculation are best-effort: the credentials
+     * were already validated and a token already minted by the time this runs, so a failure here
+     * (a bad timezone id slipping past validation, a transient DB/Mongo hiccup) must not turn an
+     * otherwise-successful login into an error for the respondent.
+     */
     @Override
     public String getJwtTokenAsRespondent(LoginDto dto) {
         String token = authenticateAndGenerateToken(dto, Role.RESPONDENT);
-        applyRespondentTimeZoneAfterLogin(dto);
+        try {
+            applyRespondentTimeZoneAfterLogin(dto);
+        } catch (Exception ex) {
+            log.warn("Failed to apply respondent timezone after login for user '{}'", dto.getUsername(), ex);
+        }
         return token;
     }
 

@@ -5,17 +5,13 @@ import com.survey.api.configuration.CommonApiResponse401;
 import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.MobileSensorSetupDto;
-import com.survey.application.dtos.RespondentSensorAssignmentsUpdateDto;
-import com.survey.application.dtos.ReorderSensorParameterSourcesDto;
 import com.survey.application.dtos.SensorParameterDefinitionCreateDto;
 import com.survey.application.dtos.SensorParameterDefinitionDto;
 import com.survey.application.dtos.SensorParameterDefinitionEditDto;
-import com.survey.application.dtos.SensorTypeParameterDto;
 import com.survey.application.dtos.SurveySensorDataSettingsDto;
 import com.survey.application.dtos.SurveySensorDataSettingsWriteDto;
 import com.survey.application.dtos.SurveySettingsDto;
 import com.survey.application.services.ClaimsPrincipalService;
-import com.survey.application.services.SensorTypeParameterService;
 import com.survey.application.services.SurveySettingsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -32,7 +28,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.UUID;
 
 @Validated
@@ -42,15 +37,12 @@ import java.util.UUID;
 public class SurveySettingsController {
     private final SurveySettingsService surveySettingsService;
     private final ClaimsPrincipalService claimsPrincipalService;
-    private final SensorTypeParameterService sensorTypeParameterService;
 
     public SurveySettingsController(
             SurveySettingsService surveySettingsService,
-            ClaimsPrincipalService claimsPrincipalService,
-            SensorTypeParameterService sensorTypeParameterService) {
+            ClaimsPrincipalService claimsPrincipalService) {
         this.surveySettingsService = surveySettingsService;
         this.claimsPrincipalService = claimsPrincipalService;
-        this.sensorTypeParameterService = sensorTypeParameterService;
     }
 
     @GetMapping
@@ -184,9 +176,9 @@ public class SurveySettingsController {
                     - Rejected with 400 once the initial survey has been
                       published: at that point the study is live and the
                       shape of sensor data can no longer change. Use
-                      `PUT /api/surveysettings/sensordata/assignments` to
-                      keep assigning physical sensors to respondents after
-                      that point.
+                      `PUT /api/sensormac/{sensorId}/respondent` (Sensor
+                      devices screen) to keep assigning physical sensors
+                      to respondents after that point — always unlocked.
                     - **Access:**
                         - ADMIN
                     """
@@ -244,7 +236,7 @@ public class SurveySettingsController {
             summary = "Edit a used sensor data parameter.",
             description = """
                     - Edits one "used sensor data" parameter's name, unit,
-                      data type, required flag, and display order.
+                      data type, and display order.
                     - `code` cannot be changed here: it is the wire-format
                       identity referenced by stored sensor readings, GATT
                       profile specs, and the mobile app.
@@ -297,69 +289,16 @@ public class SurveySettingsController {
         return ResponseEntity.noContent().build();
     }
 
-    @PutMapping("/sensordata/parameters/{id}/sources")
-    @Operation(
-            summary = "Reorder a used sensor data parameter's raw sources.",
-            description = """
-                    - Sets the fallback priority order of every raw source
-                      wired to this used parameter, in one call.
-                    - `sourceIds` must contain exactly the source ids
-                      currently wired to this parameter (from
-                      `GET /api/surveysettings/sensordata`'s
-                      `parameters[].sources[].id`), reordered as desired.
-                    - **Access:**
-                        - ADMIN
-                    """
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Sources reordered.")
-    })
-    @CommonApiResponse400
-    @CommonApiResponse401
-    @CommonApiResponse403
-    public ResponseEntity<List<SensorTypeParameterDto>> reorderParameterSources(
-            @PathVariable UUID id,
-            @Valid @RequestBody ReorderSensorParameterSourcesDto dto) {
-        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
-        return ResponseEntity.ok(sensorTypeParameterService.reorderSources(id, dto.sourceIds()));
-    }
-
-    @PutMapping("/sensordata/assignments")
-    @Operation(
-            summary = "Update respondent sensor assignments.",
-            description = """
-                    - Replaces which physical sensor (or sensor type, for
-                      profile-less integrations) each respondent has
-                      assigned, and their priority order.
-                    - Always available, even after the initial survey is
-                      published: unlike the mode, sensor type catalog, and
-                      parameter definitions, assignments are expected to
-                      keep changing throughout a live study as respondents
-                      join or devices get swapped.
-                    - **Access:**
-                        - ADMIN
-                    """
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Assignments updated.",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = SurveySensorDataSettingsDto.class)))
-    })
-    @CommonApiResponse400
-    @CommonApiResponse401
-    @CommonApiResponse403
-    public ResponseEntity<SurveySensorDataSettingsDto> updateAssignments(
-            @Valid @RequestBody RespondentSensorAssignmentsUpdateDto dto) {
-        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
-        return ResponseEntity.ok(surveySettingsService.updateAssignments(dto.assignments()));
-    }
-
     @GetMapping("/sensordata/mobile")
     @Operation(
             summary = "Get mobile sensor setup.",
             description = """
                     - Returns global sensor data settings plus the current
-                      respondent's ordered sensor assignments.
+                      respondent's sensor assignments (which physical
+                      sensors, if any, they have — every assignment is
+                      always attempted by the mobile app; assignment
+                      itself is set on the Sensor devices screen, via
+                      `PUT /api/sensormac/{sensorId}/respondent`).
                     - **Access:**
                         - RESPONDENT
                     """

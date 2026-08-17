@@ -3,8 +3,10 @@ package com.survey.api.integration;
 import com.survey.api.TestUtils;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.SensorGattProfileDto;
+import com.survey.application.dtos.SensorParameterDefinitionDto;
 import com.survey.application.dtos.SensorProfileTemplateDto;
 import com.survey.application.dtos.SensorTypeDtoOut;
+import com.survey.application.dtos.SurveySensorDataSettingsDto;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.repository.InitialSurveyRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -25,8 +27,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Covers the happy path and edge cases of the sensor profile template install feature
  * (GET /api/sensorprofiles/templates, POST .../install), which previously had only incidental
  * coverage via other tests' setup or the setup-lock rejection path. Uses template codes
- * ("kestrel", "pc_60fw") that no other integration test installs, since the Testcontainers
- * database is shared across the whole suite run.
+ * ("kestrel", "pc_60fw", "ruuvi", "inkbird_ibs_th1") that no other integration test installs,
+ * since the Testcontainers database is shared across the whole suite run. ("xiaomi" is
+ * deliberately avoided: several other classes create a sensor_type row with that code directly
+ * via {@code TestUtils.getOrCreateXiaomiSensorType()}, so installing it here would 400.)
  *
  * <p>Installing is rejected once the initial survey is published, and that state is a global
  * singleton in the shared database that other classes leave published (e.g.
@@ -97,6 +101,65 @@ class SensorProfileTemplateControllerIntegrationTest {
         assertThat(profiles.get(0).sensorTypeCode()).isEqualTo("kestrel");
 
         assertThat(findTemplate(listTemplates(adminToken), "kestrel").installed()).isTrue();
+    }
+
+    /**
+     * Nothing is pre-seeded any more (see V30/V31 — the parameter-definition INSERTs were
+     * removed once this create-on-demand path landed): a used parameter only starts existing the
+     * first time some installed template needs it, and a second template needing the same code
+     * (by design, "kestrel", "ruuvi" and "inkbird_ibs_th1" all produce "temperature"/"humidity")
+     * must reuse the same row rather than colliding on the (name, unit) uniqueness constraint or
+     * duplicating it.
+     */
+    @Test
+    void installTemplate_createsUsedParametersOnDemandWithManualSourceAndReusesThemAcrossTemplates() {
+        // Uses "ruuvi" and "inkbird_ibs_th1" — not "xiaomi": several other integration test
+        // classes (e.g. SensorMacControllerIntegrationTest) call
+        // TestUtils.getOrCreateXiaomiSensorType(), which inserts a sensor_type row with code
+        // "xiaomi" directly into the repository, bypassing the install endpoint entirely — since
+        // this Testcontainers database is shared across the whole suite run, installing "xiaomi"
+        // here 400s with "already installed" whenever one of those classes happens to run first.
+        // "ruuvi"/"inkbird_ibs_th1" aren't touched outside this class. Also, because "kestrel"
+        // (installed by another test in this class) maps the same "temperature"/"humidity" codes
+        // and JUnit gives no ordering guarantee across the shared database, this asserts the
+        // *change* each install makes (source-count delta, id stability) rather than an absolute
+        // count, which would be wrong if "kestrel" happened to run first.
+        String adminToken = adminToken();
+
+        int temperatureSourcesBefore = sourceCountIfPresent(getSensorDataSettings(adminToken), "temperature");
+
+        webTestClient.post()
+                .uri("/api/sensorprofiles/templates/ruuvi/install")
+                .header("Authorization", bearer(adminToken))
+                .exchange()
+                .expectStatus().isCreated();
+
+        SurveySensorDataSettingsDto afterFirstInstall = getSensorDataSettings(adminToken);
+        SensorParameterDefinitionDto temperature = findParameter(afterFirstInstall, "temperature");
+        SensorParameterDefinitionDto humidity = findParameter(afterFirstInstall, "humidity");
+        assertThat(temperature.unit()).isEqualTo("C");
+        assertThat(humidity.unit()).isEqualTo("%");
+        // +1 for ruuvi's own raw source, +1 more for manual if this was the very first template
+        // ever to need "temperature" (manual is only added when the definition is newly created).
+        assertThat(temperature.sources()).hasSize(temperatureSourcesBefore + (temperatureSourcesBefore == 0 ? 2 : 1));
+        assertThat(temperature.sources()).anySatisfy(source -> assertThat(source.sensorTypeCode()).isEqualTo("manual"));
+        assertThat(temperature.sources()).anySatisfy(source -> assertThat(source.sensorTypeCode()).isEqualTo("ruuvi"));
+
+        webTestClient.post()
+                .uri("/api/sensorprofiles/templates/inkbird_ibs_th1/install")
+                .header("Authorization", bearer(adminToken))
+                .exchange()
+                .expectStatus().isCreated();
+
+        SurveySensorDataSettingsDto afterSecondInstall = getSensorDataSettings(adminToken);
+        assertThat(afterSecondInstall.parameters())
+                .filteredOn(p -> p.code().equals("temperature") || p.code().equals("humidity"))
+                .hasSize(2); // reused, not duplicated
+        SensorParameterDefinitionDto temperatureAfterBoth = findParameter(afterSecondInstall, "temperature");
+        assertThat(temperatureAfterBoth.id()).isEqualTo(temperature.id());
+        assertThat(temperatureAfterBoth.sources()).hasSize(temperature.sources().size() + 1); // + inkbird_ibs_th1
+        assertThat(temperatureAfterBoth.sources())
+                .anySatisfy(source -> assertThat(source.sensorTypeCode()).isEqualTo("inkbird_ibs_th1"));
     }
 
     @Test
@@ -172,6 +235,31 @@ class SensorProfileTemplateControllerIntegrationTest {
                 .filter(template -> template.code().equals(code))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Template not found in response: " + code));
+    }
+
+    private SurveySensorDataSettingsDto getSensorDataSettings(String adminToken) {
+        return webTestClient.get()
+                .uri("/api/surveysettings/sensordata")
+                .header("Authorization", bearer(adminToken))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(SurveySensorDataSettingsDto.class)
+                .returnResult().getResponseBody();
+    }
+
+    private SensorParameterDefinitionDto findParameter(SurveySensorDataSettingsDto settings, String code) {
+        return settings.parameters().stream()
+                .filter(p -> p.code().equals(code))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Parameter not found in response: " + code));
+    }
+
+    private int sourceCountIfPresent(SurveySensorDataSettingsDto settings, String code) {
+        return settings.parameters().stream()
+                .filter(p -> p.code().equals(code))
+                .findFirst()
+                .map(p -> p.sources().size())
+                .orElse(0);
     }
 
     private static String bearer(String token) {

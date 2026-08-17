@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -38,9 +37,6 @@ public class SensorMacDtoOut {
 
     @Schema(description = "Sensor type display name.", example = "Xiaomi")
     private String sensorTypeName;
-
-    @Schema(description = "Names of device secrets configured for this sensor. Secret values are never returned.")
-    private List<String> configuredSecrets;
 
     @Schema(example = "2001")
     private Long rowVersion;

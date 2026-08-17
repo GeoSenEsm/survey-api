@@ -81,7 +81,6 @@ must be provided:
 | `JWT_KEY`                    | HMAC signing key for JWTs                                                                                     |
 | `JWT_EXPIRATION`             | Token lifetime in days                                                                                        |
 | `ALLOWED_ORIGINS`            | Comma-separated CORS origins (e.g. `https://*.example.com,http://localhost:*`). Defaults to `*`               |
-| `SENSOR_SECRET_ENCRYPTION_KEY` | Base64-encoded 32-byte AES key for BLE device secrets such as bind keys                                      |
 | `ENABLE_SWAGGER`             | Set `true` to enable `/swagger-ui.html` (disabled by default)                                                 |
 
 

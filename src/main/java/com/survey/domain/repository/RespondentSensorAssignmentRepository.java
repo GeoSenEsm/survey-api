@@ -11,12 +11,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface RespondentSensorAssignmentRepository extends JpaRepository<RespondentSensorAssignment, UUID> {
-    @EntityGraph(attributePaths = {"respondent", "sensorType", "sensorMac"})
-    @Query("SELECT rsa FROM RespondentSensorAssignment rsa ORDER BY rsa.respondent.username, rsa.priorityOrder")
-    List<RespondentSensorAssignment> findAllOrdered();
-
     @EntityGraph(attributePaths = {"sensorType", "sensorMac"})
-    List<RespondentSensorAssignment> findByRespondentIdAndEnabledTrueOrderByPriorityOrder(UUID respondentId);
+    List<RespondentSensorAssignment> findByRespondentId(UUID respondentId);
 
     Optional<RespondentSensorAssignment> findBySensorMacId(UUID sensorMacId);
 

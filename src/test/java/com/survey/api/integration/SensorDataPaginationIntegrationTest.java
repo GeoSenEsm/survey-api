@@ -65,8 +65,23 @@ class SensorDataPaginationIntegrationTest {
     void getSensorDataBatch_PagesThroughAllRows_WithoutDuplicatesOrDrops() {
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), "irrelevant");
         SensorType xiaomi = testUtils.getOrCreateXiaomiSensorType();
-        SensorParameterDefinition temperature = sensorParameterDefinitionRepository.findByCode("temperature")
-                .orElseThrow();
+        // Nothing is pre-seeded any more (sensor_parameter_definition starts empty until some
+        // installed template needs a code), so this test creates its own row rather than assuming
+        // "temperature" already exists. Uses a random per-test code instead of the real
+        // "temperature" code: writing that row directly via the repository (bypassing
+        // SensorTypeParameterService.ensureManualSource, which the create-on-demand paths always
+        // go through) would leave a "temperature" definition with zero sources sitting in this
+        // shared Testcontainers database — a later test's real "temperature" template install
+        // would then reuse this bare row via findByCode() instead of creating its own, silently
+        // skipping its own manual-source guarantee too. A one-off code sidesteps that collision
+        // entirely; the value below is what pagination is actually exercising, not the identity of
+        // the definition it's attached to.
+        SensorParameterDefinition temperature = new SensorParameterDefinition();
+        temperature.setCode("pagination_test_" + UUID.randomUUID());
+        temperature.setName("Pagination Test Temperature " + UUID.randomUUID());
+        temperature.setDataType("decimal");
+        temperature.setUnit("C");
+        temperature = sensorParameterDefinitionRepository.save(temperature);
 
         OffsetDateTime base = OffsetDateTime.now(ZoneOffset.UTC).minusDays(1);
         List<UUID> insertedIdsInOrder = new ArrayList<>();

@@ -27,10 +27,10 @@ public interface SensorTypeParameterService {
     SensorTypeParameterDto unuse(UUID sensorTypeId, UUID id);
 
     /**
-     * Sets the fallback priority order of every raw source wired to one used parameter, in one
-     * call — the admin picks the order (e.g. drag/up-down in the UI) and submits the full list.
-     * {@code orderedSourceIds} must contain exactly the source ids currently linked to
-     * {@code usedParameterId}, no more, no fewer.
+     * Guarantees a used parameter always has {@code manual} wired as a fallback source, so a
+     * respondent can always be prompted to enter it by hand. Idempotent: a no-op if the source
+     * already exists. Called from every path that creates a
+     * {@code sensor_parameter_definition} row, so this is never left to a best-effort client call.
      */
-    List<SensorTypeParameterDto> reorderSources(UUID usedParameterId, List<UUID> orderedSourceIds);
+    void ensureManualSource(UUID usedParameterId);
 }

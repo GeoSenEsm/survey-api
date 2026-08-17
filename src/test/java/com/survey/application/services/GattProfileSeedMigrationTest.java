@@ -39,18 +39,18 @@ class GattProfileSeedMigrationTest {
 
         assertThat(profiles).containsOnlyKeys(
                 "xiaomi", "kestrel", "pc_60fw",
-                "flower_care", "xiaomi_door_sensor_2", "inkbird_ibs_th1");
+                "flower_care", "inkbird_ibs_th1", "ruuvi");
         assertThat(profiles.get("pc_60fw").at("/operations/0/acquisition/mode").asText())
                 .isEqualTo("notification");
         assertThat(profiles.get("flower_care").at("/operations/0/payloadHex").asText())
                 .isEqualTo("A01F");
         assertThat(profiles.get("flower_care").at("/operations/1/durationMs").asInt())
                 .isBetween(500, 1000);
-        assertThat(profiles.get("xiaomi_door_sensor_2").at("/advertisement/decoderId").asText())
-                .isEqualTo("xiaomi_mibeacon_v4_v5");
-        assertThat(profiles.get("xiaomi_door_sensor_2").at("/requiredSecrets/0").asText())
-                .isEqualTo("bind_key");
         assertThat(profiles.get("inkbird_ibs_th1").at("/operations/0/decoders/0/type").asText())
                 .isEqualTo("int16");
+        assertThat(profiles.get("ruuvi").at("/advertisement/decoderId").asText())
+                .isEqualTo("ruuvi_data_format_5");
+        assertThat(profiles.get("ruuvi").at("/advertisement/matcher/manufacturerId").asInt())
+                .isEqualTo(1177);
     }
 }

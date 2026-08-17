@@ -23,8 +23,6 @@ public record SensorParameterDefinitionEditDto(
         @Size(max = 32)
         String unit,
 
-        boolean required,
-
         @Min(0)
         int displayOrder
 ) {}

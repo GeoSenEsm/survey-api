@@ -2,10 +2,11 @@ package com.survey.api.integration;
 
 import com.survey.api.TestUtils;
 import com.survey.api.security.Role;
-import com.survey.application.dtos.RespondentSensorAssignmentDto;
-import com.survey.application.dtos.RespondentSensorAssignmentsUpdateDto;
+import com.survey.application.dtos.AssignSensorRespondentDto;
 import com.survey.application.dtos.SensorDataDto;
 import com.survey.application.dtos.SensorDataValueDto;
+import com.survey.application.dtos.SensorMacDtoIn;
+import com.survey.application.dtos.SensorMacDtoOut;
 import com.survey.application.dtos.SensorParameterDefinitionCreateDto;
 import com.survey.application.dtos.SensorTypeCreateDto;
 import com.survey.application.dtos.SensorTypeDtoOut;
@@ -129,7 +130,7 @@ class SensorDataSetupLockIntegrationTest {
                 .uri("/api/surveysettings/sensordata/parameters")
                 .header("Authorization", bearer(adminToken))
                 .bodyValue(new SensorParameterDefinitionCreateDto(
-                        parameterCode, "Lock Temp " + suffix, "decimal", "C", false))
+                        parameterCode, "Lock Temp " + suffix, "decimal", "C"))
                 .exchange()
                 .expectStatus().isCreated();
 
@@ -212,7 +213,7 @@ class SensorDataSetupLockIntegrationTest {
         webTestClient.post()
                 .uri("/api/sensorprofiles/types/" + sensorType.getId() + "/parameters/" + rawParameter.id() + "/use")
                 .header("Authorization", bearer(adminToken))
-                .bodyValue(new UseSensorTypeParameterDto(null, "Temperature " + suffix, "decimal", "C", false))
+                .bodyValue(new UseSensorTypeParameterDto(null, "Temperature " + suffix, "decimal", "C"))
                 .exchange()
                 .expectStatus().isBadRequest()
                 .expectBody(String.class)
@@ -231,7 +232,7 @@ class SensorDataSetupLockIntegrationTest {
                 .uri("/api/surveysettings/sensordata/parameters")
                 .header("Authorization", bearer(adminToken))
                 .bodyValue(new SensorParameterDefinitionCreateDto(
-                        "locktest_" + suffix, "Lock test " + suffix, "decimal", null, false))
+                        "locktest_" + suffix, "Lock test " + suffix, "decimal", null))
                 .exchange()
                 .expectStatus().isBadRequest()
                 .expectBody(String.class)
@@ -255,26 +256,33 @@ class SensorDataSetupLockIntegrationTest {
     }
 
     @Test
-    void updateAssignments_isAllowedEvenAfterTheInitialSurveyIsPublished() {
+    void assignRespondent_isAllowedEvenAfterTheInitialSurveyIsPublished() {
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), "irrelevant");
+        UUID xiaomiTypeId = testUtils.getOrCreateXiaomiSensorType().getId();
+        String sensorId = "lock-" + UUID.randomUUID().toString().substring(0, 8);
+
+        webTestClient.post()
+                .uri("/api/sensormac")
+                .header("Authorization", bearer(adminToken))
+                .bodyValue(List.of(new SensorMacDtoIn(sensorId, null, xiaomiTypeId)))
+                .exchange()
+                .expectStatus().isCreated();
 
         publishInitialSurvey(adminToken);
 
-        RespondentSensorAssignmentDto assignment = new RespondentSensorAssignmentDto(
-                null, respondent.getId(), respondent.getUsername(), "manual", null, null, null, null, true, 0);
-
+        // Which physical sensor a respondent has keeps changing throughout a live study, so
+        // assignment (unlike the mode/sensor-type-catalog endpoints above) must stay unlocked.
         webTestClient.put()
-                .uri("/api/surveysettings/sensordata/assignments")
+                .uri("/api/sensormac/{sensorId}/respondent", sensorId)
                 .header("Authorization", bearer(adminToken))
-                .bodyValue(new RespondentSensorAssignmentsUpdateDto(List.of(assignment)))
+                .bodyValue(new AssignSensorRespondentDto(respondent.getId()))
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody(SurveySensorDataSettingsDto.class)
-                .value(body -> org.assertj.core.api.Assertions.assertThat(body.assignments())
-                        .extracting(RespondentSensorAssignmentDto::respondentId)
-                        .containsExactly(respondent.getId()));
+                .expectBody(SensorMacDtoOut.class)
+                .value(body -> org.assertj.core.api.Assertions.assertThat(body.getRespondentId())
+                        .isEqualTo(respondent.getId()));
     }
 
     private void publishInitialSurvey(String adminToken) {

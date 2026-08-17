@@ -17,7 +17,6 @@ class GattProfileValidatorTest {
                 {
                   "schemaVersion":1,
                   "transport":"gatt_sequence",
-                  "requiredSecrets":[],
                   "discovery":{"namePrefix":"TEST-","serviceUuid":"12630000-cc25-497d-9854-9b6c02c77054"},
                   "operations":[{
                     "kind":"acquire",
@@ -56,7 +55,7 @@ class GattProfileValidatorTest {
     void validate_acceptsFlowerSequenceAndCrcNotification() throws Exception {
         JsonNode spec = objectMapper.readTree("""
                 {
-                  "schemaVersion":1,"transport":"gatt_sequence","requiredSecrets":[],
+                  "schemaVersion":1,"transport":"gatt_sequence",
                   "discovery":{"nameExact":"PC-60FW","serviceUuid":"6e400001-b5a3-f393-e0a9-e50e24dcca9e"},
                   "operations":[
                     {"kind":"write","serviceUuid":"6e400001-b5a3-f393-e0a9-e50e24dcca9e",
@@ -110,5 +109,92 @@ class GattProfileValidatorTest {
                 .anyMatch(error -> error.contains("durationMs"));
         assertThat(validator.validate(advertisement).errors())
                 .anyMatch(error -> error.contains("not whitelisted"));
+    }
+
+    @Test
+    void validate_acceptsRuuviFixedOffsetAdvertisementAndDecodesItsGoldenPacket() throws Exception {
+        JsonNode spec = objectMapper.readTree("""
+                {
+                  "schemaVersion":1,"transport":"ble_advertisement",
+                  "advertisement":{
+                    "decoderId":"ruuvi_data_format_5",
+                    "matcher":{"manufacturerId":1177},
+                    "decoders":[
+                      {"parameter":"temperature","type":"int16","offset":1,"endian":"big","scale":0.005,"add":0,"min":-163.835,"max":163.835},
+                      {"parameter":"humidity","type":"uint16","offset":3,"endian":"big","scale":0.0025,"add":0,"min":0,"max":163.835},
+                      {"parameter":"pressure","type":"uint16","offset":5,"endian":"big","scale":1,"add":50000,"min":50000,"max":115535},
+                      {"parameter":"movement","type":"uint8","offset":15,"endian":"big","scale":1,"add":0,"min":0,"max":254}
+                    ]
+                  },
+                  "goldenPackets":[{
+                    "advertisementHex":"0512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F",
+                    "expected":{"temperature":24.3,"humidity":53.49,"pressure":100044,"movement":66}
+                  }]
+                }
+                """);
+
+        GattProfileValidationDto result = validator.validate(spec);
+
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.valid()).isTrue();
+        assertThat(result.goldenVectors()).singleElement().satisfies(vector ->
+                assertThat(vector.decodedValues())
+                        .containsEntry("temperature", 24.3)
+                        .containsEntry("humidity", 53.49)
+                        .containsEntry("pressure", 100044.0)
+                        .containsEntry("movement", 66.0));
+    }
+
+    @Test
+    void validate_rejectsRuuviSpecMissingManufacturerIdOrCarryingXiaomiFields() throws Exception {
+        JsonNode missingManufacturerId = objectMapper.readTree("""
+                {
+                  "schemaVersion":1,"transport":"ble_advertisement",
+                  "advertisement":{
+                    "decoderId":"ruuvi_data_format_5",
+                    "matcher":{"productId":1},
+                    "decoders":[{"parameter":"temperature","type":"int16","offset":1,"endian":"big","scale":0.005,"add":0,"min":-163.835,"max":163.835}]
+                  },
+                  "goldenPackets":[{"advertisementHex":"00","expected":{"temperature":0}}]
+                }
+                """);
+        JsonNode mixedShapes = objectMapper.readTree("""
+                {
+                  "schemaVersion":1,"transport":"ble_advertisement",
+                  "advertisement":{
+                    "decoderId":"ruuvi_data_format_5",
+                    "matcher":{"manufacturerId":1177},
+                    "objects":[{"objectId":"0x1019","parameter":"opening","type":"uint8"}]
+                  },
+                  "goldenPackets":[{"advertisementHex":"00","expected":{"opening":0}}]
+                }
+                """);
+
+        assertThat(validator.validate(missingManufacturerId).errors())
+                .anyMatch(error -> error.contains("manufacturerId is required"))
+                .anyMatch(error -> error.contains("productId is not used"));
+        assertThat(validator.validate(mixedShapes).errors())
+                .anyMatch(error -> error.contains("objects is only valid for a TLV decoder"));
+    }
+
+    @Test
+    void validate_rejectsRuuviGoldenPacketWithWrongExpectedValue() throws Exception {
+        JsonNode spec = objectMapper.readTree("""
+                {
+                  "schemaVersion":1,"transport":"ble_advertisement",
+                  "advertisement":{
+                    "decoderId":"ruuvi_data_format_5",
+                    "matcher":{"manufacturerId":1177},
+                    "decoders":[{"parameter":"temperature","type":"int16","offset":1,"endian":"big","scale":0.005,"add":0,"min":-163.835,"max":163.835}]
+                  },
+                  "goldenPackets":[{
+                    "advertisementHex":"0512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F",
+                    "expected":{"temperature":99.9}
+                  }]
+                }
+                """);
+
+        assertThat(validator.validate(spec).errors())
+                .anyMatch(error -> error.contains("does not match decoded value"));
     }
 }

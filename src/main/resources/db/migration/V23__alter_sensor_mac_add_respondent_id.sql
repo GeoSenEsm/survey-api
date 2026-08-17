@@ -10,8 +10,10 @@ ALTER TABLE sensor_mac
         ON DELETE SET NULL;
 GO
 
--- A respondent may be linked to at most one sensor.
-CREATE UNIQUE INDEX UQ_sensor_mac_respondent_id
+-- Non-unique: uniqueness of "one sensor type per respondent" and "one respondent per sensor_mac"
+-- is enforced on respondent_sensor_assignment instead (see V31); this is a supporting index for
+-- respondent-scoped lookups on this FK-like column only.
+CREATE INDEX IX_sensor_mac_respondent_id
     ON sensor_mac (respondent_id)
     WHERE respondent_id IS NOT NULL;
 GO

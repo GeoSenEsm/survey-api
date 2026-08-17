@@ -53,7 +53,4 @@ public class SensorTypeParameter {
     @ManyToOne
     @JoinColumn(name = "used_parameter_id")
     private SensorParameterDefinition usedParameter;
-
-    @Column(name = "priority_order", nullable = false)
-    private int priorityOrder;
 }

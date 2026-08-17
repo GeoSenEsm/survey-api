@@ -24,7 +24,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-@SpringBootTest(classes = SurveyResponsesServiceImpl.class)
+@SpringBootTest(classes = InitialSurveyService.class)
 class InitialSurveyServiceTest {
     private static final String QUESTION_CONTENT = "What is your favorite color?";
     private static final int QUESTION_ORDER = 1;

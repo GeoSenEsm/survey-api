@@ -1,3 +1,6 @@
+DROP INDEX IX_sensor_data_parameter_value_parameter ON sensor_data_parameter_value;
+GO
+
 DROP INDEX IX_sensor_data_parameter_value_sensor_data ON sensor_data_parameter_value;
 GO
 
@@ -21,6 +24,9 @@ WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF,
       ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON);
 GO
 
+DROP INDEX IX_sensor_data_source_sensor_type ON sensor_data;
+GO
+
 ALTER TABLE sensor_data DROP CONSTRAINT FK_sensor_data_source_sensor_type;
 GO
 
@@ -30,13 +36,22 @@ GO
 ALTER TABLE sensor_data DROP COLUMN source;
 GO
 
+DROP INDEX UQ_respondent_sensor_assignment_sensor ON respondent_sensor_assignment;
+GO
+
+DROP INDEX UQ_respondent_sensor_assignment_type ON respondent_sensor_assignment;
+GO
+
 DROP INDEX IX_respondent_sensor_assignment_respondent ON respondent_sensor_assignment;
 GO
 
 DROP TABLE respondent_sensor_assignment;
 GO
 
-DROP TABLE sensor_parameter_source;
+DROP INDEX IX_sensor_type_parameter_used_parameter ON sensor_type_parameter;
+GO
+
+DROP TABLE sensor_type_parameter;
 GO
 
 DROP TABLE sensor_parameter_definition;

@@ -26,6 +26,8 @@ public class SensorProfileTemplateServiceImpl implements SensorProfileTemplateSe
     private final SensorTypeRepository sensorTypeRepository;
     private final SensorParameterDefinitionRepository parameterDefinitionRepository;
     private final SensorTypeParameterRepository sensorTypeParameterRepository;
+    private final SensorTypeParameterService sensorTypeParameterService;
+    private final SensorParameterDefinitionValidator parameterDefinitionValidator;
     private final SensorGattProfileService gattProfileService;
     private final InitialSurveyService initialSurveyService;
     private final ObjectMapper objectMapper;
@@ -34,12 +36,16 @@ public class SensorProfileTemplateServiceImpl implements SensorProfileTemplateSe
             SensorTypeRepository sensorTypeRepository,
             SensorParameterDefinitionRepository parameterDefinitionRepository,
             SensorTypeParameterRepository sensorTypeParameterRepository,
+            SensorTypeParameterService sensorTypeParameterService,
+            SensorParameterDefinitionValidator parameterDefinitionValidator,
             SensorGattProfileService gattProfileService,
             InitialSurveyService initialSurveyService,
             ObjectMapper objectMapper) {
         this.sensorTypeRepository = sensorTypeRepository;
         this.parameterDefinitionRepository = parameterDefinitionRepository;
         this.sensorTypeParameterRepository = sensorTypeParameterRepository;
+        this.sensorTypeParameterService = sensorTypeParameterService;
+        this.parameterDefinitionValidator = parameterDefinitionValidator;
         this.gattProfileService = gattProfileService;
         this.initialSurveyService = initialSurveyService;
         this.objectMapper = objectMapper;
@@ -74,19 +80,19 @@ public class SensorProfileTemplateServiceImpl implements SensorProfileTemplateSe
     }
 
     /**
-     * Built-in templates reuse a small set of permanently-seeded parameter codes by convention
-     * (see V30/V31/V34/V35 migrations), so installing one auto-populates and immediately promotes
-     * ("uses") the new sensor type's raw catalog row for each mapped code — no manual admin
-     * promotion step, unlike a custom sensor type's own raw parameters.
+     * Installing a template auto-populates and immediately promotes ("uses") the new sensor
+     * type's raw catalog row for each mapped code — no manual admin promotion step, unlike a
+     * custom sensor type's own raw parameters. The used parameter itself is created the first
+     * time some installed template actually needs it (reusing an existing one by code if an
+     * earlier install already created it), never pre-seeded: this keeps the "used sensor data"
+     * list limited by construction to parameters an active integration actually produces.
      */
     private void wireParameterSources(UUID sensorTypeId, SensorProfileTemplate template) {
         SensorType sensorType = sensorTypeRepository.findById(sensorTypeId)
                 .orElseThrow(() -> new NoSuchElementException("Sensor type was not found: " + sensorTypeId));
         for (SensorProfileTemplate.ParameterMapping mapping : template.parameters()) {
             SensorParameterDefinition definition = parameterDefinitionRepository.findByCode(mapping.parameterCode())
-                    .orElseThrow(() -> new IllegalStateException(
-                            "Parameter definition '" + mapping.parameterCode()
-                                    + "' required by template '" + template.code() + "' is missing."));
+                    .orElseGet(() -> createParameterDefinition(mapping));
 
             SensorTypeParameter rawParameter = new SensorTypeParameter();
             rawParameter.setSensorType(sensorType);
@@ -95,9 +101,21 @@ public class SensorProfileTemplateServiceImpl implements SensorProfileTemplateSe
             rawParameter.setDataType(definition.getDataType());
             rawParameter.setUnit(definition.getUnit());
             rawParameter.setUsedParameter(definition);
-            rawParameter.setPriorityOrder(mapping.priorityOrder());
             sensorTypeParameterRepository.save(rawParameter);
         }
+    }
+
+    private SensorParameterDefinition createParameterDefinition(SensorProfileTemplate.ParameterMapping mapping) {
+        parameterDefinitionValidator.assertNameUnitAvailable(mapping.name(), mapping.unit(), null);
+        SensorParameterDefinition definition = new SensorParameterDefinition();
+        definition.setCode(mapping.parameterCode());
+        definition.setName(mapping.name());
+        definition.setDataType(mapping.dataType());
+        definition.setUnit(mapping.unit());
+        definition.setDisplayOrder((int) parameterDefinitionRepository.count());
+        definition = parameterDefinitionRepository.save(definition);
+        sensorTypeParameterService.ensureManualSource(definition.getId());
+        return definition;
     }
 
     private void publishTemplateProfile(UUID sensorTypeId, SensorProfileTemplate template) {

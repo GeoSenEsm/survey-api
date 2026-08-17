@@ -21,10 +21,13 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -122,62 +125,141 @@ class SensorTypeParameterServiceImplTest {
     }
 
     @Test
-    void use_linksToExistingUsedParameterWithNextPriority() {
+    void use_linksToExistingUsedParameter() {
         UUID rawId = UUID.randomUUID();
         SensorTypeParameter raw = rawParameter(rawId, "temperature");
         UUID usedId = UUID.randomUUID();
         SensorParameterDefinition used = new SensorParameterDefinition();
         used.setId(usedId);
         used.setCode("temperature");
-        SensorTypeParameter existingSource = rawParameter(UUID.randomUUID(), "temp");
-        existingSource.setUsedParameter(used);
-        existingSource.setPriorityOrder(0);
 
         when(sensorTypeParameterRepository.findById(rawId)).thenReturn(Optional.of(raw));
         when(sensorParameterDefinitionRepository.findById(usedId)).thenReturn(Optional.of(used));
-        when(sensorTypeParameterRepository.findByUsedParameterIdOrderByPriorityOrder(usedId))
-                .thenReturn(List.of(existingSource));
         when(sensorTypeParameterRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         SensorTypeParameterDto dto = service.use(sensorType.getId(), rawId,
-                new UseSensorTypeParameterDto(usedId, null, null, null, false));
+                new UseSensorTypeParameterDto(usedId, null, null, null));
 
         assertThat(dto.usedParameterId()).isEqualTo(usedId);
-        assertThat(dto.priorityOrder()).isEqualTo(1);
+        // Linking to an already-existing used parameter never touches the manual source: that
+        // guarantee is only established once, when the used parameter is first created.
+        verify(sensorTypeRepository, never()).findByCode("manual");
     }
 
     @Test
     void use_createsNewUsedParameterWhenNoIdGiven() {
         UUID rawId = UUID.randomUUID();
         SensorTypeParameter raw = rawParameter(rawId, "temperature");
+        SensorType manual = new SensorType(UUID.randomUUID(), "manual", "Manual", "manual", null, null);
+        AtomicReference<SensorParameterDefinition> savedDefinition = new AtomicReference<>();
+
         when(sensorTypeParameterRepository.findById(rawId)).thenReturn(Optional.of(raw));
         when(sensorParameterDefinitionRepository.findAll()).thenReturn(List.of());
         when(sensorParameterDefinitionRepository.count()).thenReturn(0L);
         when(sensorParameterDefinitionRepository.save(any())).thenAnswer(invocation -> {
             SensorParameterDefinition saved = invocation.getArgument(0);
             saved.setId(UUID.randomUUID());
+            savedDefinition.set(saved);
             return saved;
         });
-        when(sensorTypeParameterRepository.findByUsedParameterIdOrderByPriorityOrder(any())).thenReturn(List.of());
+        when(sensorParameterDefinitionRepository.findById(any()))
+                .thenAnswer(invocation -> Optional.ofNullable(savedDefinition.get()));
         when(sensorTypeParameterRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sensorTypeRepository.findByCode("manual")).thenReturn(Optional.of(manual));
+        when(sensorTypeParameterRepository.findBySensorTypeIdAndCode(eq(manual.getId()), any()))
+                .thenReturn(Optional.empty());
 
         SensorTypeParameterDto dto = service.use(sensorType.getId(), rawId,
-                new UseSensorTypeParameterDto(null, "Temperature", "decimal", "C", true));
+                new UseSensorTypeParameterDto(null, "Temperature", "decimal", "C"));
 
         assertThat(dto.usedParameterId()).isNotNull();
         assertThat(dto.usedParameterCode()).isEqualTo("temperature");
-        assertThat(dto.priorityOrder()).isEqualTo(0);
+        // A brand-new used parameter always gets `manual` wired as a fallback source too.
+        verify(sensorTypeParameterRepository).save(argThat(
+                saved -> saved.getSensorType() == manual && "temperature".equals(saved.getCode())));
     }
 
     @Test
-    void unuse_clearsLinkAndPriority() {
+    void ensureManualSource_wiresManualWhenMissing() {
+        UUID usedId = UUID.randomUUID();
+        SensorParameterDefinition used = new SensorParameterDefinition();
+        used.setId(usedId);
+        used.setCode("temperature");
+        used.setName("Temperature");
+        used.setDataType("decimal");
+        used.setUnit("C");
+        SensorType manual = new SensorType(UUID.randomUUID(), "manual", "Manual", "manual", null, null);
+        when(sensorParameterDefinitionRepository.findById(usedId)).thenReturn(Optional.of(used));
+        when(sensorTypeRepository.findByCode("manual")).thenReturn(Optional.of(manual));
+        when(sensorTypeParameterRepository.findBySensorTypeIdAndCode(manual.getId(), "temperature"))
+                .thenReturn(Optional.empty());
+        when(sensorTypeParameterRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.ensureManualSource(usedId);
+
+        verify(sensorTypeParameterRepository).save(argThat(
+                saved -> saved.getSensorType() == manual && "temperature".equals(saved.getCode())
+                        && saved.getUsedParameter() == used));
+    }
+
+    @Test
+    void ensureManualSource_noOpsWhenAlreadyWiredToThisUsedParameter() {
+        UUID usedId = UUID.randomUUID();
+        SensorParameterDefinition used = new SensorParameterDefinition();
+        used.setId(usedId);
+        used.setCode("temperature");
+        SensorType manual = new SensorType(UUID.randomUUID(), "manual", "Manual", "manual", null, null);
+        SensorTypeParameter existingManualSource = rawParameter(UUID.randomUUID(), "temperature");
+        existingManualSource.setUsedParameter(used);
+        when(sensorParameterDefinitionRepository.findById(usedId)).thenReturn(Optional.of(used));
+        when(sensorTypeRepository.findByCode("manual")).thenReturn(Optional.of(manual));
+        when(sensorTypeParameterRepository.findBySensorTypeIdAndCode(manual.getId(), "temperature"))
+                .thenReturn(Optional.of(existingManualSource));
+
+        service.ensureManualSource(usedId);
+
+        verify(sensorTypeParameterRepository, never()).save(any());
+    }
+
+    /**
+     * Deleting a used parameter only clears sensor_type_parameter.used_parameter_id
+     * (ON DELETE SET NULL) rather than removing the raw row, so a later parameter re-created with
+     * the same code finds an orphaned manual raw row still sitting there. It must be re-wired to
+     * the new used parameter, not mistaken for "manual already guaranteed" and left orphaned —
+     * otherwise the new parameter silently ends up with no manual fallback.
+     */
+    @Test
+    void ensureManualSource_rewiresOrphanedManualRowLeftByADeletedParameter() {
+        UUID usedId = UUID.randomUUID();
+        SensorParameterDefinition used = new SensorParameterDefinition();
+        used.setId(usedId);
+        used.setCode("temperature");
+        used.setName("Temperature");
+        used.setDataType("decimal");
+        used.setUnit("C");
+        SensorType manual = new SensorType(UUID.randomUUID(), "manual", "Manual", "manual", null, null);
+        SensorTypeParameter orphanedManualSource = rawParameter(UUID.randomUUID(), "temperature");
+        orphanedManualSource.setUsedParameter(null);
+        when(sensorParameterDefinitionRepository.findById(usedId)).thenReturn(Optional.of(used));
+        when(sensorTypeRepository.findByCode("manual")).thenReturn(Optional.of(manual));
+        when(sensorTypeParameterRepository.findBySensorTypeIdAndCode(manual.getId(), "temperature"))
+                .thenReturn(Optional.of(orphanedManualSource));
+        when(sensorTypeParameterRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.ensureManualSource(usedId);
+
+        verify(sensorTypeParameterRepository).save(argThat(
+                saved -> saved == orphanedManualSource && saved.getUsedParameter() == used));
+    }
+
+    @Test
+    void unuse_clearsLink() {
         UUID rawId = UUID.randomUUID();
         SensorTypeParameter raw = rawParameter(rawId, "temperature");
         UUID usedId = UUID.randomUUID();
         SensorParameterDefinition used = new SensorParameterDefinition();
         used.setId(usedId);
         raw.setUsedParameter(used);
-        raw.setPriorityOrder(2);
         when(sensorTypeParameterRepository.findById(rawId)).thenReturn(Optional.of(raw));
         when(sensorTypeParameterRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         // Another source still feeds the same used parameter, so it must survive.
@@ -186,7 +268,6 @@ class SensorTypeParameterServiceImplTest {
         SensorTypeParameterDto dto = service.unuse(sensorType.getId(), rawId);
 
         assertThat(dto.usedParameterId()).isNull();
-        assertThat(dto.priorityOrder()).isZero();
         verify(sensorParameterDefinitionRepository, never()).deleteById(any());
     }
 
@@ -198,7 +279,6 @@ class SensorTypeParameterServiceImplTest {
         SensorParameterDefinition used = new SensorParameterDefinition();
         used.setId(usedId);
         raw.setUsedParameter(used);
-        raw.setPriorityOrder(0);
         when(sensorTypeParameterRepository.findById(rawId)).thenReturn(Optional.of(raw));
         when(sensorTypeParameterRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(sensorTypeParameterRepository.countByUsedParameterId(usedId)).thenReturn(0L);
@@ -206,51 +286,6 @@ class SensorTypeParameterServiceImplTest {
         service.unuse(sensorType.getId(), rawId);
 
         verify(sensorParameterDefinitionRepository).deleteById(usedId);
-    }
-
-    @Test
-    void reorderSources_appliesGivenOrder() {
-        UUID usedId = UUID.randomUUID();
-        SensorParameterDefinition used = new SensorParameterDefinition();
-        used.setId(usedId);
-        when(sensorParameterDefinitionRepository.findById(usedId)).thenReturn(Optional.of(used));
-
-        SensorTypeParameter first = rawParameter(UUID.randomUUID(), "a");
-        first.setUsedParameter(used);
-        first.setPriorityOrder(0);
-        SensorTypeParameter second = rawParameter(UUID.randomUUID(), "b");
-        second.setUsedParameter(used);
-        second.setPriorityOrder(1);
-
-        when(sensorTypeParameterRepository.findByUsedParameterIdOrderByPriorityOrder(usedId))
-                .thenReturn(List.of(first, second));
-        when(sensorTypeParameterRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
-
-        List<SensorTypeParameterDto> result = service.reorderSources(usedId, List.of(second.getId(), first.getId()));
-
-        assertThat(second.getPriorityOrder()).isZero();
-        assertThat(first.getPriorityOrder()).isEqualTo(1);
-        assertThat(result).extracting(SensorTypeParameterDto::id)
-                .containsExactly(second.getId(), first.getId());
-    }
-
-    @Test
-    void reorderSources_rejectsMismatchedIdSet() {
-        UUID usedId = UUID.randomUUID();
-        SensorParameterDefinition used = new SensorParameterDefinition();
-        used.setId(usedId);
-        when(sensorParameterDefinitionRepository.findById(usedId)).thenReturn(Optional.of(used));
-
-        SensorTypeParameter first = rawParameter(UUID.randomUUID(), "a");
-        first.setUsedParameter(used);
-        when(sensorTypeParameterRepository.findByUsedParameterIdOrderByPriorityOrder(usedId))
-                .thenReturn(List.of(first));
-
-        assertThatThrownBy(() -> service.reorderSources(usedId, List.of(UUID.randomUUID())))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("exactly the sources");
-
-        verify(sensorTypeParameterRepository, never()).saveAll(any());
     }
 
     @Test

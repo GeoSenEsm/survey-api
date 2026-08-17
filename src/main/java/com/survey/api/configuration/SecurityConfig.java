@@ -81,6 +81,7 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.DELETE, "/api/researcharea").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/uploads/**").permitAll();
                     r.requestMatchers(HttpMethod.PATCH, "/api/surveys/publish").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/surveys/*/notifications").permitAll();
                     r.requestMatchers(HttpMethod.DELETE, "/api/surveys/**").permitAll();
                     r.requestMatchers(HttpMethod.PUT, "/api/surveys/**").permitAll();
                     r.requestMatchers(HttpMethod.PATCH, "/api/authentication/admin/**").permitAll();

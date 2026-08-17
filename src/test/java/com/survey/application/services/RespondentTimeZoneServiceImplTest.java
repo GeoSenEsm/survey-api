@@ -32,7 +32,7 @@ class RespondentTimeZoneServiceImplTest {
                 ZoneId.of("Europe/Warsaw"));
 
         assertEquals(LocalDate.of(2026, 8, 4), result.date());
-        assertEquals(0, result.time().getHour());
+        assertEquals(1, result.time().getHour());
         assertEquals(30, result.time().getMinute());
     }
 

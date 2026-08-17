@@ -3,7 +3,6 @@ package com.survey.domain.repository;
 import com.survey.domain.models.SensorMac;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -17,10 +16,6 @@ public interface SensorMacRepository extends JpaRepository<SensorMac, UUID> {
 
     @Query("SELECT sm FROM SensorMac sm ORDER BY sm.sensorId")
     List<SensorMac> findAllOrderBySensorId();
-
-    @Modifying
-    @Query("UPDATE SensorMac sm SET sm.respondentId = NULL")
-    void clearRespondentAssignments();
 
     void deleteBySensorTypeId(UUID sensorTypeId);
 }

@@ -16,8 +16,5 @@ public record SurveySensorDataSettingsDto(
         List<@Valid SensorTypeSettingDto> sensorTypes,
 
         @NotNull
-        List<@Valid SensorParameterDefinitionDto> parameters,
-
-        @NotNull
-        List<@Valid RespondentSensorAssignmentDto> assignments
+        List<@Valid SensorParameterDefinitionDto> parameters
 ) {}

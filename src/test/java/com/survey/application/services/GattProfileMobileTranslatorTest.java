@@ -7,25 +7,21 @@ import com.survey.domain.models.SensorType;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Every seeded profile must not just pass backend validation, it must also survive translation
- * into the shape the mobile GATT engine parses. This guards against contract drift between
- * {@link GattProfileValidator} (backend spec) and the mobile {@code GattProfile.fromJson} model,
- * which has stricter limits (e.g. discovery cannot carry both an exact name and a prefix, and
- * reads/actions are capped at 16 each).
+ * Every template profile in {@link SensorProfileTemplateCatalog} — the live source of what
+ * admins can actually install — must not just pass backend validation, it must also survive
+ * translation into the shape the mobile GATT engine parses. This guards against contract drift
+ * between {@link GattProfileValidator} (backend spec) and the mobile {@code GattProfile.fromJson}
+ * model, which has stricter limits (e.g. discovery cannot carry both an exact name and a prefix,
+ * and reads/actions are capped at 16 each).
  */
 class GattProfileMobileTranslatorTest {
-    private static final Pattern PROFILE_ROW =
-            Pattern.compile("\\(N'([^']+)', N'(\\{.*?\\})'\\)(?:,|;)", Pattern.DOTALL);
     private static final int MOBILE_MAX_READS = 16;
     private static final int MOBILE_MAX_ACTIONS = 16;
     private static final int MOBILE_MAX_ASSERTIONS_PER_READ = 16;
@@ -63,10 +59,12 @@ class GattProfileMobileTranslatorTest {
             }
 
             if ("ble_advertisement".equals(mobile.path("transport").asText())) {
-                assertThat(mobile.path("advertisement").path("objects"))
-                        .as("seed profile %s: mobile advertisement definitions require object mappings",
+                boolean hasObjects = mobile.path("advertisement").path("objects").size() > 0;
+                boolean hasFields = mobile.path("advertisement").path("fields").size() > 0;
+                assertThat(hasObjects || hasFields)
+                        .as("seed profile %s: mobile advertisement definitions require object or field mappings",
                                 entry.getKey())
-                        .isNotEmpty();
+                        .isTrue();
             }
         }
     }
@@ -78,7 +76,7 @@ class GattProfileMobileTranslatorTest {
         // use ble_advertisement (the xiaomi template moved to gatt_sequence after discovering real
         // LYWSD03MMC units broadcast encrypted, undecodable MiBeacon frames).
         JsonNode spec = objectMapper.readTree(
-                "{\"schemaVersion\":1,\"transport\":\"ble_advertisement\",\"requiredSecrets\":[],"
+                "{\"schemaVersion\":1,\"transport\":\"ble_advertisement\","
                         + "\"advertisement\":{\"decoderId\":\"xiaomi_mibeacon_v4_v5\",\"matcher\":{\"productId\":1},"
                         + "\"objects\":[{\"objectId\":\"0x1004\",\"parameter\":\"temperature\",\"type\":\"int16\",\"scale\":0.1},"
                         + "{\"objectId\":\"0x1006\",\"parameter\":\"humidity\",\"type\":\"uint16\",\"scale\":0.1}]},"
@@ -99,16 +97,9 @@ class GattProfileMobileTranslatorTest {
     }
 
     private Map<String, JsonNode> loadSeedProfiles() throws IOException {
-        String migration;
-        try (var stream = getClass().getResourceAsStream(
-                "/db/migration/V31__create_gatt_profile_engine.sql")) {
-            assertThat(stream).isNotNull();
-            migration = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-        }
         Map<String, JsonNode> profiles = new HashMap<>();
-        Matcher matcher = PROFILE_ROW.matcher(migration);
-        while (matcher.find()) {
-            profiles.put(matcher.group(1), objectMapper.readTree(matcher.group(2)));
+        for (SensorProfileTemplate template : SensorProfileTemplateCatalog.all()) {
+            profiles.put(template.code(), objectMapper.readTree(template.specJson()));
         }
         assertThat(profiles).isNotEmpty();
         return profiles;

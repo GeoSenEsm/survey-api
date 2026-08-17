@@ -23,7 +23,5 @@ public record SensorParameterDefinitionCreateDto(
         String dataType,
 
         @Size(max = 32)
-        String unit,
-
-        boolean required
+        String unit
 ) {}

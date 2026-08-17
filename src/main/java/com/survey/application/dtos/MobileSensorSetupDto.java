@@ -9,6 +9,5 @@ public record MobileSensorSetupDto(
         List<SensorTypeSettingDto> sensorTypes,
         List<SensorParameterDefinitionDto> parameters,
         List<RespondentSensorAssignmentDto> assignments,
-        List<JsonNode> gattProfiles,
-        List<MobileSensorDeviceSecretsDto> deviceSecrets
+        List<JsonNode> gattProfiles
 ) {}

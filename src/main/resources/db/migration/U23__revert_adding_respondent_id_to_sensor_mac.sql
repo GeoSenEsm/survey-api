@@ -1,4 +1,4 @@
-DROP INDEX IF EXISTS UQ_sensor_mac_respondent_id ON sensor_mac;
+DROP INDEX IF EXISTS IX_sensor_mac_respondent_id ON sensor_mac;
 GO
 
 ALTER TABLE sensor_mac

@@ -22,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -43,6 +44,8 @@ public class SurveyServiceImpl implements SurveyService {
     private final SurveySendingPolicyRepository surveySendingPolicyRepository;
     private final SurveyParticipationRepository surveyParticipationRepository;
     private final SurveyNotificationRepository surveyNotificationRepository;
+    private final IdentityUserRepository identityUserRepository;
+    private final RespondentTimeZoneService respondentTimeZoneService;
 
 
     @Autowired
@@ -54,7 +57,9 @@ public class SurveyServiceImpl implements SurveyService {
                              ClaimsPrincipalService claimsPrincipalService, StorageService storageService,
                              SurveySendingPolicyRepository surveySendingPolicyRepository,
                              SurveyParticipationRepository surveyParticipationRepository,
-                             SurveyNotificationRepository surveyNotificationRepository) {
+                             SurveyNotificationRepository surveyNotificationRepository,
+                             IdentityUserRepository identityUserRepository,
+                             RespondentTimeZoneService respondentTimeZoneService) {
         this.surveyRepository = surveyRepository;
         this.modelMapper = modelMapper;
         this.respondentGroupRepository = respondentGroupRepository;
@@ -66,6 +71,8 @@ public class SurveyServiceImpl implements SurveyService {
         this.surveySendingPolicyRepository = surveySendingPolicyRepository;
         this.surveyParticipationRepository = surveyParticipationRepository;
         this.surveyNotificationRepository = surveyNotificationRepository;
+        this.identityUserRepository = identityUserRepository;
+        this.respondentTimeZoneService = respondentTimeZoneService;
     }
 
     @Override
@@ -235,6 +242,7 @@ public class SurveyServiceImpl implements SurveyService {
             surveySendingPolicyRepository.saveAllAndFlush(policies);
         }
 
+        List<SurveyNotification> savedNotifications;
         if (!notifications.isEmpty()) {
             List<SurveyNotification> preserved = notifications.stream()
                     .map(existing -> {
@@ -246,10 +254,16 @@ public class SurveyServiceImpl implements SurveyService {
                         return copy;
                     })
                     .collect(Collectors.toList());
-            surveyNotificationRepository.saveAllAndFlush(preserved);
+            savedNotifications = surveyNotificationRepository.saveAllAndFlush(preserved);
         } else {
-            surveyNotificationRepository.saveAllAndFlush(defaultNotifications(dbSurvey));
+            savedNotifications = surveyNotificationRepository.saveAllAndFlush(defaultNotifications(dbSurvey));
         }
+        // saveAllAndFlush does not populate the DB-generated row_version column on the
+        // in-memory entities, and these notifications are not part of dbSurvey's own
+        // (already-loaded) association graph, so refreshing dbSurvey below would not
+        // cascade a refresh onto them. Refresh each one explicitly so rowVersion is
+        // populated before mapping to the response DTO.
+        savedNotifications.forEach(entityManager::refresh);
 
         entityManager.refresh(dbSurvey);
         return modelMapper.map(dbSurvey, ResponseSurveyDto.class);
@@ -340,11 +354,21 @@ public class SurveyServiceImpl implements SurveyService {
     }
 
     private boolean isValidTimeSlot(SurveyParticipationTimeSlot slot, UUID identityUserId, UUID surveyId) {
-        if (slot.isDeleted() || slot.getFinish().isBefore(OffsetDateTime.now())) {
+        if (slot.isDeleted()) {
             return false;
         }
 
-        return !surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(surveyId, identityUserId, slot.getStart(), slot.getFinish());
+        IdentityUser identityUser = identityUserRepository.findById(identityUserId)
+                .orElseThrow(() -> new NoSuchElementException("Respondent not found: " + identityUserId));
+        ZoneId zone = respondentTimeZoneService.resolveZoneId(identityUser);
+        OffsetDateTime slotStart = respondentTimeZoneService.slotStartUtc(slot, zone);
+        OffsetDateTime slotFinish = respondentTimeZoneService.slotFinishUtc(slot, zone);
+
+        if (slotFinish.isBefore(respondentTimeZoneService.nowUtc())) {
+            return false;
+        }
+
+        return !surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(surveyId, identityUserId, slotStart, slotFinish);
     }
 
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto, List<MultipartFile> files){

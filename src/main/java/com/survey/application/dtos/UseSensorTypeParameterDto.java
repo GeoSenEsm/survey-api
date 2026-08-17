@@ -15,8 +15,8 @@ import java.util.UUID;
  *     <li>{@code usedParameterId} set — link this raw row to that already-used parameter as an
  *     additional fallback source (preserves multi-sensor-type priority chains).</li>
  *     <li>{@code usedParameterId} null — create a new used parameter from {@code name}/{@code
- *     unit}/{@code dataType}/{@code required} (defaulting {@code code} to the raw row's own
- *     code) and link to it.</li>
+ *     unit}/{@code dataType} (defaulting {@code code} to the raw row's own code) and link to
+ *     it.</li>
  * </ul>
  */
 public record UseSensorTypeParameterDto(
@@ -29,7 +29,5 @@ public record UseSensorTypeParameterDto(
         String dataType,
 
         @Size(max = 32)
-        String unit,
-
-        boolean required
+        String unit
 ) {}

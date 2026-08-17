@@ -38,7 +38,10 @@ public class GattProfileMobileTranslator {
             mobile.set("discovery", translateGattDiscovery(spec.path("discovery")));
             translateOperations(spec.path("operations"), mobile);
         } else {
-            mobile.set("discovery", translateAdvertisementDiscovery(spec.path("advertisement")));
+            // Advertisement discovery/matching happens entirely off `advertisement`'s own fields at
+            // scan time (service UUID or manufacturer ID) — mobile never uses `discovery` for this
+            // transport, so it's left empty rather than populated with a fabricated placeholder.
+            mobile.set("discovery", objectMapper.createObjectNode());
             mobile.set("advertisement", translateAdvertisement(spec.path("advertisement")));
             mobile.set("reads", objectMapper.createArrayNode());
             mobile.set("actions", objectMapper.createArrayNode());
@@ -63,46 +66,45 @@ public class GattProfileMobileTranslator {
         return out;
     }
 
-    private ObjectNode translateAdvertisementDiscovery(JsonNode advertisement) {
-        ObjectNode out = objectMapper.createObjectNode();
-        JsonNode matcher = advertisement.path("matcher");
-        if (matcher.has("serviceUuid")) {
-            out.put("advertisedServiceUuid", matcher.path("serviceUuid").asText());
-        } else if (advertisement.has("matcher") && matcher.has("productId")) {
-            out.put("advertisedServiceUuid", "0000fe95-0000-1000-8000-00805f9b34fb");
-        }
-        return out;
-    }
-
     private ObjectNode translateAdvertisement(JsonNode advertisement) {
         ObjectNode out = objectMapper.createObjectNode();
-        out.put("decoderId", advertisement.path("decoderId").asText());
+        String decoderId = advertisement.path("decoderId").asText();
+        out.put("decoderId", decoderId);
         JsonNode matcher = advertisement.path("matcher");
-        String serviceUuid = matcher.has("serviceUuid")
-                ? matcher.path("serviceUuid").asText()
-                : "0000fe95-0000-1000-8000-00805f9b34fb";
-        out.put("serviceUuid", serviceUuid);
+        if (matcher.has("serviceUuid")) {
+            out.put("serviceUuid", matcher.path("serviceUuid").asText());
+        } else if ("xiaomi_mibeacon_v4_v5".equals(decoderId)) {
+            // MiBeacon devices always advertise Xiaomi's shared service, even when a profile author
+            // didn't bother repeating it in matcher — other decoders have no such universal fallback.
+            out.put("serviceUuid", "0000fe95-0000-1000-8000-00805f9b34fb");
+        }
         if (matcher.has("manufacturerId")) {
             out.put("dataSource", "manufacturer_data");
             out.put("manufacturerId", matcher.path("manufacturerId").asInt());
         } else {
             out.put("dataSource", "service_data");
         }
-        out.put("productId", matcher.path("productId").asInt());
+        if (matcher.has("productId")) {
+            out.put("productId", matcher.path("productId").asInt());
+        }
         out.put("timeoutMilliseconds", 10000);
         out.put("maxPackets", 100);
-        ArrayNode objects = objectMapper.createArrayNode();
-        advertisement.path("objects").forEach(object -> {
-            ObjectNode mobileObject = objectMapper.createObjectNode();
-            mobileObject.put("objectId", object.path("objectId").asText());
-            mobileObject.put("parameterCode", object.path("parameter").asText());
-            mobileObject.put("type", object.path("type").asText());
-            if (object.has("scale")) {
-                mobileObject.put("scale", object.path("scale").asDouble());
-            }
-            objects.add(mobileObject);
-        });
-        out.set("objects", objects);
+        if (advertisement.has("decoders")) {
+            out.set("fields", translateDecoders(advertisement.path("decoders")));
+        } else {
+            ArrayNode objects = objectMapper.createArrayNode();
+            advertisement.path("objects").forEach(object -> {
+                ObjectNode mobileObject = objectMapper.createObjectNode();
+                mobileObject.put("objectId", object.path("objectId").asText());
+                mobileObject.put("parameterCode", object.path("parameter").asText());
+                mobileObject.put("type", object.path("type").asText());
+                if (object.has("scale")) {
+                    mobileObject.put("scale", object.path("scale").asDouble());
+                }
+                objects.add(mobileObject);
+            });
+            out.set("objects", objects);
+        }
         return out;
     }
 

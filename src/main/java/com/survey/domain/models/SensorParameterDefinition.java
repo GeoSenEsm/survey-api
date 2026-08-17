@@ -39,9 +39,6 @@ public class SensorParameterDefinition {
     @Column(name = "unit", length = 32)
     private String unit;
 
-    @Column(name = "required", nullable = false)
-    private boolean required;
-
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 

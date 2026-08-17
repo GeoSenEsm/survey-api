@@ -1,5 +1,8 @@
 -- Lookup of supported sensor device kinds. Codes are stable API values;
--- names are admin-facing labels. Existing sensor_mac rows default to Xiaomi.
+-- names are admin-facing labels. Only 'manual' is seeded here: it is a permanent, always-present
+-- type (respondent-entered readings, no physical device). Every other sensor type — including
+-- ones that used to be pre-seeded here (Xiaomi, Kestrel) — is created on demand instead, either
+-- by installing a built-in template (SensorProfileTemplateCatalog) or defining a custom type.
 CREATE TABLE sensor_type (
     id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     code NVARCHAR(32) NOT NULL,
@@ -11,27 +14,13 @@ CREATE TABLE sensor_type (
 GO
 
 INSERT INTO sensor_type (id, code, name) VALUES
-    ('A1000000-0000-4000-8000-000000000001', N'xiaomi', N'Xiaomi'),
-    ('A1000000-0000-4000-8000-000000000002', N'kestrel', N'Kestrel'),
     ('A1000000-0000-4000-8000-000000000003', N'manual', N'Manual');
 GO
 
 ALTER TABLE sensor_mac
-    ADD sensor_type_id UNIQUEIDENTIFIER NULL;
-GO
-
-UPDATE sensor_mac
-SET sensor_type_id = 'A1000000-0000-4000-8000-000000000001'
-WHERE sensor_type_id IS NULL;
-GO
-
-ALTER TABLE sensor_mac
-    ALTER COLUMN sensor_type_id UNIQUEIDENTIFIER NOT NULL;
-GO
-
-ALTER TABLE sensor_mac
-    ADD CONSTRAINT FK_sensor_mac_sensor_type
-        FOREIGN KEY (sensor_type_id) REFERENCES sensor_type(id);
+    ADD sensor_type_id UNIQUEIDENTIFIER NOT NULL
+        CONSTRAINT FK_sensor_mac_sensor_type
+        REFERENCES sensor_type(id);
 GO
 
 CREATE INDEX IX_sensor_mac_sensor_type_id

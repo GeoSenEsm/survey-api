@@ -27,12 +27,9 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
     private final SensorTypeRepository sensorTypeRepository;
     private final SensorTypeParameterService sensorTypeParameterService;
     private final RespondentSensorAssignmentRepository respondentSensorAssignmentRepository;
-    private final IdentityUserRepository identityUserRepository;
-    private final SensorMacRepository sensorMacRepository;
     private final SensorDataRepository sensorDataRepository;
     private final ClaimsPrincipalService claimsPrincipalService;
     private final SensorGattProfileService sensorGattProfileService;
-    private final SensorDeviceSecretService sensorDeviceSecretService;
     private final StorageService storageService;
     private final InitialSurveyService initialSurveyService;
     private final SensorParameterDefinitionValidator parameterDefinitionValidator;
@@ -45,12 +42,9 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
             SensorTypeRepository sensorTypeRepository,
             SensorTypeParameterService sensorTypeParameterService,
             RespondentSensorAssignmentRepository respondentSensorAssignmentRepository,
-            IdentityUserRepository identityUserRepository,
-            SensorMacRepository sensorMacRepository,
             SensorDataRepository sensorDataRepository,
             ClaimsPrincipalService claimsPrincipalService,
             SensorGattProfileService sensorGattProfileService,
-            SensorDeviceSecretService sensorDeviceSecretService,
             StorageService storageService,
             InitialSurveyService initialSurveyService,
             SensorParameterDefinitionValidator parameterDefinitionValidator) {
@@ -61,12 +55,9 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
         this.sensorTypeRepository = sensorTypeRepository;
         this.sensorTypeParameterService = sensorTypeParameterService;
         this.respondentSensorAssignmentRepository = respondentSensorAssignmentRepository;
-        this.identityUserRepository = identityUserRepository;
-        this.sensorMacRepository = sensorMacRepository;
         this.sensorDataRepository = sensorDataRepository;
         this.claimsPrincipalService = claimsPrincipalService;
         this.sensorGattProfileService = sensorGattProfileService;
-        this.sensorDeviceSecretService = sensorDeviceSecretService;
         this.storageService = storageService;
         this.initialSurveyService = initialSurveyService;
         this.parameterDefinitionValidator = parameterDefinitionValidator;
@@ -124,9 +115,6 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
                         .toList(),
                 sensorParameterDefinitionRepository.findAllOrderedWithSources().stream()
                         .map(this::toDto)
-                        .toList(),
-                respondentSensorAssignmentRepository.findAllOrdered().stream()
-                        .map(this::toDto)
                         .toList());
     }
 
@@ -165,9 +153,12 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
         definition.setName(dto.name());
         definition.setDataType(dto.dataType());
         definition.setUnit(dto.unit());
-        definition.setRequired(dto.required());
         definition.setDisplayOrder((int) sensorParameterDefinitionRepository.count());
-        return toDto(sensorParameterDefinitionRepository.save(definition));
+        SensorParameterDefinition saved = sensorParameterDefinitionRepository.save(definition);
+        sensorTypeParameterService.ensureManualSource(saved.getId());
+        // Re-fetch so the response includes the manual source just wired above: `saved`'s
+        // in-memory `rawParameters` collection was loaded (empty) before that row existed.
+        return toDto(sensorParameterDefinitionRepository.findById(saved.getId()).orElseThrow());
     }
 
     @Override
@@ -180,7 +171,6 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
         definition.setName(dto.name());
         definition.setDataType(dto.dataType());
         definition.setUnit(dto.unit());
-        definition.setRequired(dto.required());
         definition.setDisplayOrder(dto.displayOrder());
         return toDto(sensorParameterDefinitionRepository.save(definition));
     }
@@ -202,26 +192,13 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
         sensorParameterDefinitionRepository.delete(definition);
     }
 
-    /**
-     * Deliberately not guarded by {@code requireSensorSetupUnlocked}: see
-     * {@link SurveySensorDataSettingsWriteDto}'s Javadoc for why respondent sensor assignments
-     * stay editable after the initial survey is published.
-     */
-    @Override
-    public SurveySensorDataSettingsDto updateAssignments(List<RespondentSensorAssignmentDto> assignments) {
-        Map<String, SensorType> sensorTypes = sensorTypeRepository.findAll().stream()
-                .collect(Collectors.toMap(SensorType::getCode, Function.identity()));
-        replaceAssignments(assignments, sensorTypes);
-        return getSensorDataSettings();
-    }
-
     @Override
     @Transactional(readOnly = true)
     public MobileSensorSetupDto getMobileSensorSetup() {
         IdentityUser respondent = claimsPrincipalService.findIdentityUser();
         SurveySensorDataSettingsDto settings = getSensorDataSettings();
         List<RespondentSensorAssignment> assignmentEntities = respondentSensorAssignmentRepository
-                .findByRespondentIdAndEnabledTrueOrderByPriorityOrder(respondent.getId());
+                .findByRespondentId(respondent.getId());
         List<RespondentSensorAssignmentDto> assignments = assignmentEntities.stream()
                 .map(this::toDto)
                 .toList();
@@ -236,8 +213,7 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
                 settings.sensorTypes(),
                 settings.parameters(),
                 assignments,
-                sensorGattProfileService.getPublishedProfilesForMobile(assignedProfileTypes),
-                sensorDeviceSecretService.getForRespondent(respondent.getId()));
+                sensorGattProfileService.getPublishedProfilesForMobile(assignedProfileTypes));
     }
 
     private SurveySettings getOrCreate() {
@@ -340,44 +316,6 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
         }
     }
 
-    private void replaceAssignments(List<RespondentSensorAssignmentDto> dtos, Map<String, SensorType> sensorTypes) {
-        if (dtos == null) {
-            return;
-        }
-        respondentSensorAssignmentRepository.deleteAll();
-        respondentSensorAssignmentRepository.flush();
-        sensorMacRepository.clearRespondentAssignments();
-        List<RespondentSensorAssignment> assignments = dtos.stream()
-                .map(dto -> {
-                    IdentityUser respondent = identityUserRepository.findById(dto.respondentId())
-                            .orElseThrow(() -> new IllegalArgumentException("Invalid respondent ID: " + dto.respondentId()));
-                    if (!"Respondent".equals(respondent.getRole())) {
-                        throw new IllegalArgumentException("Assignment user is not a respondent: " + dto.respondentId());
-                    }
-                    SensorType sensorType = getSensorType(sensorTypes, dto.sensorTypeCode());
-                    SensorMac sensorMac = dto.sensorMacId() == null
-                            ? null
-                            : sensorMacRepository.findById(dto.sensorMacId())
-                                    .orElseThrow(() -> new IllegalArgumentException("Invalid sensor MAC ID: " + dto.sensorMacId()));
-                    if (sensorMac != null && !sensorMac.getSensorTypeId().equals(sensorType.getId())) {
-                        throw new IllegalArgumentException("Assigned sensor does not match sensor type " + dto.sensorTypeCode());
-                    }
-                    if (sensorMac != null) {
-                        sensorMac.setRespondentId(respondent.getId());
-                        sensorMacRepository.save(sensorMac);
-                    }
-                    RespondentSensorAssignment assignment = new RespondentSensorAssignment();
-                    assignment.setRespondent(respondent);
-                    assignment.setSensorType(sensorType);
-                    assignment.setSensorMac(sensorMac);
-                    assignment.setEnabled(dto.enabled());
-                    assignment.setPriorityOrder(dto.priorityOrder());
-                    return assignment;
-                })
-                .toList();
-        respondentSensorAssignmentRepository.saveAll(assignments);
-    }
-
     private SensorType getSensorType(Map<String, SensorType> sensorTypes, String code) {
         SensorType sensorType = sensorTypes.get(code);
         if (sensorType == null) {
@@ -405,15 +343,12 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
                 definition.getName(),
                 definition.getDataType(),
                 definition.getUnit(),
-                definition.isRequired(),
                 definition.getDisplayOrder(),
                 definition.getRawParameters().stream()
-                        .sorted(Comparator.comparingInt(SensorTypeParameter::getPriorityOrder))
                         .map(source -> new SensorParameterSourceDto(
                                 source.getId(),
                                 source.getSensorType().getCode(),
-                                source.getCode(),
-                                source.getPriorityOrder()))
+                                source.getCode()))
                         .toList());
     }
 
@@ -427,9 +362,7 @@ public class SurveySettingsServiceImpl implements SurveySettingsService {
                 assignment.getSensorType().getName(),
                 sensorMac != null ? sensorMac.getId() : null,
                 sensorMac != null ? sensorMac.getSensorId() : null,
-                sensorMac != null ? sensorMac.getSensorMac() : null,
-                assignment.isEnabled(),
-                assignment.getPriorityOrder());
+                sensorMac != null ? sensorMac.getSensorMac() : null);
     }
 
     private static SurveySettingsDto toDto(SurveySettings settings) {

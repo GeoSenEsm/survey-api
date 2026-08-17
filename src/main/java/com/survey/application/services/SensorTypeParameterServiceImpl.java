@@ -13,15 +13,9 @@ import com.survey.domain.repository.SensorTypeRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -69,7 +63,6 @@ public class SensorTypeParameterServiceImpl implements SensorTypeParameterServic
         parameter.setName(dto.name());
         parameter.setDataType(dto.dataType());
         parameter.setUnit(dto.unit());
-        parameter.setPriorityOrder(0);
         return toDto(sensorTypeParameterRepository.save(parameter));
     }
 
@@ -99,13 +92,17 @@ public class SensorTypeParameterServiceImpl implements SensorTypeParameterServic
         initialSurveyService.requireNotPublished();
         SensorTypeParameter parameter = requireOwnedParameter(sensorTypeId, id);
 
-        SensorParameterDefinition usedParameter = dto.usedParameterId() != null
-                ? requireUsedParameter(dto.usedParameterId())
-                : createUsedParameterFrom(parameter, dto);
+        boolean isNewParameter = dto.usedParameterId() == null;
+        SensorParameterDefinition usedParameter = isNewParameter
+                ? createUsedParameterFrom(parameter, dto)
+                : requireUsedParameter(dto.usedParameterId());
 
         parameter.setUsedParameter(usedParameter);
-        parameter.setPriorityOrder(nextPriorityOrder(usedParameter.getId()));
-        return toDto(sensorTypeParameterRepository.save(parameter));
+        SensorTypeParameterDto result = toDto(sensorTypeParameterRepository.save(parameter));
+        if (isNewParameter) {
+            ensureManualSource(usedParameter.getId());
+        }
+        return result;
     }
 
     @Override
@@ -114,7 +111,6 @@ public class SensorTypeParameterServiceImpl implements SensorTypeParameterServic
         SensorTypeParameter parameter = requireOwnedParameter(sensorTypeId, id);
         SensorParameterDefinition previouslyUsed = parameter.getUsedParameter();
         parameter.setUsedParameter(null);
-        parameter.setPriorityOrder(0);
         SensorTypeParameterDto dto = toDto(sensorTypeParameterRepository.save(parameter));
         deleteIfNowSourceless(previouslyUsed);
         return dto;
@@ -144,17 +140,43 @@ public class SensorTypeParameterServiceImpl implements SensorTypeParameterServic
         definition.setName(dto.name());
         definition.setDataType(dto.dataType());
         definition.setUnit(dto.unit());
-        definition.setRequired(dto.required());
         definition.setDisplayOrder((int) sensorParameterDefinitionRepository.count());
         return sensorParameterDefinitionRepository.save(definition);
     }
 
-    private int nextPriorityOrder(UUID usedParameterId) {
-        List<SensorTypeParameter> existingSources =
-                sensorTypeParameterRepository.findByUsedParameterIdOrderByPriorityOrder(usedParameterId);
-        return existingSources.isEmpty()
-                ? 0
-                : existingSources.get(existingSources.size() - 1).getPriorityOrder() + 1;
+    /**
+     * Keyed by (manual sensor type, code) rather than by used-parameter id, because a stale raw
+     * row can outlive the used parameter it once pointed at: deleting a used parameter only
+     * clears {@code sensor_type_parameter.used_parameter_id} (an {@code ON DELETE SET NULL} FK,
+     * left un-cascaded so a *physical* sensor type's raw catalog entry survives demotion and can
+     * be re-promoted later) rather than removing the raw row itself. If a later parameter with the
+     * same code is created and this looked up by used-parameter id instead, it would never find
+     * that orphaned row, wrongly conclude no manual source exists yet, and try to INSERT a second
+     * (manual, code) row — violating {@code UQ_sensor_type_parameter_type_code}. Looking up (and,
+     * if found, re-wiring) by code avoids both the constraint violation and a used parameter that
+     * silently ends up with no manual fallback.
+     */
+    @Override
+    public void ensureManualSource(UUID usedParameterId) {
+        SensorParameterDefinition usedParameter = requireUsedParameter(usedParameterId);
+        SensorType manual = sensorTypeRepository.findByCode("manual")
+                .orElseThrow(() -> new IllegalStateException("Sensor type 'manual' is missing."));
+        SensorTypeParameter manualSource = sensorTypeParameterRepository
+                .findBySensorTypeIdAndCode(manual.getId(), usedParameter.getCode())
+                .orElseGet(() -> {
+                    SensorTypeParameter created = new SensorTypeParameter();
+                    created.setSensorType(manual);
+                    created.setCode(usedParameter.getCode());
+                    return created;
+                });
+        if (manualSource.getUsedParameter() != null && manualSource.getUsedParameter().getId().equals(usedParameterId)) {
+            return;
+        }
+        manualSource.setName(usedParameter.getName());
+        manualSource.setDataType(usedParameter.getDataType());
+        manualSource.setUnit(usedParameter.getUnit());
+        manualSource.setUsedParameter(usedParameter);
+        sensorTypeParameterRepository.save(manualSource);
     }
 
     private SensorTypeParameter requireOwnedParameter(UUID sensorTypeId, UUID id) {
@@ -176,28 +198,6 @@ public class SensorTypeParameterServiceImpl implements SensorTypeParameterServic
                 .orElseThrow(() -> new NoSuchElementException("Used sensor parameter was not found: " + usedParameterId));
     }
 
-    @Override
-    public List<SensorTypeParameterDto> reorderSources(UUID usedParameterId, List<UUID> orderedSourceIds) {
-        initialSurveyService.requireNotPublished();
-        requireUsedParameter(usedParameterId);
-        List<SensorTypeParameter> current =
-                sensorTypeParameterRepository.findByUsedParameterIdOrderByPriorityOrder(usedParameterId);
-        Set<UUID> currentIds = current.stream().map(SensorTypeParameter::getId).collect(Collectors.toSet());
-        if (current.size() != orderedSourceIds.size() || !currentIds.equals(new HashSet<>(orderedSourceIds))) {
-            throw new IllegalArgumentException(
-                    "orderedSourceIds must contain exactly the sources currently wired to this parameter.");
-        }
-        Map<UUID, SensorTypeParameter> byId = current.stream()
-                .collect(Collectors.toMap(SensorTypeParameter::getId, Function.identity()));
-        for (int i = 0; i < orderedSourceIds.size(); i++) {
-            byId.get(orderedSourceIds.get(i)).setPriorityOrder(i);
-        }
-        return sensorTypeParameterRepository.saveAll(current).stream()
-                .sorted(Comparator.comparingInt(SensorTypeParameter::getPriorityOrder))
-                .map(this::toDto)
-                .toList();
-    }
-
     private SensorTypeParameterDto toDto(SensorTypeParameter parameter) {
         SensorParameterDefinition used = parameter.getUsedParameter();
         return new SensorTypeParameterDto(
@@ -209,7 +209,6 @@ public class SensorTypeParameterServiceImpl implements SensorTypeParameterServic
                 parameter.getDataType(),
                 parameter.getUnit(),
                 used != null ? used.getId() : null,
-                used != null ? used.getCode() : null,
-                parameter.getPriorityOrder());
+                used != null ? used.getCode() : null);
     }
 }

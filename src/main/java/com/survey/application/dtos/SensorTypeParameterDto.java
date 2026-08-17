@@ -15,6 +15,5 @@ public record SensorTypeParameterDto(
         String dataType,
         String unit,
         UUID usedParameterId,
-        String usedParameterCode,
-        int priorityOrder
+        String usedParameterCode
 ) {}
