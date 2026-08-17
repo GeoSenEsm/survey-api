@@ -55,6 +55,27 @@ submission carries a list of sensor readings — one `sensor_data` row plus its
 `sensor_data_parameter_value` rows per connected sensor type, since a
 respondent can have more than one sensor assigned at once — mirrored into
 response documents as a `sensorData` array of `{source, values}` entries.
+Sensor types are not hardcoded: new ones (including their BLE GATT wiring)
+are defined through the sensor profile endpoints below, so `source` can be
+any configured sensor type code, not just the built-in `xiaomi`/`kestrel`.
+
+### Sensor profiles, MAC assignment, and integrations
+
+Three more endpoint families sit alongside `/api/surveysettings/sensordata*`:
+
+| Endpoints | Purpose |
+| --- | --- |
+| `/api/sensorprofiles/**` (`SensorGattProfileController`) | Admin CRUD for sensor types: install prebuilt templates, inspect capabilities, create custom sensor types, manage each type's raw parameter catalog (create/edit/delete, then `use`/`unuse` to promote a parameter into the "used sensor data" catalog), and draft → validate → publish → rollback the GATT profile revisions that describe how to talk to the physical device over BLE. |
+| `/api/sensormac/**` (`SensorMacController`) | Registry of sensorId ↔ MAC address pairs, 1:1 assignment of a physical sensor to a respondent (`PUT /{sensorId}/respondent`), and the `/assigned` lookup the mobile app calls to auto-configure its BLE connection. |
+| `/api/surveysettings/logo`, `/api/surveysettings/sensordata/parameters[/{id}]` | Study logo upload/removal (downscaled server-side, 1 MB / 8192px limits), and per-parameter CRUD for manual ("used sensor data") entries that aren't backed by any physical sensor type. |
+
+Each sensor type carries an `enabled` flag and `connectionTimeoutSeconds`
+(`SensorTypeSettingDto`, set via `PUT /api/surveysettings/sensordata`) —
+this is the "integrations" toggle that turns a data source on/off without
+deleting its configuration. Disabling a type detaches its parameters (they
+are not deleted), and once the initial survey is published the sensor-data
+*shape* locks — only assigning physical sensors to respondents
+(`/api/sensormac`) stays open after that point.
 
 ---
 
