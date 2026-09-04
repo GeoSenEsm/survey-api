@@ -4,9 +4,11 @@ import com.survey.api.configuration.CommonApiResponse400;
 import com.survey.api.configuration.CommonApiResponse401;
 import com.survey.api.configuration.CommonApiResponse403;
 import com.survey.api.security.Role;
+import com.survey.application.dtos.AssignSensorRespondentDto;
 import com.survey.application.dtos.UpdatedSensorMacDtoIn;
 import com.survey.application.dtos.SensorMacDtoIn;
 import com.survey.application.dtos.SensorMacDtoOut;
+import com.survey.application.dtos.SensorTypeDtoOut;
 import com.survey.application.services.ClaimsPrincipalService;
 import com.survey.application.services.SensorMacService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -154,6 +156,62 @@ public class SensorMacController {
     }
 
 
+    @PutMapping("/{sensorId}/respondent")
+    @Operation(
+            summary = "Assign or clear the respondent for a sensor.",
+            description = """
+                    - Assigns the sensor to a single respondent (1:1). Passing null clears the assignment.
+                    - If the respondent was already assigned to another sensor, that previous assignment is cleared.
+                    - **Access:**
+                        - ADMIN
+                    """)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Assignment updated.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = SensorMacDtoOut.class)
+                    )),
+            @ApiResponse(responseCode = "404",
+                    description = "Sensor with given sensorId does not exist.",
+                    content = @Content
+            )
+    })
+    @CommonApiResponse400
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<SensorMacDtoOut> assignRespondent(
+            @PathVariable @NotNull String sensorId,
+            @Valid @RequestBody AssignSensorRespondentDto dto) {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        return ResponseEntity.ok(sensorMacService.assignRespondent(sensorId, dto));
+    }
+
+
+    @GetMapping("/types")
+    @Operation(
+            summary = "Fetch all sensor types.",
+            description = """
+                    - Returns Xiaomi, Kestrel, Manual, and No sensor.
+                    - **Access:**
+                        - ADMIN
+                    """)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Sensor types fetched successfully.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = SensorTypeDtoOut.class))
+                    ))
+    })
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<List<SensorTypeDtoOut>> getTypes() {
+        claimsPrincipalService.ensureRole(Role.ADMIN.getRoleName());
+        return ResponseEntity.ok(sensorMacService.getSensorTypes());
+    }
+
+
     @GetMapping("/all")
     @Operation(
             summary = "Fetch all sensorId - sensorMac pairs.",
@@ -179,11 +237,43 @@ public class SensorMacController {
     }
 
 
+    @GetMapping("/assigned")
+    @Operation(
+            summary = "Fetch the sensor assigned to the current respondent.",
+            description = """
+                    - Returns the sensor (sensorId + MAC) assigned to the logged-in respondent, if any.
+                    - Used by the mobile app on data refresh to auto-configure the BLE sensor.
+                    - **Access:**
+                        - RESPONDENT
+                    """)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Assigned sensor returned.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = SensorMacDtoOut.class)
+                    )),
+            @ApiResponse(responseCode = "404",
+                    description = "No sensor is assigned to the current respondent.",
+                    content = @Content
+            )
+    })
+    @CommonApiResponse401
+    @CommonApiResponse403
+    public ResponseEntity<SensorMacDtoOut> getAssigned() {
+        claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
+        return sensorMacService.getAssignedToCurrentRespondent()
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+
     @GetMapping(params = "sensorId")
     @Operation(
             summary = "Fetch single sensorId - sensorMac pair.",
             description = """
-                    - Allows admin and respondent to fetch single sensorId - sensorMac pair.
+                    - Allows admin to fetch any single sensorId - sensorMac pair.
+                    - Allows respondents to fetch only their assigned sensor when the sensorId matches.
                     - **Access:**
                         - ADMIN
                         - RESPONDENT
@@ -205,6 +295,12 @@ public class SensorMacController {
     @CommonApiResponse403
     public ResponseEntity<SensorMacDtoOut> getBySensorId(@RequestParam String sensorId){
         claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName(), Role.ADMIN.getRoleName());
+        if (Role.RESPONDENT.getRoleName().equals(claimsPrincipalService.findIdentityUser().getRole())) {
+            return sensorMacService.getAssignedToCurrentRespondent()
+                    .filter(sensor -> sensorId.equals(sensor.getSensorId()))
+                    .map(ResponseEntity::ok)
+                    .orElseGet(() -> ResponseEntity.notFound().build());
+        }
         SensorMacDtoOut responseDto = sensorMacService.getSensorMacBySensorId(sensorId);
         return ResponseEntity.status(HttpStatus.OK).body(responseDto);
     }

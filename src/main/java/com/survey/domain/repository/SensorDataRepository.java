@@ -3,6 +3,7 @@ package com.survey.domain.repository;
 import com.survey.domain.models.SensorData;
 import com.survey.domain.models.IdentityUser;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.OffsetDateTime;
@@ -11,6 +12,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface SensorDataRepository extends JpaRepository<SensorData, UUID> {
+    @Modifying
+    @Query("UPDATE SensorData sd SET sd.sourceSensorType = NULL WHERE sd.sourceSensorType.id = :sensorTypeId")
+    void clearSourceSensorType(UUID sensorTypeId);
+
     @Query("SELECT sd " +
             "FROM SensorData sd " +
             "WHERE sd.dateTime BETWEEN :fromDate AND :toDate " +
@@ -24,8 +29,21 @@ public interface SensorDataRepository extends JpaRepository<SensorData, UUID> {
 
     @Query("SELECT DISTINCT sd FROM SensorData sd " +
             "LEFT JOIN FETCH sd.surveyParticipation " +
+            "LEFT JOIN FETCH sd.sourceSensorType " +
+            "LEFT JOIN FETCH sd.values sensorValues " +
+            "LEFT JOIN FETCH sensorValues.parameterDefinition " +
             "WHERE sd.respondent.id IN :respondentIds")
     List<SensorData> findAllByRespondentIdsWithFetch(List<UUID> respondentIds);
+
+    @Query("SELECT DISTINCT sd FROM SensorData sd " +
+            "JOIN FETCH sd.respondent " +
+            "LEFT JOIN FETCH sd.sourceSensorType " +
+            "LEFT JOIN FETCH sd.surveyParticipation sp " +
+            "LEFT JOIN FETCH sp.survey " +
+            "LEFT JOIN FETCH sd.values sensorValues " +
+            "LEFT JOIN FETCH sensorValues.parameterDefinition " +
+            "WHERE sd.id IN :ids")
+    List<SensorData> findByIdInWithFetch(List<UUID> ids);
 
     long countByRespondentId(UUID respondentId);
 

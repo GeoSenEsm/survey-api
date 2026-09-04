@@ -16,5 +16,7 @@ public interface SensorMacRepository extends JpaRepository<SensorMac, UUID> {
 
     @Query("SELECT sm FROM SensorMac sm ORDER BY sm.sensorId")
     List<SensorMac> findAllOrderBySensorId();
+
+    void deleteBySensorTypeId(UUID sensorTypeId);
 }
 

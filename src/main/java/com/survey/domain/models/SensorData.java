@@ -6,8 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -27,11 +28,20 @@ public class SensorData {
     @Column(name = "date_time")
     private OffsetDateTime dateTime;
 
-    private BigDecimal temperature;
+    @ManyToOne
+    @JoinColumn(name = "source_sensor_type_id")
+    private SensorType sourceSensorType;
 
-    private BigDecimal humidity;
+    @Column(name = "source")
+    private String source;
 
-    @OneToOne
+    @OneToMany(mappedBy = "sensorData", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SensorDataParameterValue> values = new ArrayList<>();
+
+    // Many-to-one, not one-to-one: a single survey submission can carry a reading from each of
+    // several connected sensor types, so more than one SensorData row can point at the same
+    // participation (the FK column has never had a uniqueness constraint enforcing otherwise).
+    @ManyToOne
     @JoinColumn(name = "survey_participation_id")
     private SurveyParticipation surveyParticipation;
 }

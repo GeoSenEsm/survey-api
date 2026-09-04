@@ -4,6 +4,7 @@ import com.survey.api.security.Role;
 import com.survey.application.dtos.SurveySendingPolicyTimesDto;
 import com.survey.application.dtos.surveyDtos.*;
 import com.survey.domain.models.*;
+import com.survey.domain.models.enums.NotificationRelativeTo;
 import com.survey.domain.models.enums.QuestionType;
 import com.survey.domain.models.enums.SurveyState;
 import com.survey.domain.models.enums.Visibility;
@@ -21,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -41,6 +43,9 @@ public class SurveyServiceImpl implements SurveyService {
     private final StorageService storageService;
     private final SurveySendingPolicyRepository surveySendingPolicyRepository;
     private final SurveyParticipationRepository surveyParticipationRepository;
+    private final SurveyNotificationRepository surveyNotificationRepository;
+    private final IdentityUserRepository identityUserRepository;
+    private final RespondentTimeZoneService respondentTimeZoneService;
 
 
     @Autowired
@@ -49,7 +54,12 @@ public class SurveyServiceImpl implements SurveyService {
                              EntityManager entityManager,
                              SurveyParticipationTimeSlotRepository surveyParticipationTimeSlotRepository,
                              SurveyValidationService surveyValidationService,
-                             ClaimsPrincipalService claimsPrincipalService, StorageService storageService, SurveySendingPolicyRepository surveySendingPolicyRepository, SurveyParticipationRepository surveyParticipationRepository) {
+                             ClaimsPrincipalService claimsPrincipalService, StorageService storageService,
+                             SurveySendingPolicyRepository surveySendingPolicyRepository,
+                             SurveyParticipationRepository surveyParticipationRepository,
+                             SurveyNotificationRepository surveyNotificationRepository,
+                             IdentityUserRepository identityUserRepository,
+                             RespondentTimeZoneService respondentTimeZoneService) {
         this.surveyRepository = surveyRepository;
         this.modelMapper = modelMapper;
         this.respondentGroupRepository = respondentGroupRepository;
@@ -60,12 +70,16 @@ public class SurveyServiceImpl implements SurveyService {
         this.storageService = storageService;
         this.surveySendingPolicyRepository = surveySendingPolicyRepository;
         this.surveyParticipationRepository = surveyParticipationRepository;
+        this.surveyNotificationRepository = surveyNotificationRepository;
+        this.identityUserRepository = identityUserRepository;
+        this.respondentTimeZoneService = respondentTimeZoneService;
     }
 
     @Override
     public ResponseSurveyDto createSurvey(CreateSurveyDto createSurveyDto, List<MultipartFile> files) {
         surveyValidationService.validateImageChoiceFiles(createSurveyDto, files);
         Survey surveyEntity = mapToSurvey(createSurveyDto, files);
+        surveyEntity.setNotifications(defaultNotifications(surveyEntity));
         surveyValidationService.validateShowSections(surveyEntity);
 
         Survey dbSurvey = surveyRepository.saveAndFlush(surveyEntity);
@@ -75,8 +89,8 @@ public class SurveyServiceImpl implements SurveyService {
 
     @Override
     public List<ResponseSurveyDto> getSurveysByCompletionDate(LocalDate completionDate) {
-        OffsetDateTime startOfDay = completionDate.atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
-        OffsetDateTime endOfDay = completionDate.plusDays(1).atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
+        OffsetDateTime startOfDay = completionDate.atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime();
+        OffsetDateTime endOfDay = completionDate.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime();
 
         List<SurveyParticipationTimeSlot> timeSlots = surveyParticipationTimeSlotRepository.findByFinishBetween(startOfDay, endOfDay);
 
@@ -210,6 +224,7 @@ public class SurveyServiceImpl implements SurveyService {
             throw new IllegalStateException("Cannot update published survey.");
         }
         List<SurveySendingPolicy> policies = surveySendingPolicyRepository.findAllBySurveyId(surveyId);
+        List<SurveyNotification> notifications = surveyNotificationRepository.findAllBySurveyIdOrderByOrderAsc(surveyId);
         OffsetDateTime originalSurveyCreationDateTime = findSurveyById(surveyId).getCreationDate();
 
         deleteSurvey(surveyId);
@@ -227,7 +242,67 @@ public class SurveyServiceImpl implements SurveyService {
             surveySendingPolicyRepository.saveAllAndFlush(policies);
         }
 
+        List<SurveyNotification> savedNotifications;
+        if (!notifications.isEmpty()) {
+            List<SurveyNotification> preserved = notifications.stream()
+                    .map(existing -> {
+                        SurveyNotification copy = new SurveyNotification();
+                        copy.setSurvey(dbSurvey);
+                        copy.setOrder(existing.getOrder());
+                        copy.setRelativeTo(existing.getRelativeTo());
+                        copy.setMinutesBefore(existing.getMinutesBefore());
+                        return copy;
+                    })
+                    .collect(Collectors.toList());
+            savedNotifications = surveyNotificationRepository.saveAllAndFlush(preserved);
+        } else {
+            savedNotifications = surveyNotificationRepository.saveAllAndFlush(defaultNotifications(dbSurvey));
+        }
+        // saveAllAndFlush does not populate the DB-generated row_version column on the
+        // in-memory entities, and these notifications are not part of dbSurvey's own
+        // (already-loaded) association graph, so refreshing dbSurvey below would not
+        // cascade a refresh onto them. Refresh each one explicitly so rowVersion is
+        // populated before mapping to the response DTO.
+        savedNotifications.forEach(entityManager::refresh);
+
+        entityManager.refresh(dbSurvey);
         return modelMapper.map(dbSurvey, ResponseSurveyDto.class);
+    }
+
+    @Override
+    public List<SurveyNotificationDto> getSurveyNotifications(UUID surveyId) {
+        findSurveyById(surveyId);
+        return surveyNotificationRepository.findAllBySurveyIdOrderByOrderAsc(surveyId).stream()
+                .map(notification -> modelMapper.map(notification, SurveyNotificationDto.class))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<SurveyNotificationDto> replaceSurveyNotifications(UUID surveyId, ReplaceSurveyNotificationsDto dto) {
+        Survey survey = findSurveyById(surveyId);
+        validateNotificationOrders(dto.getNotifications());
+
+        survey.getNotifications().clear();
+        surveyNotificationRepository.flush();
+
+        List<SurveyNotification> replacements = new ArrayList<>();
+        for (int i = 0; i < dto.getNotifications().size(); i++) {
+            SurveyNotificationDto notificationDto = dto.getNotifications().get(i);
+            SurveyNotification notification = new SurveyNotification();
+            notification.setSurvey(survey);
+            notification.setOrder(i);
+            notification.setRelativeTo(notificationDto.getRelativeTo());
+            notification.setMinutesBefore(notificationDto.getMinutesBefore());
+            replacements.add(notification);
+        }
+        survey.getNotifications().addAll(replacements);
+        surveyRepository.saveAndFlush(survey);
+        entityManager.refresh(survey);
+
+        return survey.getNotifications().stream()
+                .sorted(Comparator.comparingInt(SurveyNotification::getOrder))
+                .map(notification -> modelMapper.map(notification, SurveyNotificationDto.class))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -249,6 +324,8 @@ public class SurveyServiceImpl implements SurveyService {
                     SELECT MAX(CAST(ssp.row_version AS bigint)) FROM survey_sending_policy ssp
                     UNION ALL
                     SELECT MAX(CAST(ts.row_version AS bigint)) FROM survey_participation_time_slot ts
+                    UNION ALL
+                    SELECT MAX(CAST(sn.row_version AS bigint)) FROM survey_notification sn
                     UNION ALL
                     SELECT MAX(CAST(sp.row_version AS bigint)) FROM survey_participation sp WHERE sp.respondent_id = :identityUserId
                  ) subquery
@@ -277,11 +354,21 @@ public class SurveyServiceImpl implements SurveyService {
     }
 
     private boolean isValidTimeSlot(SurveyParticipationTimeSlot slot, UUID identityUserId, UUID surveyId) {
-        if (slot.isDeleted() || slot.getFinish().isBefore(OffsetDateTime.now())) {
+        if (slot.isDeleted()) {
             return false;
         }
 
-        return !surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(surveyId, identityUserId, slot.getStart(), slot.getFinish());
+        IdentityUser identityUser = identityUserRepository.findById(identityUserId)
+                .orElseThrow(() -> new NoSuchElementException("Respondent not found: " + identityUserId));
+        ZoneId zone = respondentTimeZoneService.resolveZoneId(identityUser);
+        OffsetDateTime slotStart = respondentTimeZoneService.slotStartUtc(slot, zone);
+        OffsetDateTime slotFinish = respondentTimeZoneService.slotFinishUtc(slot, zone);
+
+        if (slotFinish.isBefore(respondentTimeZoneService.nowUtc())) {
+            return false;
+        }
+
+        return !surveyParticipationRepository.existsBySurveyIdAndIdentityUserIdAndDateBetween(surveyId, identityUserId, slotStart, slotFinish);
     }
 
     private Survey mapToSurvey(CreateSurveyDto createSurveyDto, List<MultipartFile> files){
@@ -293,6 +380,36 @@ public class SurveyServiceImpl implements SurveyService {
                 .map(sectionDto -> mapToSurveySection(sectionDto, survey, files))
                 .collect(Collectors.toList()));
         return survey;
+    }
+
+    private List<SurveyNotification> defaultNotifications(Survey survey) {
+        SurveyNotification atStart = new SurveyNotification();
+        atStart.setSurvey(survey);
+        atStart.setOrder(0);
+        atStart.setRelativeTo(NotificationRelativeTo.beginning);
+        atStart.setMinutesBefore(0);
+
+        SurveyNotification beforeEnd = new SurveyNotification();
+        beforeEnd.setSurvey(survey);
+        beforeEnd.setOrder(1);
+        beforeEnd.setRelativeTo(NotificationRelativeTo.end);
+        beforeEnd.setMinutesBefore(15);
+
+        return new ArrayList<>(List.of(atStart, beforeEnd));
+    }
+
+    private void validateNotificationOrders(List<SurveyNotificationDto> notifications) {
+        if (notifications == null) {
+            throw new IllegalArgumentException("notifications must not be null");
+        }
+        for (SurveyNotificationDto notification : notifications) {
+            if (notification.getRelativeTo() == null) {
+                throw new IllegalArgumentException("relativeTo is required for each notification");
+            }
+            if (notification.getMinutesBefore() < 0) {
+                throw new IllegalArgumentException("minutesBefore must be >= 0");
+            }
+        }
     }
 
     private SurveySection mapToSurveySection(CreateSurveySectionDto sectionDto, Survey surveyEntity, List<MultipartFile> files){

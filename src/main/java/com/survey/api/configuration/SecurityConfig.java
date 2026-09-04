@@ -81,6 +81,7 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.DELETE, "/api/researcharea").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/uploads/**").permitAll();
                     r.requestMatchers(HttpMethod.PATCH, "/api/surveys/publish").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/surveys/*/notifications").permitAll();
                     r.requestMatchers(HttpMethod.DELETE, "/api/surveys/**").permitAll();
                     r.requestMatchers(HttpMethod.PUT, "/api/surveys/**").permitAll();
                     r.requestMatchers(HttpMethod.PATCH, "/api/authentication/admin/**").permitAll();
@@ -89,11 +90,15 @@ public class SecurityConfig {
                     r.requestMatchers(HttpMethod.PUT, "/api/sensormac/**").permitAll();
                     r.requestMatchers(HttpMethod.DELETE, "/api/sensormac/**").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/sensormac/**").permitAll();
+                    r.requestMatchers("/api/sensorprofiles/**").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/phonenumber").permitAll();
                     r.requestMatchers(HttpMethod.GET, "/api/phonenumber/**").permitAll();
                     r.requestMatchers(HttpMethod.POST, "/api/phonenumber/**").permitAll();
                     r.requestMatchers(HttpMethod.PUT, "/api/phonenumber/**").permitAll();
                     r.requestMatchers(HttpMethod.DELETE, "/api/phonenumber/**").permitAll();
+                    r.requestMatchers(HttpMethod.GET, "/api/surveysettings").permitAll();
+                    r.requestMatchers(HttpMethod.PUT, "/api/surveysettings").permitAll();
+                    r.requestMatchers("/api/surveysettings/**").permitAll();
                     if (enableSwagger){
                         r.requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll();
                     }

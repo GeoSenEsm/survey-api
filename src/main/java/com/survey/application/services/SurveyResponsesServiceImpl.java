@@ -16,7 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.annotation.RequestScope;
 
 import java.io.OutputStream;
 import java.time.OffsetDateTime;
@@ -26,7 +25,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
-@RequestScope
 public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final SurveyParticipationRepository surveyParticipationRepository;
     private final SurveyRepository surveyRepository;
@@ -39,9 +37,12 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
     private final SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator;
     private final SurveyParticipationTimeValidationService surveyParticipationTimeValidationService;
     private final SensorDataRepository sensorDataRepository;
+    private final SensorParameterDefinitionRepository sensorParameterDefinitionRepository;
+    private final SensorTypeRepository sensorTypeRepository;
     private final IdentityUserRepository identityUserRepository;
     private final LocalizationDataRepository localizationDataRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final RespondentTimeZoneService respondentTimeZoneService;
 
 
     @Autowired
@@ -57,9 +58,12 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             SendSurveyResponseDtoValidator sendSurveyResponseDtoValidator,
             SurveyParticipationTimeValidationService surveyParticipationTimeValidationService,
             SensorDataRepository sensorDataRepository,
+            SensorParameterDefinitionRepository sensorParameterDefinitionRepository,
+            SensorTypeRepository sensorTypeRepository,
             IdentityUserRepository identityUserRepository,
             LocalizationDataRepository localizationDataRepository,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            RespondentTimeZoneService respondentTimeZoneService) {
         this.surveyParticipationRepository = surveyParticipationRepository;
         this.surveyRepository = surveyRepository;
         this.optionRepository = optionRepository;
@@ -71,9 +75,12 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         this.sendSurveyResponseDtoValidator = sendSurveyResponseDtoValidator;
         this.surveyParticipationTimeValidationService = surveyParticipationTimeValidationService;
         this.sensorDataRepository = sensorDataRepository;
+        this.sensorParameterDefinitionRepository = sensorParameterDefinitionRepository;
+        this.sensorTypeRepository = sensorTypeRepository;
         this.identityUserRepository = identityUserRepository;
         this.localizationDataRepository = localizationDataRepository;
         this.eventPublisher = eventPublisher;
+        this.respondentTimeZoneService = respondentTimeZoneService;
     }
 
     Survey findSurveyById(UUID surveyId) {
@@ -89,11 +96,7 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         OffsetDateTime surveyParticipationDateToSave = surveyParticipationTimeValidationService
                 .getCorrectSurveyParticipationDateTimeOnline(identityUser.getId(), survey.getId(), surveyStartDate, surveyFinishDate);
 
-        SurveyParticipation participation = new SurveyParticipation();
-        participation.setIdentityUser(identityUser);
-        participation.setDate(surveyParticipationDateToSave);
-        participation.setSurvey(survey);
-        return participation;
+        return buildParticipation(identityUser, survey, surveyParticipationDateToSave);
     }
 
     private SurveyParticipation saveSurveyParticipationOffline(IdentityUser identityUser, Survey survey, OffsetDateTime surveyStartDate, OffsetDateTime surveyFinishDate){
@@ -104,9 +107,19 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
             return null;
         }
 
+        return buildParticipation(identityUser, survey, surveyParticipationDateToSave);
+    }
+
+    private SurveyParticipation buildParticipation(IdentityUser identityUser, Survey survey, OffsetDateTime participationUtc) {
+        OffsetDateTime utc = respondentTimeZoneService.toUtc(participationUtc);
+        var localParts = respondentTimeZoneService.toLocalParts(
+                utc, respondentTimeZoneService.resolveZoneId(identityUser));
+
         SurveyParticipation participation = new SurveyParticipation();
         participation.setIdentityUser(identityUser);
-        participation.setDate(surveyParticipationDateToSave);
+        participation.setDate(utc);
+        participation.setLocalDate(localParts.date());
+        participation.setLocalTime(localParts.time());
         participation.setSurvey(survey);
         return participation;
     }
@@ -244,15 +257,20 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                         .map(this::toDocumentAnswer)
                         .toList();
 
-        SurveyResponseDocument.SensorReading sensorReading = null;
-        if (submittedDto.getSensorData() != null) {
-            SensorDataDto sensor = submittedDto.getSensorData();
-            sensorReading = SurveyResponseDocument.SensorReading.builder()
-                    .dateTime(sensor.getDateTime())
-                    .temperature(sensor.getTemperature())
-                    .humidity(sensor.getHumidity())
-                    .build();
-        }
+        List<SurveyResponseDocument.SensorReading> sensorReadings = submittedDto.getSensorData() == null
+                ? null
+                : submittedDto.getSensorData().stream()
+                        .map(sensor -> SurveyResponseDocument.SensorReading.builder()
+                                .dateTime(sensor.getDateTime())
+                                .source(sensor.getSource())
+                                .values(sensor.getValues().stream()
+                                        .map(value -> SurveyResponseDocument.SensorValue.builder()
+                                                .parameterCode(value.getParameterCode())
+                                                .value(value.getValue())
+                                                .build())
+                                        .toList())
+                                .build())
+                        .toList();
 
         return SurveyResponseDocument.builder()
                 .participationId(participation.getId())
@@ -261,10 +279,12 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                 .respondentId(identityUser.getId())
                 .respondentUsername(identityUser.getUsername())
                 .participationDate(participation.getDate())
+                .localDate(participation.getLocalDate())
+                .localTime(participation.getLocalTime())
                 .surveyStartDate(submittedDto.getStartDate())
                 .surveyFinishDate(submittedDto.getFinishDate())
                 .answers(answers)
-                .sensorData(sensorReading)
+                .sensorData(sensorReadings)
                 .persistedAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
@@ -468,8 +488,12 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                 .map(sd -> new AllResultsSensorDataDto(
                         sd.getId(),
                         sd.getDateTime(),
-                        sd.getTemperature(),
-                        sd.getHumidity(),
+                        sd.getSource(),
+                        sd.getValues().stream()
+                                .map(value -> new SensorDataValueDto(
+                                        value.getParameterDefinition().getCode(),
+                                        value.getValue()))
+                                .toList(),
                         sd.getSurveyParticipation() != null ? sd.getSurveyParticipation().getId() : null
                 ))
                 .collect(Collectors.toList());
@@ -492,10 +516,23 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
                 .collect(Collectors.toList());
     }
     private void saveSensorData(SendSurveyResponseDto sendSurveyResponseDto, SurveyParticipation surveyParticipation, IdentityUser identityUser) {
-        if (sendSurveyResponseDto.getSensorData() != null) {
-            SensorData sensorData = modelMapper.map(sendSurveyResponseDto.getSensorData(), SensorData.class);
+        List<SensorDataDto> sensorDataDtoList = sendSurveyResponseDto.getSensorData();
+        if (sensorDataDtoList == null) {
+            return;
+        }
+        Set<String> sourceCodes = sensorDataDtoList.stream()
+                .map(SensorDataDto::getSource)
+                .collect(Collectors.toSet());
+        Map<String, SensorType> sensorTypesByCode = sensorTypeRepository.findAllByCodeIn(sourceCodes).stream()
+                .collect(Collectors.toMap(SensorType::getCode, sensorType -> sensorType));
+        Map<String, SensorParameterDefinition> parametersByCode = sensorParameterDefinitionRepository.findAll().stream()
+                .collect(Collectors.toMap(SensorParameterDefinition::getCode, parameter -> parameter));
+
+        // One SensorData row per connected sensor type in this submission — see the comment on
+        // SensorData.surveyParticipation for why this is many-to-one, not one-to-one.
+        for (SensorDataDto sensorDataDto : sensorDataDtoList) {
+            SensorData sensorData = toSensorDataEntity(sensorDataDto, identityUser, sensorTypesByCode, parametersByCode);
             sensorData.setSurveyParticipation(surveyParticipation);
-            sensorData.setRespondent(identityUser);
             sensorDataRepository.save(sensorData);
         }
     }
@@ -513,7 +550,6 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
         dto.setRespondentId(surveyParticipation.getIdentityUser().getId());
         dto.setAnswers(extractAnswers(questionAnswer));
         dto.setLocalizationData(extractLocalizationData(surveyParticipation));
-        dto.setSensorData(extractSensorData(surveyParticipation));
         return dto;
     }
 
@@ -538,11 +574,31 @@ public class SurveyResponsesServiceImpl implements SurveyResponsesService {
 
         return answers;
     }
-    private SensorDataDto extractSensorData(SurveyParticipation sp) {
-        if(sp.getSensorData() != null){
-            return new SensorDataDto(sp.getSensorData().getDateTime(), sp.getSensorData().getTemperature(), sp.getSensorData().getHumidity());
+    private SensorData toSensorDataEntity(SensorDataDto dto, IdentityUser identityUser,
+                                           Map<String, SensorType> sensorTypesByCode,
+                                           Map<String, SensorParameterDefinition> parametersByCode) {
+        SensorType sourceSensorType = sensorTypesByCode.get(dto.getSource());
+        if (sourceSensorType == null) {
+            throw new IllegalArgumentException("Unknown sensor source: " + dto.getSource());
         }
-        return null;
+
+        SensorData sensorData = new SensorData();
+        sensorData.setRespondent(identityUser);
+        sensorData.setDateTime(dto.getDateTime());
+        sensorData.setSource(dto.getSource());
+        sensorData.setSourceSensorType(sourceSensorType);
+        dto.getValues().forEach(valueDto -> {
+            SensorParameterDefinition parameterDefinition = parametersByCode.get(valueDto.getParameterCode());
+            if (parameterDefinition == null) {
+                throw new IllegalArgumentException("Unknown sensor parameter: " + valueDto.getParameterCode());
+            }
+            SensorDataParameterValue value = new SensorDataParameterValue();
+            value.setSensorData(sensorData);
+            value.setParameterDefinition(parameterDefinition);
+            value.setValue(valueDto.getValue());
+            sensorData.getValues().add(value);
+        });
+        return sensorData;
     }
     private LocalizationPointDto extractLocalizationData(SurveyParticipation sp){
         if(sp.getLocalizationData() != null){

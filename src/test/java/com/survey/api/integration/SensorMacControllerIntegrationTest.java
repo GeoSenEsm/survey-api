@@ -2,11 +2,13 @@ package com.survey.api.integration;
 
 import com.survey.api.TestUtils;
 import com.survey.api.security.Role;
+import com.survey.application.dtos.AssignSensorRespondentDto;
 import com.survey.application.dtos.SensorMacDtoIn;
 import com.survey.application.dtos.SensorMacDtoOut;
 import com.survey.application.dtos.UpdatedSensorMacDtoIn;
 import com.survey.domain.models.IdentityUser;
 import com.survey.domain.models.SensorMac;
+import com.survey.domain.models.enums.SensorTypeCodes;
 import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.SensorMacRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,9 +47,13 @@ public class SensorMacControllerIntegrationTest {
     private final IdentityUserRepository userRepository;
     private final TestUtils testUtils;
     private final SensorMacRepository sensorMacRepository;
+    private UUID xiaomiTypeId;
 
     @Autowired
-    public SensorMacControllerIntegrationTest(WebTestClient webTestClient, IdentityUserRepository userRepository, TestUtils testUtils, SensorMacRepository sensorMacRepository) {
+    public SensorMacControllerIntegrationTest(WebTestClient webTestClient,
+                                              IdentityUserRepository userRepository,
+                                              TestUtils testUtils,
+                                              SensorMacRepository sensorMacRepository) {
         this.webTestClient = webTestClient;
         this.userRepository = userRepository;
         this.testUtils = testUtils;
@@ -58,6 +64,7 @@ public class SensorMacControllerIntegrationTest {
     void setUp(){
         userRepository.deleteAll();
         sensorMacRepository.deleteAll();
+        xiaomiTypeId = testUtils.getOrCreateXiaomiSensorType().getId();
     }
 
     @Test
@@ -101,8 +108,8 @@ public class SensorMacControllerIntegrationTest {
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
         List<SensorMacDtoIn> duplicateSensorMacDtoList = List.of(
-                new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_1),
-                new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_2)
+                new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_1, xiaomiTypeId),
+                new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_2, xiaomiTypeId)
         );
 
         webTestClient.post()
@@ -119,8 +126,8 @@ public class SensorMacControllerIntegrationTest {
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
         List<SensorMacDtoIn> duplicateSensorMacDtoList = List.of(
-                new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_1),
-                new SensorMacDtoIn(VALID_SENSOR_ID_2, VALID_SENSOR_MAC_1)
+                new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_1, xiaomiTypeId),
+                new SensorMacDtoIn(VALID_SENSOR_ID_2, VALID_SENSOR_MAC_1, xiaomiTypeId)
         );
 
         webTestClient.post()
@@ -137,7 +144,7 @@ public class SensorMacControllerIntegrationTest {
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
         List<SensorMacDtoIn> invalidSensorMacDtoList = List.of(
-                new SensorMacDtoIn(VALID_SENSOR_ID_1, INVALID_MAC)
+                new SensorMacDtoIn(VALID_SENSOR_ID_1, INVALID_MAC, xiaomiTypeId)
         );
 
         webTestClient.post()
@@ -154,7 +161,7 @@ public class SensorMacControllerIntegrationTest {
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
-        UpdatedSensorMacDtoIn updatedSensorMacDtoIn = new UpdatedSensorMacDtoIn(VALID_UPDATED_SENSOR_MAC_2);
+        UpdatedSensorMacDtoIn updatedSensorMacDtoIn = new UpdatedSensorMacDtoIn(VALID_UPDATED_SENSOR_MAC_2, xiaomiTypeId);
 
         var response = webTestClient.put()
                 .uri("/api/sensormac/{VALID_SENSOR_ID_2}", VALID_SENSOR_ID_2)
@@ -171,6 +178,8 @@ public class SensorMacControllerIntegrationTest {
         assertThat(response.get(0).getId()).isNotNull();
         assertThat(response.get(0).getSensorId()).isEqualTo(VALID_SENSOR_ID_2);
         assertThat(response.get(0).getSensorMac()).isEqualTo(VALID_UPDATED_SENSOR_MAC_2.toUpperCase());
+        assertThat(response.get(0).getSensorTypeId()).isEqualTo(xiaomiTypeId);
+        assertThat(response.get(0).getSensorTypeCode()).isEqualTo(SensorTypeCodes.XIAOMI);
         assertThat(response.get(0).getRowVersion()).isNotNull();
     }
 
@@ -179,7 +188,7 @@ public class SensorMacControllerIntegrationTest {
         IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
         String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
 
-        UpdatedSensorMacDtoIn updatedSensorMacDtoIn = new UpdatedSensorMacDtoIn(VALID_UPDATED_SENSOR_MAC_2);
+        UpdatedSensorMacDtoIn updatedSensorMacDtoIn = new UpdatedSensorMacDtoIn(VALID_UPDATED_SENSOR_MAC_2, xiaomiTypeId);
 
         webTestClient.put()
                 .uri("/api/sensormac/nonexistent-sensor-id")
@@ -242,8 +251,18 @@ public class SensorMacControllerIntegrationTest {
     @Test
     void getSpecificSensorMac_shouldReturnOkStatus(){
         saveSensorMacListDirectly(getValidSensorMacDtoList());
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
+
+        // A respondent may only fetch their own assigned sensor by sensorId (see endpoint docs).
+        webTestClient.put()
+                .uri("/api/sensormac/{sensorId}/respondent", VALID_SENSOR_ID_2)
+                .header("Authorization", "Bearer " + adminToken)
+                .bodyValue(new AssignSensorRespondentDto(respondent.getId()))
+                .exchange()
+                .expectStatus().isOk();
 
         var response = webTestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/api/sensormac")
@@ -322,11 +341,84 @@ public class SensorMacControllerIntegrationTest {
                 .expectStatus().isForbidden();
     }
 
+    @Test
+    void assignRespondent_andGetAssigned_shouldRoundTrip() {
+        saveSensorMacListDirectly(getValidSensorMacDtoList());
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
+
+        var assigned = webTestClient.put()
+                .uri("/api/sensormac/{sensorId}/respondent", VALID_SENSOR_ID_1)
+                .header("Authorization", "Bearer " + adminToken)
+                .bodyValue(new AssignSensorRespondentDto(respondent.getId()))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(SensorMacDtoOut.class)
+                .returnResult().getResponseBody();
+
+        assertThat(assigned).isNotNull();
+        assertThat(assigned.getRespondentId()).isEqualTo(respondent.getId());
+        assertThat(assigned.getRespondentUsername()).isEqualTo(respondent.getUsername());
+
+        var mine = webTestClient.get()
+                .uri("/api/sensormac/assigned")
+                .header("Authorization", "Bearer " + respondentToken)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(SensorMacDtoOut.class)
+                .returnResult().getResponseBody();
+
+        assertThat(mine).isNotNull();
+        assertThat(mine.getSensorId()).isEqualTo(VALID_SENSOR_ID_1);
+        assertThat(mine.getSensorMac()).isEqualTo(VALID_SENSOR_MAC_1.toUpperCase());
+        assertThat(mine.getRespondentId()).isEqualTo(respondent.getId());
+    }
+
+    @Test
+    void getAssigned_whenNone_shouldReturnNotFound() {
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
+        String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
+
+        webTestClient.get()
+                .uri("/api/sensormac/assigned")
+                .header("Authorization", "Bearer " + respondentToken)
+                .exchange()
+                .expectStatus().isNotFound();
+    }
+
+    @Test
+    void assignRespondent_movesExistingAssignment() {
+        saveSensorMacListDirectly(getValidSensorMacDtoList());
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+
+        webTestClient.put()
+                .uri("/api/sensormac/{sensorId}/respondent", VALID_SENSOR_ID_1)
+                .header("Authorization", "Bearer " + adminToken)
+                .bodyValue(new AssignSensorRespondentDto(respondent.getId()))
+                .exchange()
+                .expectStatus().isOk();
+
+        webTestClient.put()
+                .uri("/api/sensormac/{sensorId}/respondent", VALID_SENSOR_ID_2)
+                .header("Authorization", "Bearer " + adminToken)
+                .bodyValue(new AssignSensorRespondentDto(respondent.getId()))
+                .exchange()
+                .expectStatus().isOk();
+
+        assertThat(sensorMacRepository.findBySensorId(VALID_SENSOR_ID_1).orElseThrow().getRespondentId()).isNull();
+        assertThat(sensorMacRepository.findBySensorId(VALID_SENSOR_ID_2).orElseThrow().getRespondentId())
+                .isEqualTo(respondent.getId());
+    }
+
 
     private List<SensorMacDtoIn> getValidSensorMacDtoList(){
-        SensorMacDtoIn dto1 = new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_1);
-        SensorMacDtoIn dto2 = new SensorMacDtoIn(VALID_SENSOR_ID_2, VALID_SENSOR_MAC_2);
-        SensorMacDtoIn dto3 = new SensorMacDtoIn(VALID_SENSOR_ID_3, VALID_SENSOR_MAC_3);
+        SensorMacDtoIn dto1 = new SensorMacDtoIn(VALID_SENSOR_ID_1, VALID_SENSOR_MAC_1, xiaomiTypeId);
+        SensorMacDtoIn dto2 = new SensorMacDtoIn(VALID_SENSOR_ID_2, VALID_SENSOR_MAC_2, xiaomiTypeId);
+        SensorMacDtoIn dto3 = new SensorMacDtoIn(VALID_SENSOR_ID_3, VALID_SENSOR_MAC_3, xiaomiTypeId);
         return List.of(dto1, dto2, dto3);
     }
 
@@ -339,6 +431,8 @@ public class SensorMacControllerIntegrationTest {
                     UUID.randomUUID(),
                     dto.getSensorId(),
                     dto.getSensorMac().toUpperCase(),
+                    null,
+                    xiaomiTypeId,
                     randomRowVersion
             );
 

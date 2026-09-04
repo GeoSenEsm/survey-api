@@ -96,6 +96,7 @@ public class RespondentDataControllerIntegrationTest {
                 .filter(group -> !group.getName().equals("All"))
                 .toList();
         respondentGroupRepository.deleteAll(groupsToDelete);
+        testUtils.getOrCreateXiaomiSensorType();
     }
     @Test
     void createRespondent_ShouldReturnCreatedResponse() {
@@ -516,8 +517,10 @@ public class RespondentDataControllerIntegrationTest {
     private void saveSensorDataForRespondent(String token, OffsetDateTime time) {
         SensorDataDto entryDto = new SensorDataDto();
         entryDto.setDateTime(time);
-        entryDto.setTemperature(new BigDecimal("21.5"));
-        entryDto.setHumidity(new BigDecimal("51.5"));
+        entryDto.setSource("xiaomi");
+        entryDto.setValues(List.of(
+                new SensorDataValueDto("temperature", "21.5"),
+                new SensorDataValueDto("humidity", "51.5")));
 
         webTestClient.post()
                 .uri("/api/sensordata")

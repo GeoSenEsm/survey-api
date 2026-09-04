@@ -7,6 +7,7 @@ import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.*;
 
@@ -161,12 +162,8 @@ public class SurveyParticipationRepositoryCustomImpl implements SurveyParticipat
             predicates.add(cb.equal(sp.get("identityUser").get("id"), identityUserId));
         }
 
-        if (dateFrom != null && dateTo != null) {
-            predicates.add(cb.between(sp.get("date"), dateFrom, dateTo));
-        } else if (dateFrom != null) {
-            predicates.add(cb.greaterThanOrEqualTo(sp.get("date"), dateFrom));
-        } else if (dateTo != null) {
-            predicates.add(cb.lessThanOrEqualTo(sp.get("date"), dateTo));
+        if (dateFrom != null || dateTo != null) {
+            predicates.add(localDateTimeRange(cb, sp, dateFrom, dateTo));
         }
 
         if (outsideResearchArea != null) {
@@ -175,6 +172,43 @@ public class SurveyParticipationRepositoryCustomImpl implements SurveyParticipat
         }
 
         return predicates;
+    }
+
+    /**
+     * Interprets {@code dateFrom}/{@code dateTo} LocalDateTime faces as study
+     * wall-clock bounds and matches denormalized {@code local_date}/{@code local_time}.
+     */
+    private static Predicate localDateTimeRange(
+            CriteriaBuilder cb,
+            Root<SurveyParticipation> sp,
+            OffsetDateTime dateFrom,
+            OffsetDateTime dateTo) {
+        Predicate fromPredicate = null;
+        if (dateFrom != null) {
+            LocalDateTime from = dateFrom.toLocalDateTime();
+            fromPredicate = cb.or(
+                    cb.greaterThan(sp.get("localDate"), from.toLocalDate()),
+                    cb.and(
+                            cb.equal(sp.get("localDate"), from.toLocalDate()),
+                            cb.greaterThanOrEqualTo(sp.get("localTime"), from.toLocalTime().withNano(0))
+                    )
+            );
+        }
+        Predicate toPredicate = null;
+        if (dateTo != null) {
+            LocalDateTime to = dateTo.toLocalDateTime();
+            toPredicate = cb.or(
+                    cb.lessThan(sp.get("localDate"), to.toLocalDate()),
+                    cb.and(
+                            cb.equal(sp.get("localDate"), to.toLocalDate()),
+                            cb.lessThanOrEqualTo(sp.get("localTime"), to.toLocalTime().withNano(0))
+                    )
+            );
+        }
+        if (fromPredicate != null && toPredicate != null) {
+            return cb.and(fromPredicate, toPredicate);
+        }
+        return fromPredicate != null ? fromPredicate : toPredicate;
     }
 
     private List<SurveyParticipation> fetchWithRelationsByIds(List<UUID> ids) {
@@ -193,7 +227,6 @@ public class SurveyParticipationRepositoryCustomImpl implements SurveyParticipat
 
         // Eager fetch related entities
         sp.fetch("localizationData", JoinType.LEFT);
-        sp.fetch("sensorData", JoinType.LEFT);
         sp.fetch("survey", JoinType.LEFT);
         sp.fetch("identityUser", JoinType.LEFT);
 

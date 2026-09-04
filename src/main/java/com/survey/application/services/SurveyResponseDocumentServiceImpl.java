@@ -18,7 +18,11 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +36,8 @@ import java.util.zip.ZipOutputStream;
 public class SurveyResponseDocumentServiceImpl implements SurveyResponseDocumentService {
 
     private static final String PARTICIPATION_DATE_FIELD = "participationDate";
+    private static final String LOCAL_DATE_FIELD = "localDate";
+    private static final String LOCAL_TIME_FIELD = "localTime";
 
     private final SurveyResponseDocumentRepository repository;
     private final MongoTemplate mongoTemplate;
@@ -124,15 +130,44 @@ public class SurveyResponseDocumentServiceImpl implements SurveyResponseDocument
             query.addCriteria(Criteria.where("respondentId").is(respondentId));
         }
         if (dateFrom != null || dateTo != null) {
-            Criteria dateCriteria = Criteria.where(PARTICIPATION_DATE_FIELD);
-            if (dateFrom != null) {
-                dateCriteria = dateCriteria.gte(dateFrom);
-            }
-            if (dateTo != null) {
-                dateCriteria = dateCriteria.lte(dateTo);
-            }
-            query.addCriteria(dateCriteria);
+            query.addCriteria(localDateTimeRangeCriteria(dateFrom, dateTo));
         }
         return query;
+    }
+
+    /**
+     * Study wall-clock filter against denormalized {@code localDate}/{@code localTime}.
+     * {@code dateFrom}/{@code dateTo} LocalDateTime faces are the bounds.
+     */
+    private static Criteria localDateTimeRangeCriteria(OffsetDateTime dateFrom, OffsetDateTime dateTo) {
+        List<Criteria> parts = new ArrayList<>();
+        if (dateFrom != null) {
+            LocalDateTime from = dateFrom.toLocalDateTime();
+            LocalDate fromDate = from.toLocalDate();
+            LocalTime fromTime = from.toLocalTime().withNano(0);
+            parts.add(new Criteria().orOperator(
+                    Criteria.where(LOCAL_DATE_FIELD).gt(fromDate.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)),
+                    new Criteria().andOperator(
+                            Criteria.where(LOCAL_DATE_FIELD).is(fromDate.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)),
+                            Criteria.where(LOCAL_TIME_FIELD).gte(fromTime.format(java.time.format.DateTimeFormatter.ISO_LOCAL_TIME))
+                    )
+            ));
+        }
+        if (dateTo != null) {
+            LocalDateTime to = dateTo.toLocalDateTime();
+            LocalDate toDate = to.toLocalDate();
+            LocalTime toTime = to.toLocalTime().withNano(0);
+            parts.add(new Criteria().orOperator(
+                    Criteria.where(LOCAL_DATE_FIELD).lt(toDate.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)),
+                    new Criteria().andOperator(
+                            Criteria.where(LOCAL_DATE_FIELD).is(toDate.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)),
+                            Criteria.where(LOCAL_TIME_FIELD).lte(toTime.format(java.time.format.DateTimeFormatter.ISO_LOCAL_TIME))
+                    )
+            ));
+        }
+        if (parts.size() == 1) {
+            return parts.get(0);
+        }
+        return new Criteria().andOperator(parts.toArray(Criteria[]::new));
     }
 }

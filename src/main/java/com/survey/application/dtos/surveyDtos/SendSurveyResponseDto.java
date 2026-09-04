@@ -10,11 +10,11 @@ public interface SendSurveyResponseDto {
     UUID getSurveyId();
     OffsetDateTime getStartDate();
     OffsetDateTime getFinishDate();
-    SensorDataDto getSensorData();
+    List<SensorDataDto> getSensorData();
     List<AnswerDto> getAnswers();
     SendSurveyResponseDto setSurveyId(UUID surveyId);
     SendSurveyResponseDto setStartDate(OffsetDateTime startDate);
     SendSurveyResponseDto setFinishDate(OffsetDateTime finishDate);
-    SendSurveyResponseDto setSensorData(SensorDataDto sensorData);
+    SendSurveyResponseDto setSensorData(List<SensorDataDto> sensorData);
     SendSurveyResponseDto setAnswers(List<AnswerDto> answers);
 }

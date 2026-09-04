@@ -218,6 +218,7 @@ class SendOnlineSurveyResponseDtoValidatorTest {
                                 )
                         ),
                         null,
+                        null,
                         OffsetDateTime.now(ZoneOffset.UTC)
                 ),
                 new SendOnlineSurveyResponseDto(

@@ -17,6 +17,5 @@ public class SurveyResultDto {
     private OffsetDateTime responseDate;
     private List<Object> answers;
     private LocalizationPointDto localizationData;
-    private SensorDataDto sensorData;
     private UUID respondentId;
 }

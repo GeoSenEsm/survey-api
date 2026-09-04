@@ -6,6 +6,7 @@ import com.survey.api.TestUtils;
 import com.survey.api.security.Role;
 import com.survey.application.dtos.CreateSurveySendingPolicyDto;
 import com.survey.application.dtos.SensorDataDto;
+import com.survey.application.dtos.SensorDataValueDto;
 import com.survey.application.dtos.SurveyParticipationTimeStartFinishDto;
 import com.survey.application.dtos.SurveyResultDto;
 import com.survey.application.dtos.surveyDtos.*;
@@ -383,12 +384,6 @@ public class SurveyResponsesControllerIntegrationTest {
                 .as("Should return exactly 2 results without duplicates, even with LEFT JOIN FETCH on relations");
 
         assertThat(response).allMatch(result -> result.getSurveyName().equals(SURVEY_NAME_1));
-
-        long resultsWithSensorData = response.stream()
-                .filter(result -> result.getSensorData() != null)
-                .count();
-        assertThat(resultsWithSensorData).isEqualTo(1)
-                .as("Exactly one result should have sensor data");
     }
 
     private <T extends SendSurveyResponseDto> void populateSurveyResponseBase(T responseDto, ResponseSurveyDto survey, SensorDataDto sensorData) {
@@ -403,7 +398,7 @@ public class SurveyResponsesControllerIntegrationTest {
         responseDto.setAnswers(List.of(answer));
         responseDto.setStartDate(OffsetDateTime.now().minusHours(1));
         responseDto.setFinishDate(OffsetDateTime.now());
-        responseDto.setSensorData(sensorData);
+        responseDto.setSensorData(sensorData == null ? null : List.of(sensorData));
     }
 
     private SendOnlineSurveyResponseDto createSendSurveyResponseOnline(ResponseSurveyDto survey, SensorDataDto sensorData) {
@@ -418,10 +413,16 @@ public class SurveyResponsesControllerIntegrationTest {
         return responseDto;
     }
     private SensorDataDto createSensorDataDto() {
+        // Must not depend on another test class having run first in the same suite and left a
+        // "xiaomi" SensorType behind — a fresh DB starts with no seeded sensor types at all now
+        // that they're installed on demand from SensorProfileTemplateCatalog (see its class doc).
+        testUtils.getOrCreateXiaomiSensorType();
         SensorDataDto sensorDataDto = new SensorDataDto();
         sensorDataDto.setDateTime(OffsetDateTime.now(UTC));
-        sensorDataDto.setTemperature(VALID_TEMPERATURE);
-        sensorDataDto.setHumidity(VALID_HUMIDITY);
+        sensorDataDto.setSource("xiaomi");
+        sensorDataDto.setValues(List.of(
+                new SensorDataValueDto("temperature", VALID_TEMPERATURE.toPlainString()),
+                new SensorDataValueDto("humidity", VALID_HUMIDITY.toPlainString())));
         return sensorDataDto;
     }
     private ResponseSurveyDto saveSurvey(CreateSurveyDto createSurveyDto) {

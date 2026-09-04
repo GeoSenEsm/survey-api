@@ -366,6 +366,9 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         response.put("username", respondentData.getUsername());
         response.put("surveyStartDate", user.getSurveyStartDate());
         response.put("surveyEndDate", user.getSurveyEndDate());
+        response.put("timeZone", user.getTimeZone() == null
+                ? RespondentTimeZoneService.DEFAULT_TIME_ZONE
+                : user.getTimeZone());
 
         mapQuestionsAndOptions(respondentData, response);
    
@@ -379,6 +382,9 @@ public class RespondentDataServiceImpl implements RespondentDataService{
         response.put("username", identityUser.getUsername());
         response.put("surveyStartDate", identityUser.getSurveyStartDate());
         response.put("surveyEndDate", identityUser.getSurveyEndDate());
+        response.put("timeZone", identityUser.getTimeZone() == null
+                ? RespondentTimeZoneService.DEFAULT_TIME_ZONE
+                : identityUser.getTimeZone());
 
         RespondentData respondentData = respondentDataRepository.findByIdentityUserId(identityUserId);
 

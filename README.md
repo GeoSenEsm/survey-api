@@ -48,6 +48,35 @@ Dependencies flow inward (`api` → `application` → `domain`). Controllers
 return DTOs only — never JPA entities. Mongo writes happen after the SQL
 transaction commits via `@TransactionalEventListener(AFTER_COMMIT)`.
 
+Sensor readings use a dynamic parameter/value model. Global configuration is
+served from `/api/surveysettings/sensordata`; mobile respondents read their
+filtered setup from `/api/surveysettings/sensordata/mobile`. A survey
+submission carries a list of sensor readings — one `sensor_data` row plus its
+`sensor_data_parameter_value` rows per connected sensor type, since a
+respondent can have more than one sensor assigned at once — mirrored into
+response documents as a `sensorData` array of `{source, values}` entries.
+Sensor types are not hardcoded: new ones (including their BLE GATT wiring)
+are defined through the sensor profile endpoints below, so `source` can be
+any configured sensor type code, not just the built-in `xiaomi`/`kestrel`.
+
+### Sensor profiles, MAC assignment, and integrations
+
+Three more endpoint families sit alongside `/api/surveysettings/sensordata*`:
+
+| Endpoints | Purpose |
+| --- | --- |
+| `/api/sensorprofiles/**` (`SensorGattProfileController`) | Admin CRUD for sensor types: install prebuilt templates, inspect capabilities, create custom sensor types, manage each type's raw parameter catalog (create/edit/delete, then `use`/`unuse` to promote a parameter into the "used sensor data" catalog), and draft → validate → publish → rollback the GATT profile revisions that describe how to talk to the physical device over BLE. |
+| `/api/sensormac/**` (`SensorMacController`) | Registry of sensorId ↔ MAC address pairs, 1:1 assignment of a physical sensor to a respondent (`PUT /{sensorId}/respondent`), and the `/assigned` lookup the mobile app calls to auto-configure its BLE connection. |
+| `/api/surveysettings/logo`, `/api/surveysettings/sensordata/parameters[/{id}]` | Study logo upload/removal (downscaled server-side, 1 MB / 8192px limits), and per-parameter CRUD for manual ("used sensor data") entries that aren't backed by any physical sensor type. |
+
+Each sensor type carries an `enabled` flag and `connectionTimeoutSeconds`
+(`SensorTypeSettingDto`, set via `PUT /api/surveysettings/sensordata`) —
+this is the "integrations" toggle that turns a data source on/off without
+deleting its configuration. Disabling a type detaches its parameters (they
+are not deleted), and once the initial survey is published the sensor-data
+*shape* locks — only assigning physical sensors to respondents
+(`/api/sensormac`) stays open after that point.
+
 ---
 
 
@@ -126,8 +155,9 @@ docker run -p 27017:27017 --name geosenesm-mongo -d mongo:7.0
 
 | Store             | Role                                                                                                                                                                                                                   |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **MS SQL Server** | Source of truth for identities, surveys, questions, options, participations, answers, sensor/localization data, research area, phone numbers. Schema managed by Flyway under `src/main/resources/db/migration/`.       |
-| **MongoDB**       | Denormalized snapshot of each submitted survey response (`surveyResponseDocuments`). Written after SQL commit so a Mongo failure never rolls back the primary write. Consumed by the admin **Response Documents** tab. |
+| **MS SQL Server** | Source of truth for identities, surveys, questions, options, participations, answers, sensor/localization data, research area, phone numbers, per-survey phone notification rules (`survey_notification`), and study-wide `survey_settings`. Schema managed by Flyway under `src/main/resources/db/migration/`.       |
+| **MongoDB**       | Denormalized snapshot of each submitted survey response (`surveyResponseDocuments`). Written after SQL commit so a Mongo failure never rolls back the primary write. Consumed by the admin **Response Documents** tab. Includes `localDate`/`localTime` (respondent wall clock) alongside UTC `participationDate`. |
+| **Timezones**     | Each respondent has an IANA `time_zone` (default `UTC`). Mobile sends it on login; the API recalculates `survey_participation.local_date`/`local_time` and Mongo local fields. Study time slots are wall-clock schedules interpreted in that timezone. Result filters and daily completion use local columns. |
 
 
 ---
@@ -160,7 +190,16 @@ Document shape (null / empty answer fields are omitted):
       "numericAnswer": 3
     }
   ],
-  "sensorData": { "dateTime": "…", "temperature": 21.5, "humidity": 45.0 },
+  "sensorData": [
+    {
+      "dateTime": "2026-07-12T17:27:00Z",
+      "source": "xiaomi",
+      "values": [
+        { "parameterCode": "temperature", "value": "21.5" },
+        { "parameterCode": "humidity", "value": "45.0" }
+      ]
+    }
+  ],
   "persistedAt": "2026-07-12T17:27:55Z"
 }
 ```

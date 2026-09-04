@@ -37,6 +37,10 @@ public class Survey {
     @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SurveySendingPolicy> policies = new ArrayList<>();
 
+    @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("order ASC")
+    private List<SurveyNotification> notifications = new ArrayList<>();
+
     @Column(name = "creation_date", nullable = false, updatable = false)
     private OffsetDateTime creationDate;
 

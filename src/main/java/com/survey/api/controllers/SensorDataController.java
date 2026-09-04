@@ -33,7 +33,7 @@ import java.util.UUID;
 @Validated
 @RestController
 @RequestMapping("/api/sensordata")
-@Tag(name = "Temperature sensors", description = "Endpoints for managing data from temperature sensors.")
+@Tag(name = "Sensor data", description = "Endpoints for managing configured sensor readings.")
 public class SensorDataController {
 
     private final SensorDataService sensorDataService;
@@ -50,7 +50,7 @@ public class SensorDataController {
     @Operation(
             summary = "Save sensor readings.",
             description = """
-                    - Allows respondents to send temperature and humidity measurements from their sensors.
+                    - Allows respondents to send configured parameter/value measurements from their sensors.
                     - **Access:**
                         - RESPONDENT
                     """)
@@ -66,12 +66,12 @@ public class SensorDataController {
     @CommonApiResponse401
     @CommonApiResponse403
     public ResponseEntity<List<ResponseSensorDataDto>> saveSensorData(
-            @Valid @RequestBody List<SensorDataDto> temperatureDataDtoList){
+            @Valid @RequestBody List<SensorDataDto> sensorDataDtoList){
 
         claimsPrincipalService.ensureRole(Role.RESPONDENT.getRoleName());
 
-        List<ResponseSensorDataDto> savedTemperatureData = sensorDataService.saveSensorData(temperatureDataDtoList);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedTemperatureData);
+        List<ResponseSensorDataDto> savedSensorData = sensorDataService.saveSensorData(sensorDataDtoList);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedSensorData);
     }
 
 

@@ -23,6 +23,21 @@ public class SensorMacDtoOut {
             example = "00:1A:2B:3C:4D:5E")
     private String sensorMac;
 
+    @Schema(description = "Assigned respondent identity_user id, if any.", nullable = true)
+    private UUID respondentId;
+
+    @Schema(description = "Assigned respondent username, if any.", nullable = true)
+    private String respondentUsername;
+
+    @Schema(description = "Sensor type id.")
+    private UUID sensorTypeId;
+
+    @Schema(description = "Stable sensor type code (xiaomi, kestrel, manual, none).", example = "xiaomi")
+    private String sensorTypeCode;
+
+    @Schema(description = "Sensor type display name.", example = "Xiaomi")
+    private String sensorTypeName;
+
     @Schema(example = "2001")
     private Long rowVersion;
 }

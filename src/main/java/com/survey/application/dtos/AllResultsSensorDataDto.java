@@ -6,8 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Setter
@@ -21,11 +21,11 @@ public class AllResultsSensorDataDto {
     @Schema(description = "Date and time of the sensor data collection.")
     private OffsetDateTime dateTime;
 
-    @Schema(description = "Temperature recorded by the sensor.")
-    private BigDecimal temperature;
+    @Schema(description = "Sensor source code, for example xiaomi, kestrel, or manual.")
+    private String source;
 
-    @Schema(description = "Humidity recorded by the sensor.")
-    private BigDecimal humidity;
+    @Schema(description = "Captured values keyed by admin-defined parameter code.")
+    private List<SensorDataValueDto> values;
 
     @Schema(description = "Unique identifier of the survey participation associated with this sensor data.")
     private UUID surveyParticipationId;

@@ -24,6 +24,12 @@ public class IdentityUser {
     private LocalDate surveyStartDate;
     /** Inclusive end of the respondent's study window, or null if unset. */
     private LocalDate surveyEndDate;
+    /**
+     * IANA timezone id used for study wall-clock slots and denormalized
+     * participation local date/time. Defaults to {@code UTC} until the
+     * respondent logs in from a device.
+     */
+    private String timeZone = "UTC";
 
     public boolean hasSurveyWindow() {
         return surveyStartDate != null && surveyEndDate != null;

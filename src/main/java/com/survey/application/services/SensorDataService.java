@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface SensorDataService {
-    List<ResponseSensorDataDto> saveSensorData(List<SensorDataDto> temperatureDataDtoList);
+    List<ResponseSensorDataDto> saveSensorData(List<SensorDataDto> sensorDataDtoList);
     List<ResponseSensorDataDto> getSensorData(OffsetDateTime from, OffsetDateTime to, UUID identityUserId);
     List<ResponseSensorDataDto> getSensorDataBatch(OffsetDateTime from, OffsetDateTime to, UUID identityUserId, int offset, int limit);
     void streamSensorData(OutputStream outputStream, OffsetDateTime from, OffsetDateTime to, UUID identityUserId) throws Exception;

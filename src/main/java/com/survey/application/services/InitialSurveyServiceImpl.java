@@ -80,7 +80,8 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
     @Override
     @Transactional
     public void publishInitialSurveyAndCreateRespondentGroups() {
-        InitialSurvey initialSurvey = findInitialSurvey();
+        InitialSurvey initialSurvey = initialSurveyRepository.findTopByRowVersionDescForUpdate()
+                .orElseThrow(() -> new NoSuchElementException("No initial survey created"));
 
         if (initialSurvey.getState() == SurveyState.published){
             throw new IllegalStateException("Initial survey is already published.");
@@ -102,6 +103,21 @@ public class InitialSurveyServiceImpl implements InitialSurveyService {
                         ).toList();
 
         respondentGroupRepository.saveAll(respondentGroups);
+    }
+
+    /**
+     * Backs {@link InitialSurveyService#requireNotPublished()}, which every sensor-data-setup
+     * mutation calls at the start of its own {@code @Transactional} method. Taking a row lock here
+     * (rather than a plain read) keeps that check atomic with the write that follows it: this call
+     * and {@link #publishInitialSurveyAndCreateRespondentGroups()} both lock the same
+     * {@code initial_survey} row, so whichever transaction gets there first holds the lock until it
+     * commits, and the other blocks and re-checks against the up-to-date state.
+     */
+    @Override
+    public boolean isPublished() {
+        return initialSurveyRepository.findTopByRowVersionDescForUpdate()
+                .filter(initialSurvey -> initialSurvey.getState() == SurveyState.published)
+                .isPresent();
     }
 
     private boolean isInitialSurveyPublished(){

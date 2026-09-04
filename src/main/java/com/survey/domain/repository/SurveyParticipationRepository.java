@@ -5,6 +5,7 @@ import com.survey.domain.models.SurveyParticipation;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Date;
 import java.util.List;
@@ -43,34 +44,35 @@ public interface SurveyParticipationRepository extends JpaRepository<SurveyParti
             "GROUP BY sp.identityUser.id, sp.identityUser.username")
     List<Object[]> aggregateParticipationsPerRespondent();
 
-    @Query("SELECT sp.date FROM SurveyParticipation sp " +
-            "WHERE sp.identityUser.id = :respondentId " +
-            "ORDER BY sp.date")
-    List<OffsetDateTime> findDatesByRespondentId(UUID respondentId);
-
-    @Query("SELECT sp.date FROM SurveyParticipation sp ORDER BY sp.date")
-    List<OffsetDateTime> findAllDatesOrdered();
-
     /**
-     * One row per participation whose {@code date} falls in {@code [from, to]}:
-     * {@code [respondentId, surveyId, date]}. Used by the daily-completion
-     * overview to map filled slots to respondents without hydrating full
-     * entity graphs.
+     * One row per participation on the given respondent-local calendar day:
+     * {@code [respondentId, surveyId, date, localDate, localTime]}.
      */
-    @Query("SELECT sp.identityUser.id, sp.survey.id, sp.date FROM SurveyParticipation sp " +
-            "WHERE sp.date BETWEEN :from AND :to")
-    List<Object[]> findRespondentSurveyDateTuplesInWindow(OffsetDateTime from, OffsetDateTime to);
+    @Query("SELECT sp.identityUser.id, sp.survey.id, sp.date, sp.localDate, sp.localTime " +
+            "FROM SurveyParticipation sp WHERE sp.localDate = :localDate")
+    List<Object[]> findRespondentSurveyLocalTuplesOnLocalDate(LocalDate localDate);
+
+    @Query("SELECT sp.identityUser.id, sp.survey.id, sp.date, sp.localDate, sp.localTime " +
+            "FROM SurveyParticipation sp WHERE sp.localDate BETWEEN :from AND :to")
+    List<Object[]> findRespondentSurveyLocalTuplesBetween(LocalDate from, LocalDate to);
+
+    @Query("SELECT sp.localDate FROM SurveyParticipation sp " +
+            "WHERE sp.identityUser.id = :respondentId ORDER BY sp.localDate, sp.localTime")
+    List<LocalDate> findLocalDatesByRespondentId(UUID respondentId);
+
+    @Query("SELECT sp.localDate FROM SurveyParticipation sp ORDER BY sp.localDate, sp.localTime")
+    List<LocalDate> findAllLocalDatesOrdered();
 
     /**
      * Lightweight participation rows for Issues fulfillment:
      * {@code [respondentId, participationId, date]}.
      */
-    @Query("SELECT sp.identityUser.id, sp.id, sp.date FROM SurveyParticipation sp")
+    @Query("SELECT sp.identityUser.id, sp.id, sp.date, sp.localDate FROM SurveyParticipation sp")
     List<Object[]> findAllRespondentParticipationTuples();
 
-    @Query("SELECT sp.identityUser.id, sp.id, sp.date FROM SurveyParticipation sp " +
-            "WHERE sp.date BETWEEN :from AND :to")
-    List<Object[]> findRespondentParticipationTuplesInWindow(OffsetDateTime from, OffsetDateTime to);
+    @Query("SELECT sp.identityUser.id, sp.id, sp.date, sp.localDate FROM SurveyParticipation sp " +
+            "WHERE sp.localDate BETWEEN :from AND :to")
+    List<Object[]> findRespondentParticipationTuplesByLocalDateBetween(LocalDate from, LocalDate to);
 
     /**
      * Submission timestamps of participations whose linked localization

@@ -5,9 +5,17 @@ import com.survey.api.security.Role;
 import com.survey.application.dtos.LastSensorEntryDateDto;
 import com.survey.application.dtos.ResponseSensorDataDto;
 import com.survey.application.dtos.SensorDataDto;
+import com.survey.application.dtos.SensorDataValueDto;
+import com.survey.application.services.RespondentTimeZoneService;
 import com.survey.domain.models.IdentityUser;
+import com.survey.domain.models.SensorData;
+import com.survey.domain.models.Survey;
+import com.survey.domain.models.SurveyParticipation;
+import com.survey.domain.models.enums.SurveyState;
 import com.survey.domain.repository.IdentityUserRepository;
 import com.survey.domain.repository.SensorDataRepository;
+import com.survey.domain.repository.SurveyParticipationRepository;
+import com.survey.domain.repository.SurveyRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,7 +26,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -31,31 +38,41 @@ import static org.assertj.core.api.Assertions.assertThat;
 @TestPropertySource(properties = "ADMIN_USER_PASSWORD=testAdminPassword")
 @AutoConfigureWebTestClient
 public class SensorDataControllerIntegrationTest {
-    private static final BigDecimal VALID_TEMPERATURE = new BigDecimal("21.5");
-    private static final BigDecimal VALID_HUMIDITY = new BigDecimal("60.4");
     private static final String ADMIN_PASSWORD = "testAdminPassword";
     private static final String RESPONDENT_PASSWORD = "testRespondentPassword";
 
     private final WebTestClient webTestClient;
     private final IdentityUserRepository userRepository;
     private final SensorDataRepository sensorDataRepository;
+    private final SurveyRepository surveyRepository;
+    private final SurveyParticipationRepository surveyParticipationRepository;
     private final TestUtils testUtils;
+    private final RespondentTimeZoneService respondentTimeZoneService;
 
     @Autowired
     public SensorDataControllerIntegrationTest(WebTestClient webTestClient,
                                                IdentityUserRepository userRepository,
                                                SensorDataRepository sensorDataRepository,
-                                               TestUtils testUtils) {
+                                               SurveyRepository surveyRepository,
+                                               SurveyParticipationRepository surveyParticipationRepository,
+                                               TestUtils testUtils,
+                                               RespondentTimeZoneService respondentTimeZoneService) {
         this.webTestClient = webTestClient;
         this.userRepository = userRepository;
         this.sensorDataRepository = sensorDataRepository;
+        this.surveyRepository = surveyRepository;
+        this.surveyParticipationRepository = surveyParticipationRepository;
         this.testUtils = testUtils;
+        this.respondentTimeZoneService = respondentTimeZoneService;
     }
 
     @BeforeEach
     void setUp(){
         sensorDataRepository.deleteAll();
+        surveyParticipationRepository.deleteAll();
+        surveyRepository.deleteAll();
         userRepository.deleteAll();
+        testUtils.getOrCreateXiaomiSensorType();
     }
 
     @Test
@@ -63,10 +80,7 @@ public class SensorDataControllerIntegrationTest {
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
-        SensorDataDto entryDto = new SensorDataDto();
-        entryDto.setDateTime(OffsetDateTime.now(UTC));
-        entryDto.setTemperature(VALID_TEMPERATURE);
-        entryDto.setHumidity(VALID_HUMIDITY);
+        SensorDataDto entryDto = createSensorDataDto(OffsetDateTime.now(UTC), "21.5", "60.4");
 
         var response = webTestClient.post()
                 .uri("/api/sensordata")
@@ -80,20 +94,22 @@ public class SensorDataControllerIntegrationTest {
 
         assertThat(response).isNotNull();
         assertThat(response).hasSize(1);
-        assertThat(response.get(0).getTemperature().compareTo(entryDto.getTemperature())).isEqualTo(0);
-        assertThat(response.get(0).getHumidity().compareTo(entryDto.getHumidity())).isEqualTo(0);
+        assertThat(response.get(0).getSource()).isEqualTo("xiaomi");
+        assertThat(response.get(0).getValues())
+                .extracting(SensorDataValueDto::getParameterCode)
+                .containsExactlyInAnyOrder("temperature", "humidity");
         assertThat(response.get(0).getRespondentId()).isEqualTo(respondent.getId());
 
     }
 
     @Test
-    void saveTemperatureData_InvalidInputMissingTemperatureField_ShouldReturnBadRequest(){
+    void saveSensorData_InvalidInputMissingValues_ShouldReturnBadRequest(){
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
         SensorDataDto entryDto = new SensorDataDto();
         entryDto.setDateTime(OffsetDateTime.now(UTC));
-        entryDto.setHumidity(VALID_HUMIDITY);
+        entryDto.setSource("xiaomi");
 
         webTestClient.post()
                 .uri("/api/sensordata")
@@ -110,8 +126,8 @@ public class SensorDataControllerIntegrationTest {
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
         SensorDataDto entryDto = new SensorDataDto();
-        entryDto.setTemperature(VALID_TEMPERATURE);
-        entryDto.setHumidity(VALID_HUMIDITY);
+        entryDto.setSource("xiaomi");
+        entryDto.setValues(List.of(new SensorDataValueDto("temperature", "21.5")));
 
         webTestClient.post()
                 .uri("/api/sensordata")
@@ -123,14 +139,14 @@ public class SensorDataControllerIntegrationTest {
     }
 
     @Test
-    void saveTemperatureData_InvalidTemperatureRange_ShouldReturnBadRequest() {
+    void saveSensorData_InvalidUnknownParameter_ShouldReturnBadRequest() {
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
         SensorDataDto entryDto = new SensorDataDto();
         entryDto.setDateTime(OffsetDateTime.now(UTC));
-        entryDto.setTemperature(BigDecimal.valueOf(100.0));
-        entryDto.setHumidity(VALID_HUMIDITY);
+        entryDto.setSource("xiaomi");
+        entryDto.setValues(List.of(new SensorDataValueDto("unknown", "100.0")));
 
         webTestClient.post()
                 .uri("/api/sensordata")
@@ -169,10 +185,7 @@ public class SensorDataControllerIntegrationTest {
         OffsetDateTime from = OffsetDateTime.now(UTC).minusDays(1);
         OffsetDateTime to = OffsetDateTime.now(UTC).plusDays(1);
 
-        SensorDataDto entryDto = new SensorDataDto();
-        entryDto.setDateTime(OffsetDateTime.now(UTC));
-        entryDto.setTemperature(VALID_TEMPERATURE);
-        entryDto.setHumidity(VALID_HUMIDITY);
+        SensorDataDto entryDto = createSensorDataDto(OffsetDateTime.now(UTC), "21.5", "60.4");
 
         saveSensorData(respondent, entryDto);
 
@@ -189,9 +202,39 @@ public class SensorDataControllerIntegrationTest {
 
         assertThat(response).isNotNull();
         assertThat(response).isNotEmpty();
-        assertThat(response.get(0).getTemperature().compareTo(entryDto.getTemperature())).isEqualTo(0);
-        assertThat(response.get(0).getHumidity().compareTo(entryDto.getHumidity())).isEqualTo(0);
+        assertThat(response.get(0).getValues()).hasSize(2);
         assertThat(response.get(0).getRespondentId()).isEqualTo(respondent.getId());
+        assertThat(response.get(0).getSurveyId()).isNull();
+    }
+
+    @Test
+    void getSensorData_ReadingLinkedToSurveyParticipation_ShouldIncludeSurveyId() {
+        IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
+
+        IdentityUser admin = testUtils.createUserWithRole(Role.ADMIN.getRoleName(), ADMIN_PASSWORD);
+        String adminToken = testUtils.authenticateAndGenerateToken(admin, ADMIN_PASSWORD);
+
+        Survey survey = createSurvey();
+        SurveyParticipation participation = createSurveyParticipation(survey, respondent);
+        createLinkedSensorData(respondent, participation);
+
+        OffsetDateTime from = OffsetDateTime.now(UTC).minusDays(1);
+        OffsetDateTime to = OffsetDateTime.now(UTC).plusDays(1);
+
+        var response = webTestClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/api/sensordata")
+                        .queryParam("from", from.toString())
+                        .queryParam("to", to.toString())
+                        .build())
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(ResponseSensorDataDto.class)
+                .returnResult().getResponseBody();
+
+        assertThat(response).isNotNull();
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).getSurveyId()).isEqualTo(survey.getId());
     }
 
     @Test
@@ -214,16 +257,10 @@ public class SensorDataControllerIntegrationTest {
         IdentityUser respondent = testUtils.createUserWithRole(Role.RESPONDENT.getRoleName(), RESPONDENT_PASSWORD);
         String respondentToken = testUtils.authenticateAndGenerateToken(respondent, RESPONDENT_PASSWORD);
 
-        SensorDataDto entryDto1 = new SensorDataDto();
-        entryDto1.setDateTime(OffsetDateTime.now(UTC).minusDays(1));
-        entryDto1.setTemperature(VALID_TEMPERATURE);
-        entryDto1.setHumidity(VALID_HUMIDITY);
+        SensorDataDto entryDto1 = createSensorDataDto(OffsetDateTime.now(UTC).minusDays(1), "21.5", "60.4");
         saveSensorData(respondent, entryDto1);
 
-        SensorDataDto entryDto2 = new SensorDataDto();
-        entryDto2.setDateTime(OffsetDateTime.now(UTC));
-        entryDto2.setTemperature(VALID_TEMPERATURE.add(BigDecimal.ONE));
-        entryDto2.setHumidity(VALID_HUMIDITY);
+        SensorDataDto entryDto2 = createSensorDataDto(OffsetDateTime.now(UTC), "22.5", "60.4");
         saveSensorData(respondent, entryDto2);
 
         var response = webTestClient.get()
@@ -267,6 +304,57 @@ public class SensorDataControllerIntegrationTest {
                 .bodyValue(List.of(entryDto))
                 .exchange()
                 .expectStatus().isCreated();
+    }
+
+    private SensorDataDto createSensorDataDto(OffsetDateTime dateTime, String temperature, String humidity) {
+        SensorDataDto dto = new SensorDataDto();
+        dto.setDateTime(dateTime);
+        dto.setSource("xiaomi");
+        dto.setValues(List.of(
+                new SensorDataValueDto("temperature", temperature),
+                new SensorDataValueDto("humidity", humidity)));
+        return dto;
+    }
+
+    private Survey createSurvey() {
+        Survey survey = new Survey();
+        survey.setName("Sensor data survey " + UUID.randomUUID());
+        survey.setState(SurveyState.created);
+        survey.setCreationDate(OffsetDateTime.now(UTC));
+        return surveyRepository.save(survey);
+    }
+
+    private SurveyParticipation createSurveyParticipation(Survey survey, IdentityUser respondent) {
+        OffsetDateTime date = respondentTimeZoneService.toUtc(OffsetDateTime.now(UTC));
+        var localParts = respondentTimeZoneService.toLocalParts(
+                date, respondentTimeZoneService.resolveZoneId(respondent));
+
+        SurveyParticipation participation = new SurveyParticipation();
+        participation.setSurvey(survey);
+        participation.setIdentityUser(respondent);
+        participation.setDate(date);
+        participation.setLocalDate(localParts.date());
+        participation.setLocalTime(localParts.time());
+        // row_version is a DB-generated rowversion column (insertable = false, no @Generated
+        // annotation), so neither save() nor saveAndFlush() populates the entity's @Version field
+        // afterward — only a fresh read pulls the DB-assigned value back. Without it, using this
+        // entity for another entity's association in the same persistence context
+        // (createLinkedSensorData below) fails with "detached entity ... has an uninitialized
+        // version value": Hibernate can't tell a genuinely-new entity apart from a saved-but-
+        // version-less one once it already has a generated id. (entityManager.refresh() would do
+        // the same, but needs an active transaction, which this non-@Transactional HTTP
+        // integration test doesn't have.)
+        SurveyParticipation saved = surveyParticipationRepository.saveAndFlush(participation);
+        return surveyParticipationRepository.findById(saved.getId()).orElseThrow();
+    }
+
+    private void createLinkedSensorData(IdentityUser respondent, SurveyParticipation participation) {
+        SensorData sensorData = new SensorData();
+        sensorData.setRespondent(respondent);
+        sensorData.setDateTime(OffsetDateTime.now(UTC));
+        sensorData.setSource("xiaomi");
+        sensorData.setSurveyParticipation(participation);
+        sensorDataRepository.save(sensorData);
     }
 
 }
